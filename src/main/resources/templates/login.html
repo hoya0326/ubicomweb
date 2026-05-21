@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 - UbiCOM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../static/static/css/styles.css">
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <a href="index.html" class="text-2xl font-bold hover:text-blue-100 transition-colors">
+                    UbiCOM
+                </a>
+                <nav class="hidden md:flex items-center gap-6">
+                    <a href="notice.html" class="hover:text-blue-100 transition-colors">공지사항</a>
+                    <a href="calendar.html" class="hover:text-blue-100 transition-colors">학사일정</a>
+                    <a href="board.html" class="hover:text-blue-100 transition-colors">게시판</a>
+                    <a href="register.html" class="hover:text-blue-100 transition-colors">회원가입</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex items-center justify-center bg-gray-50 py-12 px-4">
+        <div class="max-w-md w-full">
+            <div class="bg-white rounded-lg shadow-lg p-8">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">로그인</h1>
+                    <p class="text-gray-600">UbiCOM 회원 서비스를 이용하세요</p>
+                </div>
+
+                <div id="error-message" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                    <p class="text-sm text-red-800"></p>
+                </div>
+
+                <form id="login-form" class="space-y-6">
+                    <div class="space-y-2">
+                        <label for="studentId" class="block text-sm font-medium text-gray-700">학번</label>
+                        <div class="relative">
+                            <svg class="absolute left-3 top-3 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            <input 
+                                type="text" 
+                                id="studentId" 
+                                maxlength="8"
+                                placeholder=""
+                                class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                required
+                            >
+                        </div>
+                        <p class="text-xs text-gray-500">8자리 학번을 입력하세요</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="password" class="block text-sm font-medium text-gray-700">비밀번호</label>
+                        <div class="relative">
+                            <svg class="absolute left-3 top-3 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                            <input 
+                                type="password" 
+                                id="password" 
+                                placeholder=""
+                                class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <button 
+                        type="submit"
+                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors font-medium"
+                    >
+                        로그인
+                    </button>
+                </form>
+
+                <div class="mt-6 text-center">
+                    <p class="text-sm text-gray-600">
+                        계정이 없으신가요?
+                        <a href="register.html" class="text-blue-600 hover:text-blue-700 font-medium">회원가입</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <p class="text-xl font-bold">UbiCOM</p>
+                    <p class="text-sm text-gray-400 mt-1">Ubiquitous Computing Club</p>
+                </div>
+                <div class="text-sm text-gray-400 text-center md:text-right">
+                    <p>&copy; 2026 UbiCOM. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/auth.js"></script>
+    <script src="js/login.js"></script>
+</body>
+</html>
