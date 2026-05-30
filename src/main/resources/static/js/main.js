@@ -36,9 +36,9 @@ function updateNavigation() {
                 <a href="login.html" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors">
                     로그인
                 </a>
-                <a href="register.html" class="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                <button onclick="location.href='/register'" class="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-md text-sm font-medium transition-colors">
                     회원가입
-                </a>
+                </button>
             </div>
         `;
         
@@ -48,9 +48,9 @@ function updateNavigation() {
                 <a href="login.html" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors text-center">
                     로그인
                 </a>
-                <a href="register.html" class="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-md text-sm font-medium transition-colors text-center">
+                <button onclick="location.href='/register'" class="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-md text-sm font-medium transition-colors text-center">
                     회원가입
-                </a>
+                </button>
             `;
         }
     }
