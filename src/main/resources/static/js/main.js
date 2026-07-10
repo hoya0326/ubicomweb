@@ -13,7 +13,7 @@ function updateNavigation() {
         // Desktop navigation
         navButtons.innerHTML = `
             <div class="flex items-center gap-4">
-                <span class="text-sm">${user.username}님</span>
+                <a href="/profile.html" class="text-sm hover:text-blue-100 transition-colors cursor-pointer">${user.username}님</a>
                 <button onclick="logoutUser()" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors">
                     로그아웃
                 </button>
@@ -23,7 +23,7 @@ function updateNavigation() {
         // Mobile navigation
         if (mobileNavButtons) {
             mobileNavButtons.innerHTML = `
-                <span class="text-sm">${user.username}님</span>
+               <a href="/profile.html" class="text-sm py-2 hover:text-blue-100 transition-colors">${user.username}님</a>
                 <button onclick="logoutUser()" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full">
                     로그아웃
                 </button>
