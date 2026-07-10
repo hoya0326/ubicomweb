@@ -3,17 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
   <title>회원정보 변경 – UbiCOM</title>
+  <link rel="stylesheet" href="css/styles.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; color: #111827; min-height: 100vh; }
-    nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
-    .nav-brand { font-weight: 800; font-size: 18px; color: #2563eb; }
-    .nav-links { display: flex; gap: 24px; }
+    /* NAV */
+    nav { border-bottom: 1px solid #e5e7eb; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .nav-brand { font-weight: 900; font-size: 19px; color: #2563eb; letter-spacing: -.5px; }
+    .nav-links { display: flex; gap: 28px; }
     .nav-links a { text-decoration: none; color: #6b7280; font-size: 14px; font-weight: 500; }
-    .nav-user { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+    .nav-links a.active { color: #111827; font-weight: 700; }
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .nav-username { font-size: 14px; font-weight: 600; color: #2563eb; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+    .btn-logout { font-size: 13px; border: 1px solid #e5e7eb; border-radius: 7px; padding: 5px 12px; cursor: pointer; background: #fff; color: #6b7280; }
+
+
     .badge-admin { background: #fee2e2; color: #b91c1c; border-radius: 9999px; font-size: 11px; font-weight: 600; padding: 2px 8px; }
-    .page { max-width: 640px; margin: 0 auto; padding: 40px 16px 60px; }
+    .page { max-width: 850px !important; margin: 0 auto; padding: 40px 16px 60px; }
     .page-header { margin-bottom: 28px; }
     .page-header h1 { font-size: 24px; font-weight: 800; display: flex; align-items: center; gap: 10px; color: #111827; }
     .page-header p { color: #6b7280; margin-top: 6px; font-size: 14px; }
@@ -32,7 +40,7 @@
     .req { color: #ef4444; }
     .input-wrap { position: relative; }
     .input-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #9ca3af; pointer-events: none; }
-    input { width: 100%; padding: 10px 14px 10px 38px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; color: #111827; outline: none; background: #fff; }
+    input { width: 100%; padding: 10px 14px 10px 38px !important; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; color: #111827; outline: none; background: #fff; }
     input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
     input:disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
     .hint { font-size: 12px; color: #9ca3af; margin-top: 4px; }
@@ -43,21 +51,24 @@
     .alert-error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
   </style>
 </head>
-<body>
-<nav>
-  <span class="nav-brand">UbiCOM</span>
-  <div class="nav-links">
-    <a href="#">공지사항</a><a href="#">자유게시판</a><a href="#">학사일정</a><a href="#">투표</a><a href="#">동아리원 관리</a>
+<body class="min-h-screen">
+<!-- Header -->
+<header class="bg-blue-600 text-white shadow-lg">
+  <div class="container mx-auto px-4">
+    <div class="flex items-center justify-between h-16">
+      <button onclick="location.href='/'" class="text-2xl font-bold hover:text-blue-100 transition-colors">UbiCOM</button>
+      <nav class="hidden md:flex items-center gap-6">
+        <a href="notice.html" class="hover:text-blue-100 transition-colors">공지사항</a>
+        <a href="calendar.html" class="hover:text-blue-100 transition-colors font-semibold">학사일정</a>
+        <a href="board.html" class="hover:text-blue-100 transition-colors">게시판</a>
+        <a href="poll.html" class="hover:text-blue-100 transition-colors">투표</a>
+        <div id="nav-buttons"></div>
+      </nav>
+    </div>
   </div>
-  <div class="nav-user">
-    <span id="nav-user-name" style="font-weight:600;"></span>
-    <button onclick="localStorage.removeItem('currentUser'); location.href='/logout';"
-            style="font-size:13px;border:1px solid #e5e7eb;border-radius:6px;padding:4px 10px;cursor:pointer;background:#fff;">
-      로그아웃
-    </button>
-  </div>
-</nav>
-<div class="page">
+</header>
+
+<div class="page max-w-[800px]">
   <div class="page-header">
     <h1>
       <svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="#2563eb" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
@@ -78,13 +89,7 @@
         <span id="profile-department"></span>
       </p>
 
-      <span
-              class="adm"
-              id="admin-badge"
-              style="display:none;"
-      >
-    관리자
-  </span>
+      <span class="adm" id="admin-badge" style="display:none;">관리자</span>
     </div>
   </div>
 
@@ -109,31 +114,19 @@
         <label>이름 <span class="req">*</span></label>
         <div class="input-wrap">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-          <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  placeholder="이름을 입력하세요"
-          />
+          <input type="text" id="name" name="name" placeholder="이름을 입력하세요" />
         </div>
       </div>
       <div class="form-group">
         <label>학과 <span class="req">*</span></label>
         <div class="input-wrap">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-          <input
-                  type="text"
-                  id="department"
-                  name="department"
-                  placeholder="학과를 입력하세요"
-          />
+          <input type="text" id="department" name="department" placeholder="학과를 입력하세요" />
         </div>
       </div>
       <div id="profile-alert" class="alert" style="display:none;"></div>
 
-      <button type="button" class="btn" id="profile-save-btn">
-        정보 저장
-      </button>
+      <button type="button" class="btn" id="profile-save-btn">정보 저장</button>
     </div>
   </div>
 
@@ -150,283 +143,210 @@
         <label>현재 비밀번호 <span class="req">*</span></label>
         <div class="input-wrap">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-          <input type="password"
-                 id="current-password"
-                 placeholder="현재 비밀번호" />
+          <input type="password" id="current-password" placeholder="현재 비밀번호" />
         </div>
       </div>
       <div class="form-group">
         <label>새 비밀번호 <span class="req">*</span></label>
         <div class="input-wrap">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-          <input type="password"
-                 id="new-password"
-                 placeholder="최소 6자 이상" />
+          <input type="password" id="new-password" placeholder="최소 6자 이상" />
+        </div>
       </div>
       <div class="form-group">
         <label>새 비밀번호 확인 <span class="req">*</span></label>
         <div class="input-wrap">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-          <input type="password"
-                 id="confirm-password"
-                 placeholder="새 비밀번호 재입력" />
+          <input type="password" id="confirm-password" placeholder="새 비밀번호 재입력" />
         </div>
       </div>
-        <div id="password-alert" class="alert" style="display:none;"></div>
+      <div id="password-alert" class="alert" style="display:none;"></div>
 
-        <button type="button" class="btn" id="password-change-btn">
-          비밀번호 변경
-        </button>
+      <button type="button" class="btn" id="password-change-btn">비밀번호 변경</button>
     </div>
   </div>
 </div>
-  <script>
-    document.addEventListener("DOMContentLoaded", async function () {
-      try {
-        const response = await fetch(
-                "/api/user?t=" + Date.now(),
-                { cache: "no-store" }
-        );
 
-        if (!response.ok) {
-          throw new Error("회원정보 조회 실패");
-        }
+<script>
+  document.addEventListener("DOMContentLoaded", async function () {
+    try {
+      const response = await fetch(
+              "/api/user?t=" + Date.now(),
+              { cache: "no-store" }
+      );
 
-        const user = await response.json();
-
-        if (!user.isLoggedIn) {
-          alert("로그인이 필요합니다.");
-          location.href = "/login";
-          return;
-        }
-
-        const username = user.username || "";
-        const studentId = user.studentId || "";
-        const department = user.department || "";
-
-        document.getElementById("nav-user-name").textContent =
-                username;
-
-        document.getElementById("profile-avatar").textContent =
-                username.charAt(0);
-
-        document.getElementById("profile-name").textContent =
-                username;
-
-        document.getElementById("profile-student-id").textContent =
-                studentId;
-
-        document.getElementById("profile-department").textContent =
-                department;
-
-        document.getElementById("student-id").value =
-                studentId;
-
-        document.getElementById("name").value =
-                username;
-
-        document.getElementById("department").value =
-                department;
-
-        if (user.isAdmin) {
-          document.getElementById("admin-badge").style.display =
-                  "inline-block";
-        }
-
-      } catch (error) {
-        console.error(error);
-        alert("회원정보를 불러오지 못했습니다.");
+      if (!response.ok) {
+        throw new Error("회원정보 조회 실패");
       }
-    });
-  </script>
-  <script>
-    function showStatus(elementId, message, success) {
-      const alertBox = document.getElementById(elementId);
 
-      alertBox.textContent = message;
-      alertBox.className =
-              success
-                      ? "alert alert-success"
-                      : "alert alert-error";
+      const user = await response.json();
 
-      alertBox.style.display = "flex";
+      if (!user.isLoggedIn) {
+        alert("로그인이 필요합니다.");
+        location.href = "/login";
+        return;
+      }
+
+      const username = user.username || "";
+      const studentId = user.studentId || "";
+      const department = user.department || "";
+
+      // [수정] 아래의 nav-user-name 데이터 할당 코드를 지웠습니다.
+      // document.getElementById("nav-user-name").textContent = username;
+
+      document.getElementById("profile-avatar").textContent =
+              username.charAt(0);
+
+      document.getElementById("profile-name").textContent =
+              username;
+
+      document.getElementById("profile-student-id").textContent =
+              studentId;
+
+      document.getElementById("profile-department").textContent =
+              department;
+
+      document.getElementById("student-id").value =
+              studentId;
+
+      document.getElementById("name").value =
+              username;
+
+      document.getElementById("department").value =
+              department;
+
+      if (user.isAdmin) {
+        document.getElementById("admin-badge").style.display =
+                "inline-block";
+      }
+
+    } catch (error) {
+      console.error(error);
+      alert("회원정보를 불러오지 못했습니다.");
     }
+  });
+</script>
+<script>
+  function showStatus(elementId, message, success) {
+    const alertBox = document.getElementById(elementId);
 
-    document.getElementById("profile-save-btn")
-            .addEventListener("click", async function () {
+    alertBox.textContent = message;
+    alertBox.className = success ? "alert alert-success" : "alert alert-error";
+    alertBox.style.display = "flex";
+  }
 
-              const name =
-                      document.getElementById("name").value.trim();
+  document.getElementById("profile-save-btn")
+          .addEventListener("click", async function () {
 
-              const department =
-                      document.getElementById("department").value.trim();
+            const name = document.getElementById("name").value.trim();
+            const department = document.getElementById("department").value.trim();
 
-              if (!name) {
-                showStatus(
-                        "profile-alert",
-                        "이름을 입력해주세요.",
-                        false
-                );
-                return;
-              }
+            if (!name) {
+              showStatus("profile-alert", "이름을 입력해주세요.", false);
+              return;
+            }
 
-              if (!department) {
-                showStatus(
-                        "profile-alert",
-                        "학과를 입력해주세요.",
-                        false
-                );
-                return;
-              }
+            if (!department) {
+              showStatus("profile-alert", "학과를 입력해주세요.", false);
+              return;
+            }
 
-              try {
-                const response = await fetch(
-                        "/api/user/profile",
-                        {
-                          method: "POST",
-                          headers: {
-                            "Content-Type":
-                                    "application/x-www-form-urlencoded"
-                          },
-                          body: new URLSearchParams({
-                            name: name,
-                            department: department
-                          })
-                        }
-                );
+            try {
+              const response = await fetch(
+                      "/api/user/profile",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/x-www-form-urlencoded"
+                        },
+                        body: new URLSearchParams({
+                          name: name,
+                          department: department
+                        })
+                      }
+              );
 
-                const result = await response.json();
+              const result = await response.json();
 
-                showStatus(
-                        "profile-alert",
-                        result.message,
-                        result.success
-                );
+              showStatus("profile-alert", result.message, result.success);
 
-                if (result.success) {
-                  document.getElementById("nav-user-name").textContent =
-                          name;
+              if (result.success) {
+                // [수정] 정보 저장 시 상단 내비 바를 업데이트하던 코드도 제거했습니다.
+                // document.getElementById("nav-user-name").textContent = name;
 
-                  document.getElementById("profile-name").textContent =
-                          name;
+                document.getElementById("profile-name").textContent = name;
+                document.getElementById("profile-avatar").textContent = name.charAt(0);
+                document.getElementById("profile-department").textContent = department;
 
-                  document.getElementById("profile-avatar").textContent =
-                          name.charAt(0);
+                const savedUser = JSON.parse(localStorage.getItem("currentUser") || "null");
 
-                  document.getElementById("profile-department").textContent =
-                          department;
-
-                  const savedUser =
-                          JSON.parse(
-                                  localStorage.getItem("currentUser") || "null"
-                          );
-
-                  if (savedUser) {
-                    savedUser.username = name;
-                    savedUser.department = department;
-
-                    localStorage.setItem(
-                            "currentUser",
-                            JSON.stringify(savedUser)
-                    );
-                  }
+                if (savedUser) {
+                  savedUser.username = name;
+                  savedUser.department = department;
+                  localStorage.setItem("currentUser", JSON.stringify(savedUser));
                 }
-
-              } catch (error) {
-                console.error(error);
-
-                showStatus(
-                        "profile-alert",
-                        "정보를 저장하는 중 오류가 발생했습니다.",
-                        false
-                );
-              }
-            });
-
-    document.getElementById("password-change-btn")
-            .addEventListener("click", async function () {
-
-              const currentPassword =
-                      document.getElementById("current-password").value;
-
-              const newPassword =
-                      document.getElementById("new-password").value;
-
-              const confirmPassword =
-                      document.getElementById("confirm-password").value;
-
-              if (!currentPassword
-                      || !newPassword
-                      || !confirmPassword) {
-
-                showStatus(
-                        "password-alert",
-                        "비밀번호 항목을 모두 입력해주세요.",
-                        false
-                );
-                return;
               }
 
-              if (newPassword.length < 6) {
-                showStatus(
-                        "password-alert",
-                        "새 비밀번호는 6자 이상이어야 합니다.",
-                        false
-                );
-                return;
+            } catch (error) {
+              console.error(error);
+              showStatus("profile-alert", "정보를 저장하는 중 오류가 발생했습니다.", false);
+            }
+          });
+
+  document.getElementById("password-change-btn")
+          .addEventListener("click", async function () {
+
+            const currentPassword = document.getElementById("current-password").value;
+            const newPassword = document.getElementById("new-password").value;
+            const confirmPassword = document.getElementById("confirm-password").value;
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+              showStatus("password-alert", "비밀번호 항목을 모두 입력해주세요.", false);
+              return;
+            }
+
+            if (newPassword.length < 6) {
+              showStatus("password-alert", "새 비밀번호는 6자 이상이어야 합니다.", false);
+              return;
+            }
+
+            if (newPassword !== confirmPassword) {
+              showStatus("password-alert", "새 비밀번호가 서로 일치하지 않습니다.", false);
+              return;
+            }
+
+            try {
+              const response = await fetch(
+                      "/api/user/password",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/x-www-form-urlencoded"
+                        },
+                        body: new URLSearchParams({
+                          currentPassword: currentPassword,
+                          newPassword: newPassword,
+                          confirmPassword: confirmPassword
+                        })
+                      }
+              );
+
+              const result = await response.json();
+              showStatus("password-alert", result.message, result.success);
+
+              if (result.success) {
+                document.getElementById("current-password").value = "";
+                document.getElementById("new-password").value = "";
+                document.getElementById("confirm-password").value = "";
               }
 
-              if (newPassword !== confirmPassword) {
-                showStatus(
-                        "password-alert",
-                        "새 비밀번호가 서로 일치하지 않습니다.",
-                        false
-                );
-                return;
-              }
-
-              try {
-                const response = await fetch(
-                        "/api/user/password",
-                        {
-                          method: "POST",
-                          headers: {
-                            "Content-Type":
-                                    "application/x-www-form-urlencoded"
-                          },
-                          body: new URLSearchParams({
-                            currentPassword: currentPassword,
-                            newPassword: newPassword,
-                            confirmPassword: confirmPassword
-                          })
-                        }
-                );
-
-                const result = await response.json();
-
-                showStatus(
-                        "password-alert",
-                        result.message,
-                        result.success
-                );
-
-                if (result.success) {
-                  document.getElementById("current-password").value = "";
-                  document.getElementById("new-password").value = "";
-                  document.getElementById("confirm-password").value = "";
-                }
-
-              } catch (error) {
-                console.error(error);
-
-                showStatus(
-                        "password-alert",
-                        "비밀번호를 변경하는 중 오류가 발생했습니다.",
-                        false
-                );
-              }
-            });
-  </script>
-
+            } catch (error) {
+              console.error(error);
+              showStatus("password-alert", "비밀번호를 변경하는 중 오류가 발생했습니다.", false);
+            }
+          });
+</script>
+<script src="js/auth.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>
