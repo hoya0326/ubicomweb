@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UbiCOM - 2학기 신규회원 가입 신청</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../../../../../../../Downloads/Club%20website%20design%20(1)/static/css/styles.css">
+</head>
+<body class="min-h-screen flex flex-col bg-gray-50">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <a href="../../../../../../../Downloads/Club%20website%20design%20(1)/static/index.html" class="text-2xl font-bold hover:text-blue-100 transition-colors">
+                    UbiCOM
+                </a>
+                <nav class="hidden md:flex items-center gap-6">
+                    <a href="../../../../../../../Downloads/Club%20website%20design%20(1)/static/index.html" class="hover:text-blue-100 transition-colors">홈</a>
+                    <a href="../../../../../../../Downloads/Club%20website%20design%20(1)/static/login.html" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md font-medium transition-colors">로그인</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 py-12">
+        <div class="container mx-auto px-4 max-w-2xl">
+
+            <!-- Page Header -->
+            <div class="text-center mb-10">
+
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">2학기 신규회원 가입 신청</h1>
+                <p class="text-gray-600">UbiCOM 동아리에 관심 가져주셔서 감사합니다.<br>아래 설문을 작성해주시면 검토 후 연락드리겠습니다.</p>
+            </div>
+
+            <!-- Form Card -->
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div id="form-container">
+                    <form id="apply-form" class="space-y-6" novalidate>
+
+                        <!-- 이름 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="name">
+                                이름 <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="name"
+                                name="name"
+                                placeholder="홍길동"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                required
+                            />
+                        </div>
+
+                        <!-- 학번 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="studentId">
+                                학번 <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="studentId"
+                                name="studentId"
+                                placeholder="예: 20240001"
+                                maxlength="8"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                required
+                            />
+                        </div>
+
+                        <!-- 학과 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="department">
+                                학과 <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="department"
+                                name="department"
+                                placeholder="예: 컴퓨터공학과"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                required
+                            />
+                        </div>
+
+                        <!-- 학년 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="grade">
+                                학년 <span class="text-red-500">*</span>
+                            </label>
+                            <select
+                                id="grade"
+                                name="grade"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white"
+                                required
+                            >
+                                <option value="">선택해주세요</option>
+                                <option value="1">1학년</option>
+                                <option value="2">2학년</option>
+                                <option value="3">3학년</option>
+                                <option value="4">4학년</option>
+                            </select>
+                        </div>
+
+                        <!-- 연락처 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="phone">
+                                연락처 <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="tel"
+                                id="phone"
+                                name="phone"
+                                placeholder="예: 010-1234-5678"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                required
+                            />
+                        </div>
+
+                        <!-- 이메일 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="email">
+                                이메일 <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                placeholder="example@university.ac.kr"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                required
+                            />
+                        </div>
+
+                        <!-- 프로그래밍 경험 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                프로그래밍 경험 수준 <span class="text-red-500">*</span>
+                            </label>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="experience" value="none" class="text-blue-600" required />
+                                    <span>없음 (완전 처음이에요)</span>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="experience" value="beginner" class="text-blue-600" />
+                                    <span>초급 (기본 문법 정도는 알아요)</span>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="experience" value="intermediate" class="text-blue-600" />
+                                    <span>중급 (간단한 프로그램을 만들 수 있어요)</span>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="experience" value="advanced" class="text-blue-600" />
+                                    <span>고급 (프로젝트 경험이 있어요)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 관심 분야 (다중 선택) -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                관심 분야 <span class="text-gray-400 font-normal">(중복 선택 가능)</span>
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="interest" value="web" class="text-blue-600" />
+                                    <span class="text-sm">웹 개발</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="interest" value="mobile" class="text-blue-600" />
+                                    <span class="text-sm">모바일 앱</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="interest" value="ai" class="text-blue-600" />
+                                    <span class="text-sm">AI / 머신러닝</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="interest" value="iot" class="text-blue-600" />
+                                    <span class="text-sm">IoT / 임베디드</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="interest" value="security" class="text-blue-600" />
+                                    <span class="text-sm">보안</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="interest" value="game" class="text-blue-600" />
+                                    <span class="text-sm">게임 개발</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 지원 동기 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="motivation">
+                                지원 동기 <span class="text-red-500">*</span>
+                            </label>
+                            <textarea
+                                id="motivation"
+                                name="motivation"
+                                rows="4"
+                                placeholder="UbiCOM에 지원하게 된 동기와 동아리에서 이루고 싶은 목표를 자유롭게 작성해주세요."
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
+                                required
+                            ></textarea>
+                            <p class="text-xs text-gray-400 mt-1 text-right"><span id="motivation-count">0</span> / 500자</p>
+                        </div>
+
+                        <!-- 추가 하고 싶은 말 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="extra">
+                                추가로 하고 싶은 말 <span class="text-gray-400 font-normal">(선택)</span>
+                            </label>
+                            <textarea
+                                id="extra"
+                                name="extra"
+                                rows="3"
+                                placeholder="궁금한 점이나 추가로 전달하고 싶은 내용을 자유롭게 작성해주세요."
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
+                            ></textarea>
+                        </div>
+
+                        <!-- Error Message -->
+                        <div id="error-msg" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm"></div>
+
+                        <!-- Submit Button -->
+                        <button
+                            type="submit"
+                            id="submit-btn"
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold py-4 rounded-lg transition-colors"
+                        >
+                            신청서 제출하기
+                        </button>
+
+                        <p class="text-center text-xs text-gray-400">
+                            제출 후 검토까지 영업일 기준 2~3일이 소요될 수 있습니다.
+                        </p>
+                    </form>
+                </div>
+
+                <!-- Success State (hidden by default) -->
+                <div id="success-container" class="hidden text-center py-8">
+                    <div class="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
+                        <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-3">신청이 완료되었습니다!</h2>
+                    <p class="text-gray-600 mb-2">소중한 관심 감사합니다.</p>
+                    <p class="text-gray-600 mb-8">검토 후 입력하신 연락처로 결과를 안내드리겠습니다.</p>
+                    <a href="../../../../../../../Downloads/Club%20website%20design%20(1)/static/index.html" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors">
+                        홈으로 돌아가기
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-auto">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <p class="text-xl font-bold">UbiCOM</p>
+                    <p class="text-sm text-gray-400 mt-1">Ubiquitous Computing Club</p>
+                </div>
+                <div class="text-sm text-gray-400 text-center md:text-right">
+                    <p>&copy; 2026 UbiCOM. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Character counter for motivation
+        const motivationField = document.getElementById('motivation');
+        const motivationCount = document.getElementById('motivation-count');
+        motivationField.addEventListener('input', function() {
+            const len = this.value.length;
+            motivationCount.textContent = len;
+            if (len > 500) {
+                this.value = this.value.substring(0, 500);
+                motivationCount.textContent = 500;
+            }
+        });
+
+        // Form submission
+        document.getElementById('apply-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const errorMsg = document.getElementById('error-msg');
+            errorMsg.classList.add('hidden');
+
+            // Collect values
+            const name = document.getElementById('name').value.trim();
+            const studentId = document.getElementById('studentId').value.trim();
+            const department = document.getElementById('department').value.trim();
+            const grade = document.getElementById('grade').value;
+            const phone = document.getElementById('phone').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const experience = document.querySelector('input[name="experience"]:checked');
+            const motivation = document.getElementById('motivation').value.trim();
+
+            // Validation
+            if (!name) { showError('이름을 입력해주세요.'); return; }
+            if (!/^\d{8}$/.test(studentId)) { showError('학번은 8자리 숫자로 입력해주세요.'); return; }
+            if (!department) { showError('학과를 입력해주세요.'); return; }
+            if (!grade) { showError('학년을 선택해주세요.'); return; }
+            if (!phone) { showError('연락처를 입력해주세요.'); return; }
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('올바른 이메일 주소를 입력해주세요.'); return; }
+            if (!experience) { showError('프로그래밍 경험 수준을 선택해주세요.'); return; }
+            if (!motivation) { showError('지원 동기를 작성해주세요.'); return; }
+
+            // Collect interests
+            const interests = Array.from(document.querySelectorAll('input[name="interest"]:checked')).map(cb => cb.value);
+            const extra = document.getElementById('extra').value.trim();
+
+            // Save to localStorage
+            const applications = JSON.parse(localStorage.getItem('applications') || '[]');
+            applications.push({
+                id: Date.now(),
+                name,
+                studentId,
+                department,
+                grade,
+                phone,
+                email,
+                experience: experience.value,
+                interests,
+                motivation,
+                extra,
+                submittedAt: new Date().toISOString(),
+                status: 'pending'
+            });
+            localStorage.setItem('applications', JSON.stringify(applications));
+
+            // Show success
+            document.getElementById('form-container').classList.add('hidden');
+            document.getElementById('success-container').classList.remove('hidden');
+        });
+
+        function showError(msg) {
+            const errorMsg = document.getElementById('error-msg');
+            errorMsg.textContent = msg;
+            errorMsg.classList.remove('hidden');
+            errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    </script>
+</body>
+</html>

@@ -40,8 +40,8 @@ function showLandingPage(container) {
                     최신 기술을 탐구하고 실전 프로젝트를 통해 미래의 개발자로 성장해보세요.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                    <a href="register.html" class="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-4 rounded-md font-medium transition-colors">
-                        가입하기
+                    <a href="apply.html" class="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-4 rounded-md font-medium transition-colors">
+                        2학기 신규회원 가입 신청
                     </a>
                 </div>
             </div>
@@ -120,8 +120,8 @@ function showLandingPage(container) {
                 <p class="text-xl mb-8 text-blue-100">
                     UbiCOM과 함께 성장하는 개발자가 되어보세요
                 </p>
-                <a href="register.html" class="inline-block bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-4 rounded-md font-medium transition-colors">
-                    회원가입하기
+                <a href="apply.html" class="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-4 rounded-md font-medium transition-colors">
+                        2학기 신규회원 가입 신청
                 </a>
             </div>
         </section>
