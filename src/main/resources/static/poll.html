@@ -11,16 +11,6 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; background: #f9fafb; color: #111827; }
 
-        /* NAV */
-        nav { border-bottom: 1px solid #e5e7eb; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
-        .nav-brand { font-weight: 900; font-size: 19px; color: #2563eb; letter-spacing: -.5px; }
-        .nav-links { display: flex; gap: 28px; }
-        .nav-links a { text-decoration: none; color: #6b7280; font-size: 14px; font-weight: 500; }
-        .nav-links a.active { color: #111827; font-weight: 700; }
-        .nav-right { display: flex; align-items: center; gap: 12px; }
-        .nav-username { font-size: 14px; font-weight: 600; color: #2563eb; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-        .btn-logout { font-size: 13px; border: 1px solid #e5e7eb; border-radius: 7px; padding: 5px 12px; cursor: pointer; background: #fff; color: #6b7280; }
-
         /* PAGE */
         .page { max-width: 850px; margin: 0 auto; padding: 36px 20px 60px; }
         .page-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
@@ -153,7 +143,25 @@
                 <a href="poll.html" class="hover:text-blue-100 transition-colors font-semibold">투표</a>
                 <div id="nav-buttons"></div>
             </nav>
+            <!-- Mobile Menu Button -->
+            <button class="md:hidden p-2" id="mobile-menu-btn">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
         </div>
+        <!-- Mobile Navigation -->
+        <nav id="mobile-menu" class="hidden md:hidden py-4 border-t border-blue-500">
+            <div class="flex flex-col gap-3">
+                <a href="notice.html" class="py-2 hover:text-blue-100 transition-colors">공지사항</a>
+                <a href="calendar.html" class="py-2 hover:text-blue-100 transition-colors">학사일정</a>
+                <a href="board.html" class="py-2 hover:text-blue-100 transition-colors">게시판</a>
+                <a href="poll.html" class="py-2 hover:text-blue-100 transition-colors">투표</a>
+                <div id="mobile-nav-buttons" class="flex flex-col gap-2 pt-2 border-t border-blue-500">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+        </nav>
     </div>
 </header>
 
