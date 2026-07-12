@@ -12,14 +12,14 @@ function updateNavigation() {
     if (user) {
         // 관리자용 메뉴 태그 생성 (관리자일 때만 메뉴가 생기고, 아닐 땐 빈 문자열)
         const adminMenuHtml = user.isAdmin
-            ? `<a href="admin-members.html" class="text-sm font-bold text-blue-100 hover:text-blue-100 transition-colors">동아리원 관리</a>`
+            ? `<a onclick="location.href='/admin_members'" class="text-sm font-bold text-blue-100 hover:text-blue-100 transition-colors">동아리원 관리</a>`
             : '';
 
         // Desktop navigation (이름 왼쪽에 관리자 메뉴 삽입)
         navButtons.innerHTML = `
             <div class="flex items-center gap-4">
                 ${adminMenuHtml}
-                <a href="/profile.html" class="text-sm hover:text-blue-100 transition-colors cursor-pointer">${user.username}님</a>
+                <a onclick="location.href='/profile'" class="text-sm hover:text-blue-100 transition-colors cursor-pointer">${user.username}님</a>
                 <button onclick="logoutUser()" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors">
                     로그아웃
                 </button>
@@ -29,7 +29,7 @@ function updateNavigation() {
         // Mobile navigation
         if (mobileNavButtons) {
             mobileNavButtons.innerHTML = `
-               <a href="/profile.html" class="text-sm py-2 hover:text-blue-100 transition-colors">${user.username}님</a>
+               <a onclick="location.href='/profile'" class="text-sm py-2 hover:text-blue-100 transition-colors">${user.username}님</a>
                 <button onclick="logoutUser()" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full">
                     로그아웃
                 </button>
