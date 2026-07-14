@@ -182,3 +182,19 @@ html {
         padding: 1px 4px;
     }
 }
+/* 연락처 개별 입력란 통일감 부여 */
+.phone-box {
+    height: 38px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.15s ease-in-out;
+}
+.phone-box:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px #dbeafe;
+}
+.phone-sep {
+    user-select: none;
+}

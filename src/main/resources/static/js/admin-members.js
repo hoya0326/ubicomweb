@@ -5,17 +5,16 @@ let members = [];
 let currentUser = null;
 
 async function loadData() {
-    // 1. 로그인 사용자 확인 (기존 유지)
+    // 1. 로그인 사용자 확인
     const u = localStorage.getItem("currentUser");
     currentUser = u ? JSON.parse(u) : null;
     if (currentUser) {
-        // 혹시라도 navUsername 요소가 없는 페이지 대응용 예외 처리 추가
         const navUserEl = document.getElementById("navUsername");
         const logoutBtnEl = document.getElementById("logoutBtn");
         if (navUserEl) navUserEl.textContent = currentUser.name || currentUser.username;
         if (logoutBtnEl) logoutBtnEl.style.display = "block";
 
-        // 관리자가 아니라면 튕겨내기 보안 적용
+        // 관리자가 아니라면 경고 후 튕겨내기
         if (!currentUser.isAdmin) {
             alert("관리자만 접근할 수 있습니다.");
             location.href = "/";
@@ -23,21 +22,19 @@ async function loadData() {
         }
     }
 
-    // 2. 백엔드 데이터베이스 연동 (users 테이블 정보 및 member 테이블 가입 여부 조회)
+    // 2. 백엔드 데이터베이스 연동 (실패 시 로컬스토리지 백업으로 대체)
     try {
         const response = await fetch('/api/admin/members');
         if (!response.ok) throw new Error("서버에서 회원 목록을 불러오지 못했습니다.");
 
-
         members = await response.json();
     } catch (error) {
         console.error(error);
-        // 서버 통신 실패 시 기존 로컬스토리지 백업 데이터로 롤백 처리 (안전장치)
         const raw = localStorage.getItem("users");
         if (raw) {
             members = JSON.parse(raw);
         } else {
-            // 초기 seed
+            // 초기 백업 데이터 (Seed)
             members = [
                 { id: "u1", name: "관리자", studentId: "00000000", department: "컴퓨터공학과", isAdmin: true, joinedAt: "2024-03-01", isWebUser: true },
                 { id: "u2", name: "김민준", studentId: "20210001", department: "소프트웨어학과", isAdmin: false, joinedAt: "2024-03-05", isWebUser: true },
@@ -62,7 +59,7 @@ function logout() {
     location.reload();
 }
 
-/* ── stats ────────────────────────────────────────────── */
+/* ── stats (통계 현황 계산) ────────────────────────────────────────── */
 function renderStats() {
     const total = members.length;
     const admins = members.filter((m) => m.isAdmin).length;
@@ -80,7 +77,7 @@ function renderStats() {
     document.getElementById("statNew").textContent = thisMonth;
 }
 
-/* ── render list (기존 UI 유지 + '웹 가입' 배지 추가) ─────────────────── */
+/* ── render list (동아리원 목록 랜더링) ─────────────────────────────── */
 function renderMembers(filter) {
     const q = (filter || document.getElementById("searchInput").value || "").toLowerCase();
     const filtered = members.filter(
@@ -106,7 +103,6 @@ function renderMembers(filter) {
                 ? `<span class="badge-admin" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; margin-left: 6px;">웹 가입</span>`
                 : "";
 
-            // 💡 DB에서 가져온 M/F 값을 화면에 보일 한글 성별로 치환
             let genderText = "-";
             if (m.gender === "M" || m.gender === "m") genderText = "남자";
             if (m.gender === "F" || m.gender === "f") genderText = "여자";
@@ -131,7 +127,7 @@ function renderMembers(filter) {
         <div class="detail-inner">
           <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
             <div class="detail-cell"><label>이름</label><p>${escHtml(m.name)}</p></div>
-            <div class="detail-cell"><label>성별</label><p>${escHtml(genderText)}</p></div> <!-- 💡 변환된 텍스트 바인딩 -->
+            <div class="detail-cell"><label>성별</label><p>${escHtml(genderText)}</p></div>
             <div class="detail-cell"><label>학번</label><p>${escHtml(m.studentId)}</p></div>
             <div class="detail-cell"><label>학과</label><p>${escHtml(m.department || "-")}</p></div>
             <div class="detail-cell"><label>전화번호</label><p>${escHtml(m.phone || "-")}</p></div>
@@ -162,7 +158,7 @@ function escHtml(s) {
         .replace(/"/g, "&quot;");
 }
 
-/* ── row toggle (기존 유지) ───────────────────────────────────────── */
+/* ── row toggle (상세 아코디언 열고 닫기) ──────────────────────────────── */
 function toggleRow(summary) {
     const detail = summary.nextElementSibling;
     const chevron = summary.querySelector(".chevron");
@@ -172,7 +168,7 @@ function toggleRow(summary) {
     summary.style.background = open ? "" : "#f9fafb";
 }
 
-/* ── delete (API 연동 처리) ───────────────────────────────────────────── */
+/* ── delete (삭제 처리) ────────────────────────────────────────────────── */
 function showConfirm(id) {
     document.getElementById(id + "-btn").classList.add("hidden");
     document.getElementById(id + "-confirm").classList.remove("hidden");
@@ -186,7 +182,6 @@ async function deleteMember(id) {
     if (!row) return;
 
     try {
-        // 서버에 삭제 요청 전송
         const response = await fetch(`/api/admin/members/delete/${id}`, {
             method: 'DELETE'
         });
@@ -194,16 +189,15 @@ async function deleteMember(id) {
         if (!response.ok) throw new Error("서버 응답 오류");
         const result = await response.json();
 
-        // 💡 중요: 서버에서 진짜로 지워졌다고 응답이 왔을 때만 화면에서 지우기
         if (result.success) {
             row.style.transition = "opacity .3s";
             row.style.opacity = "0";
 
             setTimeout(() => {
                 members = members.filter((m) => m.id !== id);
-                saveMembers();   // 로컬 백업 갱신
-                renderStats();   // 통계 숫자 재계산
-                renderMembers(); // 목록 리렌더링
+                saveMembers();
+                renderStats();
+                renderMembers();
             }, 300);
         } else {
             alert(result.message || "삭제 처리에 실패했습니다.");
@@ -214,36 +208,64 @@ async function deleteMember(id) {
     }
 }
 
-/* ── search (기존 유지) ───────────────────────────────────────────── */
+/* ── search (실시간 검색 필터링) ────────────────────────────────────────── */
 function filterMembers(q) {
     renderMembers(q);
 }
 
-/* 멤버 추가 모달 열기/닫기 리셋 부분 */
+/* ── modal open/close (모달 제어) ────────────────────────────────────────── */
 function openModal() {
     document.getElementById("addModal").classList.remove("hidden");
     document.getElementById("addForm").classList.remove("hidden");
     document.getElementById("addSuccess").classList.add("hidden");
-    ["addName", "addStudentId", "addDept", "addPw", "addPhone"].forEach(
+
+    // 일반 입력 필드 초기화
+    ["addName", "addStudentId", "addDept", "addPw"].forEach(
         (id) => { if(document.getElementById(id)) document.getElementById(id).value = ""; }
     );
-    // 💡 초기 라디오 세팅을 한글 대신 서버 전송값인 'M'으로 바꿉니다.
+
+    // 💡 개별 컴포넌트로 변경된 연락처 필드 및 에러 아웃라인 초기화
+    PhoneInput.clear("addPhoneWrap");
+    PhoneInput.setError("addPhoneWrap", false);
+
     document.querySelector('input[name="addGender"][value="m"]').checked = true;
     document.getElementById("addError").classList.add("hidden");
 }
+
 function closeModal() {
     document.getElementById("addModal").classList.add("hidden");
 }
-/* 서버로 전송하는 addMember 로직 */
+
+/* ── addMember (멤버 등록 비즈니스 로직) ─────────────────────────────────── */
 async function addMember() {
     const name = document.getElementById("addName").value.trim();
     const sid = document.getElementById("addStudentId").value.trim();
     const dept = document.getElementById("addDept").value.trim();
     const pw = document.getElementById("addPw").value;
-    const gender = document.querySelector('input[name="addGender"]:checked').value; // 💡 "M" 또는 "F" 취득
-    const phone = document.getElementById("addPhone").value.trim();
+    const gender = document.querySelector('input[name="addGender"]:checked').value;
 
-    if (!name || !sid || !dept || !pw) { showError("필수 항목(*)을 모두 입력해주세요."); return; }
+    // 💡 UI 유틸리티를 활용해 'XXX-XXXX-XXXX' 형태의 값 취득
+    const phone = PhoneInput.getValue("addPhoneWrap");
+
+    // 초기 상태에서 에러 시각 효과 제거
+    PhoneInput.setError("addPhoneWrap", false);
+
+    // 유효성 체크
+    if (!name || !sid || !dept || !pw || PhoneInput.isEmpty("addPhoneWrap")) {
+        showError("필수 항목(*)을 모두 입력해주세요.");
+        if (PhoneInput.isEmpty("addPhoneWrap")) {
+            PhoneInput.setError("addPhoneWrap", true);
+        }
+        return;
+    }
+
+    // 세 칸 중 하나라도 미완성인 상태 체크 (예: 010-123-빈칸)
+    if (phone.split('-').some(val => !val || val.trim() === "")) {
+        showError("전화번호 3자리를 모두 완벽하게 입력해주세요.");
+        PhoneInput.setError("addPhoneWrap", true);
+        return;
+    }
+
     if (!/^\d{8}$/.test(sid)) { showError("학번은 8자리 숫자로 입력해주세요."); return; }
     if (members.some((m) => m.studentId === sid)) { showError("이미 존재하는 학번입니다."); return; }
     if (pw.length < 6) { showError("비밀번호는 최소 6자 이상이어야 합니다."); return; }
@@ -253,7 +275,7 @@ async function addMember() {
         studentId: sid,
         department: dept,
         password: pw,
-        gender: gender, // 💡 "M"/"F" 전송
+        gender: gender,
         phone: phone
     };
 
@@ -275,15 +297,104 @@ async function addMember() {
         showError("서버 전송 중 오류가 발생했습니다.");
     }
 }
+
 function showError(msg) {
     const el = document.getElementById("addError");
     el.textContent = msg;
     el.classList.remove("hidden");
 }
 
-/* ── init (기존 유지) ─────────────────────────────────────────────── */
+/* ── PhoneInput (연락처 세 칸 입력 UI 유틸리티) ────────────────────────── */
+const PhoneInput = (() => {
+    const MAX = [3, 4, 4]; // 각 Input 박스의 자릿수 규칙
+
+    function getInputs(wrapId) {
+        const wrap = document.getElementById(wrapId);
+        if (!wrap) return [];
+        return Array.from(wrap.querySelectorAll("input[data-phone]"));
+    }
+
+    function onInput(inputs, idx, e) {
+        const raw = e.target.value.replace(/\D/g, "");
+        e.target.value = raw.slice(0, MAX[idx]);
+
+        // 입력 자릿수가 꽉 차면 자동으로 다음 칸으로 포커스 전환
+        if (e.target.value.length === MAX[idx] && idx < inputs.length - 1) {
+            inputs[idx + 1].focus();
+        }
+    }
+
+    function onKeydown(inputs, idx, e) {
+        // Backspace를 눌렀을 때 칸이 비어있다면 이전 칸으로 포커스 백업
+        if (e.key === "Backspace" && e.target.value === "" && idx > 0) {
+            inputs[idx - 1].focus();
+        }
+        const allowed = [
+            "Backspace","Delete","Tab","ArrowLeft","ArrowRight","Home","End",
+        ];
+        if (!allowed.includes(e.key) && !/^\d$/.test(e.key)) {
+            e.preventDefault();
+        }
+    }
+
+    function onPaste(inputs, idx, e) {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData)
+            .getData("text")
+            .replace(/\D/g, "");
+        if (!text) return;
+
+        // 클립보드 복사-붙여넣기 시 알아서 세 칸으로 쪼개서 분배
+        let pos = 0;
+        for (let i = 0; i < inputs.length && pos < text.length; i++) {
+            const chunk = text.slice(pos, pos + MAX[i]);
+            inputs[i].value = chunk;
+            pos += chunk.length;
+        }
+        const lastFilled = inputs.reduce((acc, inp, i) =>
+            inp.value.length > 0 ? i : acc, 0);
+        const next = Math.min(lastFilled + 1, inputs.length - 1);
+        inputs[next].focus();
+    }
+
+    return {
+        init(wrapId) {
+            const inputs = getInputs(wrapId);
+            if (!inputs.length) return;
+            inputs.forEach((inp, idx) => {
+                inp.inputMode = "numeric";
+                inp.addEventListener("input",   (e) => onInput(inputs, idx, e));
+                inp.addEventListener("keydown", (e) => onKeydown(inputs, idx, e));
+                inp.addEventListener("paste",   (e) => onPaste(inputs, idx, e));
+            });
+        },
+        getValue(wrapId) {
+            return getInputs(wrapId).map((i) => i.value.trim()).join("-");
+        },
+        clear(wrapId) {
+            getInputs(wrapId).forEach((i) => (i.value = ""));
+        },
+        setError(wrapId, on) {
+            const wrap = document.getElementById(wrapId);
+            if (!wrap) return;
+            wrap.querySelectorAll("input[data-phone]").forEach((inp) => {
+                inp.style.borderColor = on ? "#ef4444" : "";
+                inp.style.boxShadow   = on ? "0 0 0 3px #fee2e2" : "";
+            });
+        },
+        isEmpty(wrapId) {
+            return getInputs(wrapId).every((i) => i.value.trim() === "");
+        },
+    };
+})();
+
+/* ── init (초기 구동 리스너) ─────────────────────────────────────────── */
 document.addEventListener("DOMContentLoaded", function () {
     loadData();
+
+    // 💡 새롭게 구성된 3칸 입력기 컴포넌트 이벤트 연결
+    PhoneInput.init("addPhoneWrap");
+
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
     document.getElementById("addModal").addEventListener("click", function (e) {
         if (e.target === this) closeModal();

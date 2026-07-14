@@ -217,11 +217,19 @@
                     </div>
                 </div>
                 <div class="fg">
-                    <label>전화번호</label>
-                    <div class="iw">
-                        <!-- 전화기 아이콘 대체 -->
-                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-                        <input type="text" id="addPhone" placeholder="010-1234-5678"/>
+                    <label>연락처 <span class="req">*</span></label>
+                    <div class="iw flex items-center gap-2" id="addPhoneWrap">
+                        <!-- 다른 입력란처럼 전화기 아이콘 배치 -->
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="absolute left-3 w-4 h-4 text-gray-400 z-10" style="top: 50%; transform: translateY(-50%); pointer-events: none;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                        </svg>
+
+                        <!-- 개별 숫자 입력 박스 (디자인 및 간격 최적화) -->
+                        <input data-phone type="text" inputmode="numeric" maxlength="3" aria-label="앞자리" class="phone-box text-center" style="padding-left: 36px; width: 90px;"/>
+                        <span class="phone-sep text-gray-400 font-medium">-</span>
+                        <input data-phone type="text" inputmode="numeric" maxlength="4" aria-label="가운데" class="phone-box text-center" style="width: 85px; padding-left: 0; padding-right: 0;"/>
+                        <span class="phone-sep text-gray-400 font-medium">-</span>
+                        <input data-phone type="text" inputmode="numeric" maxlength="4" aria-label="뒷자리" class="phone-box text-center" style="width: 85px; padding-left: 0; padding-right: 0;"/>
                     </div>
                 </div>
                 <div class="fg">
