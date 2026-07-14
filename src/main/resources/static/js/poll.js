@@ -3,63 +3,17 @@ let polls = [];
 let currentFilter = "all";
 let currentUser = null;
 
+// [수정] 공지사항 관련 에러 유발 코드 제거 및 초기화 분리
 document.addEventListener('DOMContentLoaded', function() {
-    if (!requireLogin()) return;
-
-    // Show admin controls if user is admin
-    if (isAdmin()) {
-        document.getElementById('admin-controls').classList.remove('hidden');
-    }
-
-    loadNotices();
-
-    // Create notice button
-    const createNoticeBtn = document.getElementById('create-notice-btn');
-    const createModal = document.getElementById('create-modal');
-    const closeModal = document.getElementById('close-modal');
-    const cancelBtn = document.getElementById('cancel-btn');
-
-    if (createNoticeBtn) {
-        createNoticeBtn.addEventListener('click', function() {
-            if (!requireAdmin()) return;
-            createModal.classList.remove('hidden');
+    // 배경 클릭으로 모달 닫기 이벤트 등록
+    const createModal = document.getElementById("createModal");
+    if (createModal) {
+        createModal.addEventListener("click", function(e) {
+            if (e.target === this) closeCreateForm();
         });
     }
-
-    closeModal.addEventListener('click', function() {
-        createModal.classList.add('hidden');
-        document.getElementById('create-notice-form').reset();
-        hideError('modal-error');
-    });
-
-    cancelBtn.addEventListener('click', function() {
-        createModal.classList.add('hidden');
-        document.getElementById('create-notice-form').reset();
-        hideError('modal-error');
-    });
-
-    // Create notice form
-    const createNoticeForm = document.getElementById('create-notice-form');
-    createNoticeForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        handleCreateNotice();
-    });
-
-    // View modal
-    const closeViewModal = document.getElementById('close-view-modal');
-    closeViewModal.addEventListener('click', function() {
-        document.getElementById('view-modal').classList.add('hidden');
-        currentNoticeId = null;
-    });
-
-    // Delete button
-    const deleteNoticeBtn = document.getElementById('delete-notice-btn');
-    deleteNoticeBtn.addEventListener('click', function() {
-        if (currentNoticeId) {
-            deleteNotice(currentNoticeId);
-        }
-    });
 });
+
 // ── 유틸 ──────────────────────────────────────────────────────────────────
 function getUser() {
     try {
@@ -326,12 +280,15 @@ function renderPollList() {
 function renderAll() {
     // 필터 탭
     document.getElementById("filterTabs").innerHTML = renderFilterTabs();
-    // 헤더 버튼
+
+    // 💡 [수정] 헤더 버튼 영역 제어 - 관리자일 때만 "새 투표 만들기" 노출
     const btnArea = document.getElementById("createBtnArea");
-    if (currentUser) {
-        btnArea.innerHTML = `<button class="btn-new-poll" onclick="openCreateForm()">+ 새 투표 만들기</button>`;
-    } else {
-        btnArea.innerHTML = "";
+    if (btnArea) {
+        if (currentUser && currentUser.isAdmin === true) {
+            btnArea.innerHTML = `<button class="btn-new-poll" onclick="openCreateForm()">+ 새 투표 만들기</button>`;
+        } else {
+            btnArea.innerHTML = "";
+        }
     }
     renderPollList();
 }
@@ -427,6 +384,12 @@ function execDelete(pollId) {
 let formOptions = ["", ""];
 
 function openCreateForm() {
+    // 💡 [수정] 자바스크립트 보안 필터링 추가
+    if (!currentUser || currentUser.isAdmin !== true) {
+        alert("관리자 권한이 필요합니다.");
+        return;
+    }
+
     formOptions = ["", ""];
     document.getElementById("createModal").classList.remove("hidden");
     document.getElementById("fTitle").value = "";
@@ -478,6 +441,12 @@ function toggleDeadlineFields() {
 }
 
 function submitCreatePoll() {
+    // 💡 [수정] 데이터 제출 시점에 권한 체크 한 번 더 진행
+    if (!currentUser || currentUser.isAdmin !== true) {
+        alert("관리자만 투표를 생성할 수 있습니다.");
+        return;
+    }
+
     const errEl = document.getElementById("fError");
     errEl.classList.add("hidden");
 
@@ -526,11 +495,6 @@ function init() {
     currentUser = getUser();
     loadPolls();
     renderAll();
-
-    // 배경 클릭으로 모달 닫기
-    document.getElementById("createModal").addEventListener("click", function(e) {
-        if (e.target === this) closeCreateForm();
-    });
 }
 
 document.addEventListener("DOMContentLoaded", init);

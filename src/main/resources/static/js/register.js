@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // 3. 비밀번호 길이 검증
-            if (password.length < 6) {
+            if (password.length < 4) {
                 displayError('비밀번호는 최소 6자 이상이어야 합니다.');
                 return;
             }

@@ -23,6 +23,9 @@ public class AdminMemberController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    // 💡 관리자로 지정할 학번 목록을 일관되게 관리합니다.
+    private final List<Integer> adminIds = List.of(20233244, 20233293);
+
     /**
      * 1. 동아리원 목록 조회 API
      */
@@ -56,7 +59,8 @@ public class AdminMemberController {
             map.put("isWebUser", isWeb);
 
             boolean isAdmin = false;
-            if (user.getUserId() != null && user.getUserId() == 20233244) {
+            // 💡 [수정 포인트 1] 하드코딩된 '== 20233244' 대신 adminIds 목록에 포함되는지 확인합니다.
+            if (user.getUserId() != null && adminIds.contains(user.getUserId())) {
                 isAdmin = true;
             } else if (isWeb) {
                 Member webInfo = webMemberMap.get(user.getUserId());
@@ -71,7 +75,7 @@ public class AdminMemberController {
     }
 
     /**
-     * 2. 동아리원 추가 API (성별 소문자 가공 적용)
+     * 2. 동아리원 추가 API
      */
     @PostMapping("/members/add")
     @jakarta.transaction.Transactional
@@ -114,7 +118,6 @@ public class AdminMemberController {
             newUser.setUserId(studentId);
             newUser.setMajor(department.trim());
 
-            // 💡 소문자 변환 가공 및 기본값 설정을 소문자 'm'으로 안정화
             String finalGender = (gender != null && !gender.trim().isEmpty()) ? gender.trim().toLowerCase() : "m";
             newUser.setGender(finalGender);
             newUser.setPhone(phone != null ? phone.trim() : "");
@@ -132,7 +135,8 @@ public class AdminMemberController {
             }
             newWebMember.setPassword(passwordEncoder.encode(password));
 
-            if (studentId == 20233244) {
+            // 💡 [수정 포인트 2] 20233293 학번도 회원 관리 창에서 직접 추가될 때 ADMIN 권한을 얻도록 수정합니다.
+            if (adminIds.contains(studentId)) {
                 newWebMember.setRole("ADMIN");
             } else {
                 newWebMember.setRole("USER");

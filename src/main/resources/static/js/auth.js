@@ -20,10 +20,16 @@ function getCurrentUser() {
     }
 }
 
-// 3. 현재 유저가 관리자인지 확인
+// 3. 현재 유저가 관리자인지 확인 (허용할 관리자 학번 배열 지정)
 function isAdmin() {
     const user = getCurrentUser();
-    return user && user.isAdmin === true;
+    if (!user) return false;
+
+    // DB에서 보낸 isAdmin 플래그가 true이거나, 지정된 관리자 학번에 해당하는지 교차 검증
+    const adminIds = [20233244, 20233293];
+    const userStudentId = parseInt(user.studentId);
+
+    return user.isAdmin === true || adminIds.includes(userStudentId);
 }
 
 // 4. [★최종 마법의 수정] 백엔드 세션을 조회하고, 화면 그리기를 강제 동기화하는 함수
@@ -31,34 +37,34 @@ function verifyAuthentication() {
     return fetch('/api/user?t=' + Date.now(), { cache: 'no-store' })
         .then(response => response.json())
         .then(data => {
-            // [핵심] 현재 비동기 검사를 하기 "직전"의 로컬 스토리지 로그인 여부를 백업합니다.
             const wasLoggedInBefore = !!localStorage.getItem('currentUser');
 
             if (data.isLoggedIn) {
+                // 지정된 관리자 학번들
+                const adminIds = [20233244, 20233293];
+                const studentIdInt = parseInt(data.studentId);
+
                 // 스프링 세션이 살아있다면 백엔드 정보로 캐시 갱신
                 const currentUser = {
                     username: data.username,
                     studentId: data.studentId,
                     department: data.department,
-                    isAdmin: data.isAdmin || false
+                    // 백엔드에서 준 관리자 플래그 혹은 학번 목록 매칭을 통해 관리자 여부 결정
+                    isAdmin: data.isAdmin || adminIds.includes(studentIdInt)
                 };
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 window.dispatchEvent(new CustomEvent('authVerified', { detail: currentUser }));
 
-                // ★ [핵심 로직] 백엔드는 로그인 상태인데, 로컬 스토리지는 비어있었다면? (방금 로그인하고 들어온 순간)
-                // main.js와 home.js가 최신 로컬 스토리지를 읽고 화면을 다시 그리도록 딱 한 번 자동으로 새로고침합니다.
                 if (!wasLoggedInBefore) {
                     window.location.reload();
-                    return { success: true, user: currentUser }; // 실행 중단
+                    return { success: true, user: currentUser };
                 }
 
                 return { success: true, user: currentUser };
             } else {
-                // 세션이 없다면 캐시 삭제
                 localStorage.removeItem('currentUser');
                 window.dispatchEvent(new CustomEvent('authVerified', { detail: null }));
 
-                // ★ [핵심 로직] 백엔드는 로그아웃 상태인데, 로컬 스토리지에는 옛날 정보가 남아있었다면? (방금 로그아웃한 순간)
                 if (wasLoggedInBefore) {
                     window.location.reload();
                     return { success: false };
