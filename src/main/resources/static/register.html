@@ -55,7 +55,7 @@
                 <p class="text-sm text-red-800"></p>
             </div>
 
-            <form action="/member" method="POST" class="space-y-6">
+            <form id="register-form" action="/member" method="POST" class="space-y-6">
                 <div class="space-y-2">
                     <label for="name" class="block text-sm font-medium text-gray-700">이름</label>
                     <input
@@ -68,11 +68,11 @@
                 </div>
 
                 <div class="space-y-2">
-                    <label for="userId" class="block text-sm font-medium text-gray-700">학번</label>
+                    <label for="studentId" class="block text-sm font-medium text-gray-700">학번</label>
                     <input
                             type="text"
-                            name="userid"
-                            id="userId"
+                            name="studentId"
+                            id="studentId"
                             maxlength="8"
                             placeholder="8자리 학번"
                             class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -82,14 +82,20 @@
 
                 <div class="space-y-2">
                     <label for="department" class="block text-sm font-medium text-gray-700">학과</label>
-                    <input
-                            type="text"
+                    <select
                             id="department"
                             name="major"
                             class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="정보통신/정보보안/전자공학"
                             required
                     >
+                        <option value="">선택해주세요</option>
+                        <option value="정보통신">정보통신</option>
+                        <option value="정보보안">정보보안</option>
+                        <option value="전자공학">전자공학</option>
+                        <option value="컴퓨터공학">컴퓨터공학</option>
+                        <option value="인공지능">인공지능</option>
+                        <option value="모빌리티">모빌리티</option>
+                    </select>
                 </div>
 
                 <div class="space-y-2">
@@ -98,9 +104,11 @@
                             type="password"
                             id="password"
                             name="password"
+                            maxlength="16"
                             class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             required
                     >
+                    <label for="password" class="block text-sm font-small text-gray-700">비밀번호는 6자 이상 입력해주시길 바랍니다.</label>
                 </div>
 
                 <div class="space-y-2">
@@ -108,6 +116,8 @@
                     <input
                             type="password"
                             id="confirmPassword"
+                            name="confirmPassword"
+                            maxlength="16"
                             class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             required
                     >

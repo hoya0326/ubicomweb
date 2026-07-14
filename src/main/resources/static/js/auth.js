@@ -107,28 +107,27 @@ async function loginUser(studentId, password) {
     }
 }
 
-// 6. [변경] 회원가입 처리 (백엔드 API 호출)
-async function registerUser(userData) {
+// 6. [최종 교체] 실제 페이지의 Form 엘리먼트를 직접 받아 전송합니다.
+function registerUser(formElement) {
     try {
-        const response = await fetch('/api/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                userId: parseInt(userData.studentId),
-                password: userData.password,
-                name: userData.name,
-                major: userData.department
-            })
-        });
+        // 기존 register-form의 input 태그 이름(name)을 백엔드가 이해하는 매개변수명으로 일시 변환합니다.
+        const nameInput = formElement.querySelector('#name');
+        const studentIdInput = formElement.querySelector('#studentId');
+        const departmentSelect = formElement.querySelector('#department');
+        const passwordInput = formElement.querySelector('#password');
 
-        if (response.ok) {
-            return { success: true };
-        } else {
-            const errorText = await response.text();
-            return { success: false, error: errorText || '회원가입에 실패했습니다.' };
-        }
+        // 백엔드 컨트롤러의 변수명 (name, userid, major, password) 에 맞춰 name 속성 부여
+        if (nameInput) nameInput.name = 'name';
+        if (studentIdInput) studentIdInput.name = 'userid'; // 💡 'studentId' -> 'userid'
+        if (departmentSelect) departmentSelect.name = 'major'; // 💡 'department' -> 'major'
+        if (passwordInput) passwordInput.name = 'password';
+
+        // 백엔드 엔드포인트 주소 설정 후 제출
+        formElement.action = '/member';
+        formElement.method = 'POST';
+        formElement.submit();
+
+        return { success: true };
     } catch (error) {
         return { success: false, error: '서버와 통신 중 오류가 발생했습니다.' };
     }
