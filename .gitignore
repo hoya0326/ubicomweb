@@ -37,3 +37,7 @@ out/
 .vscode/
 src/main/resources/application.properties
 src/main/resources/static/README.md
+.DS_Store
+src/.DS_Store
+src/main/.DS_Store
+src/main/resources/.DS_Store
