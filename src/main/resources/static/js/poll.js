@@ -6,6 +6,8 @@ let currentUser = null;
 // [수정] 공지사항 관련 에러 유발 코드 제거 및 초기화 분리
 document.addEventListener('DOMContentLoaded', function() {
     // 배경 클릭으로 모달 닫기 이벤트 등록
+    if (!requireLogin()) return;
+
     const createModal = document.getElementById("createModal");
     if (createModal) {
         createModal.addEventListener("click", function(e) {
