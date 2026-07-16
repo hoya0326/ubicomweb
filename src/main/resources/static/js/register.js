@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const registerForm = document.getElementById('register-form');
+    const passwordInput = document.getElementById('password');
+    const strengthBar = document.getElementById('password-strength-bar');
+    const strengthText = document.getElementById('password-strength-text');
 
     // 💡 화면에 에러 메시지를 보여주는 자체 함수 (외부 파일에 의존하지 않음)
     function displayError(message) {
@@ -30,6 +33,39 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (registerForm) {
+
+        passwordInput.addEventListener('input', function () {
+            const value = passwordInput.value;
+
+            let score = 0;
+
+            if (value.length >= 6) score++;
+            if (/[A-Za-z]/.test(value) && /\d/.test(value)) score++;
+            if (value.length >= 8 && /[^A-Za-z0-9]/.test(value)) score++;
+
+            if (value.length === 0) {
+                strengthBar.style.width = '0%';
+                strengthBar.className = 'h-2 rounded transition-all duration-300';
+                strengthText.textContent = '비밀번호 보안 수준';
+                strengthText.className = 'mt-1 text-sm text-gray-500';
+            } else if (score <= 1) {
+                strengthBar.style.width = '33%';
+                strengthBar.className = 'h-2 rounded transition-all duration-300 bg-red-500';
+                strengthText.textContent = '약함';
+                strengthText.className = 'mt-1 text-sm text-red-600';
+            } else if (score === 2) {
+                strengthBar.style.width = '66%';
+                strengthBar.className = 'h-2 rounded transition-all duration-300 bg-yellow-500';
+                strengthText.textContent = '보통';
+                strengthText.className = 'mt-1 text-sm text-yellow-600';
+            } else {
+                strengthBar.style.width = '100%';
+                strengthBar.className = 'h-2 rounded transition-all duration-300 bg-green-500';
+                strengthText.textContent = '강함';
+                strengthText.className = 'mt-1 text-sm text-green-600';
+            }
+        });
+
         registerForm.addEventListener('submit', function(e) {
             e.preventDefault(); // 기본 submit 작동 중단
             clearError();       // 이전 에러 흔적 숨기기
@@ -37,11 +73,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const name = document.getElementById('name').value.trim();
             const studentId = document.getElementById('studentId').value.trim();
             const department = document.getElementById('department').value;
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
 
             // 1. 빈 값 및 학과 검증
-            if (!name || !studentId || !password || !confirmPassword) {
+            if (!name || !studentId || !email || !password || !confirmPassword) {
                 displayError('모든 필드를 입력해주세요.');
                 return;
             }
@@ -50,6 +87,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayError('학과를 선택해주세요.');
                 return;
             }
+
+                // 이메일 형식 검증
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    displayError('올바른 이메일 형식을 입력해주세요.');
+                    return;
+                }
+
 
             // 2. 학번 검증
             if (studentId.length !== 8) {
@@ -63,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // 3. 비밀번호 길이 검증
-            if (password.length < 4) {
+            if (password.length < 6) {
                 displayError('비밀번호는 최소 6자 이상이어야 합니다.');
                 return;
             }

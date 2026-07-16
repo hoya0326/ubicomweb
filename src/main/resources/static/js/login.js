@@ -6,6 +6,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const loginForm = document.getElementById('login-form');
+    const passwordInput = document.getElementById('password');
+    const capsLockMessage = document.getElementById('caps-lock-message');
+
+    function updateCapsLockState(event) {
+        if (event.getModifierState('CapsLock')) {
+            capsLockMessage.classList.remove('hidden');
+        } else {
+            capsLockMessage.classList.add('hidden');
+        }
+    }
+
+    passwordInput.addEventListener('keydown', updateCapsLockState);
+    passwordInput.addEventListener('keyup', updateCapsLockState);
 
     loginForm.addEventListener('submit', function(e) {
         // 1. 우선 기본 서브밋을 막고 벨리데이션을 진행합니다.
@@ -14,6 +27,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const studentId = document.getElementById('studentId').value.trim();
         const password = document.getElementById('password').value;
+        const strengthBar = document.getElementById('password-strength-bar');
+        const strengthText = document.getElementById('password-strength-text');
 
         // 2. 유효성 검사 (입력 체크)
         if (!studentId || !password) {
