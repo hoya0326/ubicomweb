@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const studentId = document.getElementById('studentId').value.trim();
         const password = document.getElementById('password').value;
+        const strengthBar = document.getElementById('password-strength-bar');
+        const strengthText = document.getElementById('password-strength-text');
 
         // 2. 유효성 검사 (입력 체크)
         if (!studentId || !password) {
