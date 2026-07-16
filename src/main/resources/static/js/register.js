@@ -37,11 +37,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const name = document.getElementById('name').value.trim();
             const studentId = document.getElementById('studentId').value.trim();
             const department = document.getElementById('department').value;
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
 
             // 1. 빈 값 및 학과 검증
-            if (!name || !studentId || !password || !confirmPassword) {
+            if (!name || !studentId || !email || !password || !confirmPassword) {
                 displayError('모든 필드를 입력해주세요.');
                 return;
             }
@@ -50,6 +51,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayError('학과를 선택해주세요.');
                 return;
             }
+
+                // 이메일 형식 검증
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    displayError('올바른 이메일 형식을 입력해주세요.');
+                    return;
+                }
+
 
             // 2. 학번 검증
             if (studentId.length !== 8) {

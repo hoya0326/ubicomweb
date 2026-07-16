@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이메일 등록 - UbiCOM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+<header class="bg-blue-600 text-white shadow-lg">
+    <div class="container mx-auto px-4">
+        <div class="flex items-center justify-between h-16">
+            <button
+                    onclick="location.href='/'"
+                    class="text-2xl font-bold hover:text-blue-100 transition-colors"
+            >
+                UbiCOM
+            </button>
+        </div>
+    </div>
+</header>
+
+<main class="flex-1 flex items-center justify-center bg-gray-50 py-12 px-4">
+    <div class="max-w-md w-full">
+
+        <div class="bg-white rounded-lg shadow-lg p-8">
+
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                    이메일 등록
+                </h1>
+
+                <p class="text-gray-600">
+                    비밀번호 찾기를 위해 이메일을 등록해주세요.
+                </p>
+            </div>
+
+            <div
+                    id="error-message"
+                    class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-md"
+            >
+                <p class="text-sm text-red-800"></p>
+            </div>
+
+            <form
+                    id="email-register-form"
+                    action="/member/email"
+                    method="POST"
+                    class="space-y-6"
+            >
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">
+                        이메일
+                    </label>
+
+                    <div class="flex items-center gap-2">
+                        <input
+                                type="text"
+                                id="email-id"
+                                placeholder="이메일 아이디"
+                                class="w-1/2 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                required
+                        >
+
+                        <span>@</span>
+
+                        <select
+                                id="email-domain"
+                                class="w-1/2 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="gmail.com">gmail.com</option>
+                            <option value="naver.com">naver.com</option>
+                            <option value="daum.net">daum.net</option>
+                            <option value="hanmail.net">hanmail.net</option>
+                            <option value="nate.com">nate.com</option>
+                            <option value="custom">직접 입력</option>
+                        </select>
+                    </div>
+
+                    <input
+                            type="text"
+                            id="custom-domain"
+                            placeholder="도메인을 입력하세요"
+                            class="hidden w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+
+                    <input
+                            type="hidden"
+                            id="email"
+                            name="email"
+                    >
+                </div>
+
+                <button
+                        type="submit"
+                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors font-medium"
+                >
+                    이메일 등록
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+</main>
+
+<footer class="bg-gray-800 text-white py-8 mt-auto">
+    <div class="container mx-auto px-4">
+        <div class="text-center text-sm text-gray-400">
+            <p>&copy; 2026 UbiCOM. All rights reserved.</p>
+        </div>
+    </div>
+</footer>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        const form = document.getElementById('email-register-form');
+        const emailIdInput = document.getElementById('email-id');
+        const emailDomainSelect = document.getElementById('email-domain');
+        const customDomainInput = document.getElementById('custom-domain');
+        const emailInput = document.getElementById('email');
+        const errorBox = document.getElementById('error-message');
+
+        emailDomainSelect.addEventListener('change', function () {
+            if (this.value === 'custom') {
+                customDomainInput.classList.remove('hidden');
+                customDomainInput.required = true;
+            } else {
+                customDomainInput.classList.add('hidden');
+                customDomainInput.required = false;
+                customDomainInput.value = '';
+            }
+        });
+
+        form.addEventListener('submit', function (event) {
+
+            event.preventDefault();
+            hideError();
+
+            const emailId = emailIdInput.value.trim();
+
+            const domain = emailDomainSelect.value === 'custom'
+                ? customDomainInput.value.trim()
+                : emailDomainSelect.value;
+
+            if (!emailId) {
+                showError('이메일 아이디를 입력해주세요.');
+                return;
+            }
+
+            if (!domain) {
+                showError('이메일 주소를 입력해주세요.');
+                return;
+            }
+
+            const email = emailId + '@' + domain;
+
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showError('올바른 이메일 형식을 입력해주세요.');
+                return;
+            }
+
+            emailInput.value = email;
+
+            form.submit();
+        });
+
+        function showError(message) {
+            errorBox.classList.remove('hidden');
+            errorBox.querySelector('p').textContent = message;
+        }
+
+        function hideError() {
+            errorBox.classList.add('hidden');
+            errorBox.querySelector('p').textContent = '';
+        }
+    });
+</script>
+
+</body>
+</html>
