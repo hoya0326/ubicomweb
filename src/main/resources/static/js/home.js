@@ -1,7 +1,5 @@
 // Home page functionality
 
-// home.js 파일의 상단 부분 예시
-
 document.addEventListener('DOMContentLoaded', function() {
     const mainContent = document.getElementById('main-content');
 
@@ -9,8 +7,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const cachedUser = getCurrentUser(); // 공통 스크립트의 함수 호출
     if (cachedUser) {
         showDashboard(mainContent, cachedUser);
+        toggleHeaderSurveyButton(false); // 로그인 상태이므로 헤더 버튼 숨김
     } else {
         showLandingPage(mainContent);
+        toggleHeaderSurveyButton(true);  // 로그인 전이므로 헤더 버튼 노출
     }
 
     // 2. [핵심] 공통 스크립트가 서버 인증 검증을 마친 시점('authVerified')을 구독합니다.
@@ -20,12 +20,37 @@ document.addEventListener('DOMContentLoaded', function() {
         if (verifiedUser) {
             // 검증된 유저 정보로 홈 대시보드 확정 및 갱신
             showDashboard(mainContent, verifiedUser);
+            toggleHeaderSurveyButton(false); // 로그인 완료 상태이므로 헤더 버튼 숨김
         } else {
             // 세션이 없거나 만료된 상태라면 방문자 페이지 확정
             showLandingPage(mainContent);
+            toggleHeaderSurveyButton(true);  // 로그인 안 된 상태이므로 헤더 버튼 노출
         }
     });
 });
+
+// 상단 헤더의 "2학기 신규회원 가입 신청" 버튼 표시/숨김 및 페이지 이동 설정 함수
+function toggleHeaderSurveyButton(show) {
+    // index.html 헤더 내의 데스크톱/모바일 신청 버튼 및 클래스로 지정된 모든 타겟 버튼 선택
+    const surveyButtons = document.querySelectorAll('a[href="register.html"], button[onclick*="showSurvey"], .survey-btn');
+
+    surveyButtons.forEach(btn => {
+        if (show) {
+            btn.classList.remove('hidden');
+
+            // [해결 핵심] 버튼을 클릭했을 때 회원가입 페이지로 안전하게 이동하도록 이벤트 매핑
+            btn.onclick = function() {
+                location.href = 'register.html';
+            };
+            // <a> 태그 형식이 섞여 있을 때를 대비한 href 속성 부여
+            if (btn.tagName === 'A' || btn.hasAttribute('href')) {
+                btn.setAttribute('href', 'register.html');
+            }
+        } else {
+            btn.classList.add('hidden');
+        }
+    });
+}
 
 function showLandingPage(container) {
     container.innerHTML = `
@@ -40,8 +65,11 @@ function showLandingPage(container) {
                     최신 기술을 탐구하고 실전 프로젝트를 통해 미래의 개발자로 성장해보세요.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                    <a href="register.html" class="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-4 rounded-md font-medium transition-colors">
-                        가입하기
+                    <a href="register.html" class="bg-emerald-500 hover:bg-emerald-600 text-white text-lg px-8 py-4 rounded-md font-bold transition-colors shadow-lg">
+                        📢 2학기 신규회원 가입 신청 (회원가입)
+                    </a>
+                    <a href="login.html" class="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-4 rounded-md font-medium transition-colors border border-gray-200">
+                        기존 회원 로그인
                     </a>
                 </div>
             </div>
@@ -120,8 +148,8 @@ function showLandingPage(container) {
                 <p class="text-xl mb-8 text-blue-100">
                     UbiCOM과 함께 성장하는 개발자가 되어보세요
                 </p>
-                <a href="register.html" class="inline-block bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-4 rounded-md font-medium transition-colors">
-                    회원가입하기
+                <a href="register.html" class="inline-block bg-emerald-500 hover:bg-emerald-600 text-white text-lg px-8 py-4 rounded-md font-bold transition-colors shadow">
+                    📢 2학기 신규회원 가입 신청
                 </a>
             </div>
         </section>
@@ -171,7 +199,7 @@ function showDashboard(container, user) {
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600 mb-1">학과</p>
-                                <p class="text-xl font-bold">${user.department}</p>
+                                <p class="text-xl font-bold">${user.department || user.major || '정보통신공학과'}</p>
                             </div>
                             <div class="bg-purple-100 rounded-full p-3">
                                 <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,7 +252,6 @@ function showDashboard(container, user) {
     `;
 }
 
-// 혹시 스크립트 내부에 기존에 사용하던 안전한 날짜 변환 함수(formatDate)가 없다면 아래를 유지하거나 살려두세요.
 function formatDate(dateString) {
     if(!dateString) return '';
     const date = new Date(dateString);
