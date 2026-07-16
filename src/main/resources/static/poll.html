@@ -281,8 +281,55 @@
     seedData();
     updateNav();
 </script>
-<script src="js/poll.js"></script>
+
+//수정1. 변수 참조 오류 및 함수 중복 및 정의 에러
+<!-- JS 파일들을 올바른 순서(로그인 데이터 준비 -> 메인 -> 투표 실행)로 로드합니다 -->
 <script src="js/auth.js"></script>
 <script src="js/main.js"></script>
+<script src="js/poll.js"></script>
+
+<script>
+    // 페이지가 열릴 때 모바일 메뉴 작동 및 상단 로그인 버튼 상태 표시를 안전하게 처리합니다
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. 모바일 메뉴 여닫기 기능 작동
+        const mobileMenuBtn = document.getElementById("mobile-menu-btn");
+        const mobileMenu = document.getElementById("mobile-menu");
+        if (mobileMenuBtn && mobileMenu) {
+            mobileMenuBtn.addEventListener("click", function() {
+                mobileMenu.classList.toggle("hidden");
+            });
+        }
+
+        // 2. 상단 네비게이션 로그인/로그아웃 버튼 표시
+        if (typeof updateNav === 'function') {
+            updateNav();
+        } else {
+            const user = JSON.parse(localStorage.getItem("currentUser") || "null");
+            const navButtons = document.getElementById("nav-buttons");
+            const mobileNav = document.getElementById("mobile-nav-buttons");
+
+            if (user) {
+                const btnHtml = `
+                    <span class="mr-4 font-semibold text-blue-100 text-sm">${user.name || user.username}님</span>
+                    <button onclick="logout()" class="text-sm bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded transition-colors">로그아웃</button>
+                `;
+                if (navButtons) navButtons.innerHTML = btnHtml;
+                if (mobileNav) mobileNav.innerHTML = btnHtml;
+            } else {
+                const btnHtml = `
+                    <button onclick="location.href='/login'" class="text-sm bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded transition-colors">로그인</button>
+                `;
+                if (navButtons) navButtons.innerHTML = btnHtml;
+                if (mobileNav) mobileNav.innerHTML = btnHtml;
+            }
+        }
+    });
+
+    // 로그아웃 처리 함수
+    function logout() {
+        localStorage.removeItem("currentUser");
+        location.reload();
+    }
+</script>
 </body>
 </html>
