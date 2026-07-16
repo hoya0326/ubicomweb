@@ -70,12 +70,15 @@ function renderCalendar() {
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPrevMonth = new Date(year, month, 0).getDate();
-    
-    // Get events for this month
+
+    // Get events for this month (시작일이나 종료일이 이번 달에 걸쳐있으면 가져옴)
     const events = JSON.parse(localStorage.getItem('events') || '[]');
     const monthEvents = events.filter(event => {
-        const eventDate = new Date(event.date);
-        return eventDate.getFullYear() === year && eventDate.getMonth() === month;
+        const start = new Date(event.startDate || event.date);
+        const end = new Date(event.endDate || event.date);
+        const firstOfMonth = new Date(year, month, 1);
+        const lastOfMonth = new Date(year, month + 1, 0);
+        return start <= lastOfMonth && end >= firstOfMonth;
     });
     
     // Create calendar days
@@ -107,17 +110,28 @@ function renderCalendar() {
         
         // Find events for this day
         const dayEvents = monthEvents.filter(event => {
-            const eventDate = new Date(event.date);
-            return eventDate.getDate() === day;
+            const current = new Date(year, month, day).setHours(0,0,0,0);
+            const start = new Date(event.startDate || event.date).setHours(0,0,0,0);
+            const end = new Date(event.endDate || event.date).setHours(0,0,0,0);
+            return current >= start && current <= end;
         });
         
         let dayHTML = `<div class="font-semibold text-sm mb-1">${day}</div>`;
         
         // Add events
         dayEvents.forEach(event => {
-            dayHTML += `<div class="calendar-event" onclick="viewEvent('${event.id}')" title="${escapeHtml(event.title)}">${escapeHtml(event.title)}</div>`;
+            // 1. 기본은 행사(파란색)
+            let colorClass = 'bg-blue-500 text-white hover:bg-blue-600';
+
+            // 2. 동아리(club)인 경우에만 (초록색)
+            if (event.category === 'club') {
+                colorClass = 'bg-green-500 text-white hover:bg-green-600';
+            }
+
+            // 3. 기존 class="calendar-event" 뒤에 위에서 결정된 colorClass
+            dayHTML += `<div class="calendar-event ${colorClass}" onclick="viewEvent('${event.id}')" title="${escapeHtml(event.title)}">${escapeHtml(event.title)}</div>`;
         });
-        
+
         dayDiv.innerHTML = dayHTML;
         calendarDays.appendChild(dayDiv);
     }
@@ -177,39 +191,50 @@ function loadEvents() {
 
 function handleAddEvent() {
     hideError('event-error');
-    
+
     const title = document.getElementById('event-title').value.trim();
-    const date = document.getElementById('event-date').value;
+    const startDate = document.getElementById('event-start-date').value;
+    const endDate = document.getElementById('event-end-date').value;
+
+    // 이 줄이 추가되었습니다! (HTML에서 선택한 행사/동아리 값 가져오기)
+    const category = document.getElementById('event-category').value;
+
     const description = document.getElementById('event-description').value.trim();
-    
-    if (!title || !date) {
-        showError('event-error', '제목과 날짜를 입력해주세요.');
+
+    if (!title || !startDate || !endDate) {
+        showError('event-error', '제목과 기간을 모두 입력해주세요.');
         return;
     }
-    
+
     const user = getCurrentUser();
     if (!user || !user.isAdmin) {
         showError('event-error', '관리자만 일정을 추가할 수 있습니다.');
         return;
     }
-    
+
     const newEvent = {
         id: Date.now().toString(),
         title: title,
-        date: date,
+        date: startDate,
+        startDate: startDate,
+        endDate: endDate,
+
+        // 이 줄이 추가되었습니다! (데이터 저장할 때 분류값도 같이 저장)
+        category: category,
+
         description: description,
         author: user.username,
         createdAt: new Date().toISOString()
     };
-    
+
     const events = JSON.parse(localStorage.getItem('events') || '[]');
     events.push(newEvent);
     localStorage.setItem('events', JSON.stringify(events));
-    
+
     // Close modal and reset form
     document.getElementById('event-modal').classList.add('hidden');
     document.getElementById('event-form').reset();
-    
+
     // Reload calendar and events
     renderCalendar();
     loadEvents();
