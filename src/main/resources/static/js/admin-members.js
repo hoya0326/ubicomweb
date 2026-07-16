@@ -400,3 +400,4 @@ document.addEventListener("DOMContentLoaded", function () {
         if (e.target === this) closeModal();
     });
 });
+
