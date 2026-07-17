@@ -198,3 +198,24 @@ html {
 .phone-sep {
     user-select: none;
 }
+/* 일반 부원을 관리자로 위임하는 버튼 (파란색 계열) */
+.btn-role-user {
+    background-color: #ffffff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+    transition: all 0.2s ease;
+}
+.btn-role-user:hover {
+    background-color: #eff6ff;
+}
+
+/* 관리자를 일반 부원으로 해제하는 버튼 (연한 회색/어두운 텍스트 계열) */
+.btn-role-admin {
+    background-color: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #d1d5db;
+    transition: all 0.2s ease;
+}
+.btn-role-admin:hover {
+    background-color: #e5e7eb;
+}

@@ -59,7 +59,6 @@ public class AdminMemberController {
             map.put("isWebUser", isWeb);
 
             boolean isAdmin = false;
-            // 💡 [수정 포인트 1] 하드코딩된 '== 20233244' 대신 adminIds 목록에 포함되는지 확인합니다.
             if (user.getUserId() != null && adminIds.contains(user.getUserId())) {
                 isAdmin = true;
             } else if (isWeb) {
@@ -112,7 +111,6 @@ public class AdminMemberController {
                 return ResponseEntity.status(400).body(response);
             }
 
-            // 1) Users 테이블에 명부 등록 처리
             Users newUser = new Users();
             newUser.setName(name.trim());
             newUser.setUserId(studentId);
@@ -124,7 +122,6 @@ public class AdminMemberController {
 
             userRepository.save(newUser);
 
-            // 2) Member 테이블에 웹 계정 동시 등록 (암호화 적용)
             Member newWebMember = new Member();
             newWebMember.setName(name.trim());
             newWebMember.setUserId(studentId);
@@ -135,7 +132,6 @@ public class AdminMemberController {
             }
             newWebMember.setPassword(passwordEncoder.encode(password));
 
-            // 💡 [수정 포인트 2] 20233293 학번도 회원 관리 창에서 직접 추가될 때 ADMIN 권한을 얻도록 수정합니다.
             if (adminIds.contains(studentId)) {
                 newWebMember.setRole("ADMIN");
             } else {
@@ -207,6 +203,74 @@ public class AdminMemberController {
 
             response.put("success", false);
             response.put("message", "삭제 중 서버 오류 발생: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * 4. 관리자 권한 토글 API (신규 추가 💥)
+     */
+    @PutMapping("/members/toggle-admin/{id}")
+    @jakarta.transaction.Transactional
+    public ResponseEntity<Map<String, Object>> toggleAdminPermission(@PathVariable("id") String id) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Long targetId = Long.parseLong(id.trim());
+
+            Optional<Users> userOpt = userRepository.findAll().stream()
+                    .filter(u -> u.getId() != null && u.getId().equals(targetId))
+                    .findFirst();
+
+            if (!userOpt.isPresent()) {
+                response.put("success", false);
+                response.put("message", "존재하지 않는 회원 정보입니다.");
+                return ResponseEntity.status(404).body(response);
+            }
+
+            Users user = userOpt.get();
+            Integer studentId = user.getUserId();
+
+            if (studentId == null) {
+                response.put("success", false);
+                response.put("message", "유저의 학번 정보가 누락되어 있습니다.");
+                return ResponseEntity.status(400).body(response);
+            }
+
+            // 시스템 관리자로 명시된 학번은 권한 해제를 금지합니다.
+            if (adminIds.contains(studentId)) {
+                response.put("success", false);
+                response.put("message", "시스템으로 지정된 최고 관리자 계정은 권한을 해제할 수 없습니다.");
+                return ResponseEntity.status(400).body(response);
+            }
+
+            Optional<Member> memberOpt = memberRepository.findAll().stream()
+                    .filter(m -> studentId.equals(m.getUserId()))
+                    .findFirst();
+
+            if (!memberOpt.isPresent()) {
+                response.put("success", false);
+                response.put("message", "웹 가입을 진행하지 않은 유저는 권한을 조작할 수 없습니다.");
+                return ResponseEntity.status(400).body(response);
+            }
+
+            Member member = memberOpt.get();
+            String currentRole = member.getRole();
+            String newRole = "ADMIN".equalsIgnoreCase(currentRole) ? "USER" : "ADMIN";
+
+            member.setRole(newRole);
+            memberRepository.save(member);
+
+            response.put("success", true);
+            response.put("message", "권한이 성공적으로 수정되었습니다.");
+            return ResponseEntity.ok(response);
+
+        } catch (NumberFormatException e) {
+            response.put("success", false);
+            response.put("message", "올바르지 않은 식별자 형식입니다.");
+            return ResponseEntity.status(400).body(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "서버 오류: " + e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
     }

@@ -8,18 +8,12 @@ async function loadData() {
     // 1. 로그인 사용자 확인
     const u = localStorage.getItem("currentUser");
     currentUser = u ? JSON.parse(u) : null;
+
     if (currentUser) {
         const navUserEl = document.getElementById("navUsername");
         const logoutBtnEl = document.getElementById("logoutBtn");
         if (navUserEl) navUserEl.textContent = currentUser.name || currentUser.username;
         if (logoutBtnEl) logoutBtnEl.style.display = "block";
-
-        // 관리자가 아니라면 경고 후 튕겨내기
-        if (!currentUser.isAdmin) {
-            alert("관리자만 접근할 수 있습니다.");
-            location.href = "/";
-            return;
-        }
     }
 
     // 2. 백엔드 데이터베이스 연동 (실패 시 로컬스토리지 백업으로 대체)
@@ -28,6 +22,16 @@ async function loadData() {
         if (!response.ok) throw new Error("서버에서 회원 목록을 불러오지 못했습니다.");
 
         members = await response.json();
+
+        // 💥 [교차 검증] 데이터 로드 즉시, 로그인 한 계정이 DB 상 관리자 권한인지 체크 후 세션 갱신
+        if (currentUser) {
+            const myServerInfo = members.find(m => String(m.studentId) === String(currentUser.studentId || currentUser.username));
+            if (myServerInfo) {
+                currentUser.isAdmin = myServerInfo.isAdmin;
+                localStorage.setItem("currentUser", JSON.stringify(currentUser));
+            }
+        }
+
     } catch (error) {
         console.error(error);
         const raw = localStorage.getItem("users");
@@ -44,6 +48,13 @@ async function loadData() {
             ];
             saveMembers();
         }
+    }
+
+    // 💥 [인증 가드] 교차 검증까지 마친 상태에서 최종 관리자가 아니라면 차단 및 튕겨내기
+    if (!currentUser || !currentUser.isAdmin) {
+        alert("관리자만 접근할 수 있습니다.");
+        location.href = "/";
+        return;
     }
 
     renderStats();
@@ -107,6 +118,10 @@ function renderMembers(filter) {
             if (m.gender === "M" || m.gender === "m") genderText = "남자";
             if (m.gender === "F" || m.gender === "f") genderText = "여자";
 
+            // 💥 권한 상태에 따른 토글 버튼 디자인 조건부 분기 적용
+            const toggleBtnText = m.isAdmin ? "관리자 해제" : "관리자 위임";
+            const toggleBtnClass = m.isAdmin ? "btn-role-admin" : "btn-role-user";
+
             return `
     <div class="member-row" id="row_${m.id}" data-search="${escHtml(m.name + " " + m.studentId + " " + (m.department || ""))}">
       <div class="row-summary" onclick="toggleRow(this)">
@@ -134,7 +149,11 @@ function renderMembers(filter) {
             <div class="detail-cell"><label>가입일</label><p>${escHtml(m.joinedAt ? m.joinedAt.slice(0, 10) : "-")}</p></div>
             <div class="detail-cell"><label>역할</label><p>${m.isAdmin ? "관리자" : "일반 부원"}</p></div>
           </div>
-          <div class="detail-actions">
+          <div class="detail-actions" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;">
+            <!-- 💥 관리자 토글 버튼 배치 -->
+            <button class="${toggleBtnClass}" onclick="toggleAdminPermission('${m.id}')" style="padding: 6px 12px; font-size: 13px; border-radius: 6px; cursor: pointer;">
+                ${toggleBtnText}
+            </button>
             <div id="${m.id}-btn">
               <button class="btn-del-init" onclick="showConfirm('${m.id}')">삭제</button>
             </div>
@@ -166,6 +185,68 @@ function toggleRow(summary) {
     detail.classList.toggle("hidden");
     chevron.style.transform = open ? "" : "rotate(180deg)";
     summary.style.background = open ? "" : "#f9fafb";
+}
+
+/* ── admin permission (관리자 권한 토글 처리) ─────────────────────────── */
+async function toggleAdminPermission(id) {
+    const member = members.find((m) => String(m.id) === String(id));
+    if (!member) return;
+
+    if (!currentUser || !currentUser.isAdmin) {
+        alert("권한 수정은 관리자만 가능합니다.");
+        return;
+    }
+
+    if (!member.isWebUser) {
+        alert("웹 가입을 하지 않은 회원은 권한을 변경할 수 없습니다.");
+        return;
+    }
+
+    const currentStatus = !!member.isAdmin;
+    const confirmMsg = currentStatus
+        ? `[${member.name}] 님의 관리자 권한을 해제하시겠습니까?`
+        : `[${member.name}] 님에게 관리자 권한을 부여하시겠습니까?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+        const response = await fetch(`/api/admin/members/toggle-admin/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            members = members.map((m) => {
+                if (String(m.id) === String(id)) {
+                    return { ...m, isAdmin: !currentStatus };
+                }
+                return m;
+            });
+
+            // 💥 [학번 대조 세션 동기화] 변경된 대상이 로그인 한 '나 자신'이면 즉각 세션 수정 후 새로고침
+            const myCurrentSid = currentUser.studentId || currentUser.username;
+            if (String(member.studentId) === String(myCurrentSid)) {
+                currentUser.isAdmin = !currentStatus;
+                localStorage.setItem("currentUser", JSON.stringify(currentUser));
+                saveMembers();
+                alert("본인의 권한이 변경되어 페이지를 새로고침합니다.");
+                location.reload();
+                return;
+            }
+
+            saveMembers();
+            renderStats();
+            renderMembers();
+            alert("권한 설정이 정상적으로 반영되었습니다.");
+        } else {
+            alert(result.message || "권한 변경에 실패했습니다.");
+        }
+    } catch (e) {
+        console.error("서버 동기화 실패:", e);
+        alert("서버 통신 중 오류가 발생했습니다.");
+    }
 }
 
 /* ── delete (삭제 처리) ────────────────────────────────────────────────── */
@@ -219,12 +300,10 @@ function openModal() {
     document.getElementById("addForm").classList.remove("hidden");
     document.getElementById("addSuccess").classList.add("hidden");
 
-    // 일반 입력 필드 초기화
     ["addName", "addStudentId", "addDept", "addPw"].forEach(
         (id) => { if(document.getElementById(id)) document.getElementById(id).value = ""; }
     );
 
-    // 💡 개별 컴포넌트로 변경된 연락처 필드 및 에러 아웃라인 초기화
     PhoneInput.clear("addPhoneWrap");
     PhoneInput.setError("addPhoneWrap", false);
 
@@ -244,13 +323,10 @@ async function addMember() {
     const pw = document.getElementById("addPw").value;
     const gender = document.querySelector('input[name="addGender"]:checked').value;
 
-    // 💡 UI 유틸리티를 활용해 'XXX-XXXX-XXXX' 형태의 값 취득
     const phone = PhoneInput.getValue("addPhoneWrap");
 
-    // 초기 상태에서 에러 시각 효과 제거
     PhoneInput.setError("addPhoneWrap", false);
 
-    // 유효성 체크
     if (!name || !sid || !dept || !pw || PhoneInput.isEmpty("addPhoneWrap")) {
         showError("필수 항목(*)을 모두 입력해주세요.");
         if (PhoneInput.isEmpty("addPhoneWrap")) {
@@ -259,7 +335,6 @@ async function addMember() {
         return;
     }
 
-    // 세 칸 중 하나라도 미완성인 상태 체크 (예: 010-123-빈칸)
     if (phone.split('-').some(val => !val || val.trim() === "")) {
         showError("전화번호 3자리를 모두 완벽하게 입력해주세요.");
         PhoneInput.setError("addPhoneWrap", true);
@@ -306,7 +381,7 @@ function showError(msg) {
 
 /* ── PhoneInput (연락처 세 칸 입력 UI 유틸리티) ────────────────────────── */
 const PhoneInput = (() => {
-    const MAX = [3, 4, 4]; // 각 Input 박스의 자릿수 규칙
+    const MAX = [3, 4, 4];
 
     function getInputs(wrapId) {
         const wrap = document.getElementById(wrapId);
@@ -318,14 +393,12 @@ const PhoneInput = (() => {
         const raw = e.target.value.replace(/\D/g, "");
         e.target.value = raw.slice(0, MAX[idx]);
 
-        // 입력 자릿수가 꽉 차면 자동으로 다음 칸으로 포커스 전환
         if (e.target.value.length === MAX[idx] && idx < inputs.length - 1) {
             inputs[idx + 1].focus();
         }
     }
 
     function onKeydown(inputs, idx, e) {
-        // Backspace를 눌렀을 때 칸이 비어있다면 이전 칸으로 포커스 백업
         if (e.key === "Backspace" && e.target.value === "" && idx > 0) {
             inputs[idx - 1].focus();
         }
@@ -344,7 +417,6 @@ const PhoneInput = (() => {
             .replace(/\D/g, "");
         if (!text) return;
 
-        // 클립보드 복사-붙여넣기 시 알아서 세 칸으로 쪼개서 분배
         let pos = 0;
         for (let i = 0; i < inputs.length && pos < text.length; i++) {
             const chunk = text.slice(pos, pos + MAX[i]);
@@ -391,8 +463,6 @@ const PhoneInput = (() => {
 /* ── init (초기 구동 리스너) ─────────────────────────────────────────── */
 document.addEventListener("DOMContentLoaded", function () {
     loadData();
-
-    // 💡 새롭게 구성된 3칸 입력기 컴포넌트 이벤트 연결
     PhoneInput.init("addPhoneWrap");
 
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
@@ -400,4 +470,3 @@ document.addEventListener("DOMContentLoaded", function () {
         if (e.target === this) closeModal();
     });
 });
-
