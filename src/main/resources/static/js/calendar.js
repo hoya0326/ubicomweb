@@ -67,7 +67,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 4. 모달 닫기
     document.getElementById('close-event-modal')?.addEventListener('click', resetAndCloseModal);
-    document.getElementById('cancel-event-btn')?.addEventListener('click', resetAndCloseModal);
 
     // 5. 기타 UI 이벤트
     document.getElementById('btn-period-single')?.addEventListener('click', () => togglePeriodUI(false));
@@ -194,11 +193,28 @@ function renderCalendar() {
 
         // 클릭 이벤트 추가
         dayDiv.onclick = function() {
-            dayEvents.forEach(evt => {
-                if (confirm(`[일정 확인]\n제목: ${evt.title}\n설명: ${evt.description || '없음'}\n\n이 날짜(${dateStr})의 일정만 삭제하시겠습니까?`)) {
+            if (dayEvents.length === 0) return;
+
+            const evt = dayEvents[0];
+            const modal = document.getElementById('view-event-modal');
+
+            document.getElementById('view-event-title').textContent = evt.title || '제목 없음';
+
+            // 이제 여기서 저장된 description 값을 가져옵니다.
+            document.getElementById('view-event-desc').innerHTML = `
+        <p class="mb-2"><strong>날짜:</strong> ${dateStr}</p>
+        <p><strong>설명:</strong> ${evt.description || '설명 없음'}</p>
+    `;
+
+            const delBtn = document.getElementById('view-event-delete-btn');
+            delBtn.onclick = function() {
+                if (confirm('정말 이 날짜의 일정만 삭제하시겠습니까?')) {
                     deleteEvent(evt.id, dateStr);
+                    modal.classList.add('hidden');
                 }
-            });
+            };
+
+            modal.classList.remove('hidden');
         };
 
         dayEvents.forEach(evt => {
@@ -234,10 +250,10 @@ function handleAddEvent() {
         title: title,
         startDate: startDate,
         endDate: endDate,
+        description: document.getElementById('event-description').value.trim(), // [추가] 설명 저장
         category: document.getElementById('event-category')?.value || 'event',
-        // 반복 정보 추가
         recurrence: isRepeat ? recurrence : 'none',
-        recurrenceEnd: recurrenceEnd || '9999-12-31' // 종료일 없으면 무한대
+        recurrenceEnd: recurrenceEnd || '9999-12-31'
     };
 
     const events = JSON.parse(localStorage.getItem('events') || '[]');
@@ -272,22 +288,16 @@ function viewEvent(eventId) {
 
 function deleteEvent(eventId, clickedDate = null) {
     if (!requireAdmin()) return;
-
     const events = JSON.parse(localStorage.getItem('events') || '[]');
     const eventIndex = events.findIndex(e => e.id === eventId);
-
     if (eventIndex === -1) return;
-
     if (!clickedDate) {
-        // 리스트에서 삭제 버튼 누를 때: 전체 삭제
         if (!confirm('정말 이 일정을 완전히 삭제하시겠습니까?')) return;
         events.splice(eventIndex, 1);
     } else {
-        // 달력에서 개별 삭제할 때: 예외 날짜 추가
         if (!events[eventIndex].exceptions) events[eventIndex].exceptions = [];
         events[eventIndex].exceptions.push(clickedDate);
     }
-
     localStorage.setItem('events', JSON.stringify(events));
     renderCalendar();
     loadEvents();
