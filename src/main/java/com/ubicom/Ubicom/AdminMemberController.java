@@ -24,7 +24,7 @@ public class AdminMemberController {
     private PasswordEncoder passwordEncoder;
 
     // 💡 관리자로 지정할 학번 목록을 일관되게 관리합니다.
-    private final List<Integer> adminIds = List.of(20233244, 20233293);
+    private final List<Integer> adminIds = List.of(20233244);
 
     /**
      * 1. 동아리원 목록 조회 API

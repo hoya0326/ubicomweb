@@ -19,7 +19,7 @@ public class AdminInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         // 💡 관리자로 지정할 학번 리스트 (원하는 학번을 언제든 이곳에 추가할 수 있습니다)
-        List<Integer> adminIds = List.of(20233244, 20233293);
+        List<Integer> adminIds = List.of(20233244);
 
         for (Integer adminId : adminIds) {
             // 해당 학번의 관리자가 DB에 없는 경우에만 새로 생성
