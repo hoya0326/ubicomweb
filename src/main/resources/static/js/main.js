@@ -132,13 +132,13 @@ function hideError(elementId) {
 
 // Check login before navigation (for protected links)
 document.addEventListener('DOMContentLoaded', function() {
-    const protectedLinks = document.querySelectorAll('a[href="notice.html"], a[href="calendar.html"], a[href="board.html"]');
+    const protectedLinks = document.querySelectorAll('a[href="/notice"], a[href="/calendar"], a[href="/board"]');
     
     protectedLinks.forEach(link => {
         link.addEventListener('click', function(e) {
             if (!isLoggedIn()) {
                 e.preventDefault();
-                window.location.href = 'login.html';
+                window.location.href = '/login';
             }
         });
     });

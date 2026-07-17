@@ -149,7 +149,7 @@ function logoutUser() {
 function requireLogin() {
     if (!isLoggedIn()) {
         alert('로그인이 필요한 서비스입니다.');
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return false;
     }
     return true;

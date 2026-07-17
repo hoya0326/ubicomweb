@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // 이미 로그인 상태라면 메인으로 리다이렉트 (필요시 유지)
     if (isLoggedIn()) {
-        window.location.href = 'index.html';
+        window.location.href = '/';
         return;
     }
 
