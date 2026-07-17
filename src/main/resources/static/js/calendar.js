@@ -1,241 +1,253 @@
 // Calendar page functionality
+let isViewAll = false;
+window.loadEvents = window.loadEvents || (() => console.warn('loadEvents 미정의'));
+window.requireAdmin = window.requireAdmin || (() => true);
+window.getCurrentUser = window.getCurrentUser || (() => ({ username: 'Guest', isAdmin: true }));
+
+if (typeof loadEvents !== 'function') window.loadEvents = () => console.warn('loadEvents 함수가 정의되지 않았습니다.');
+if (typeof requireLogin !== 'function') window.requireLogin = () => true;
+if (typeof isAdmin !== 'function') window.isAdmin = () => false;
+if (typeof requireAdmin !== 'function') window.requireAdmin = () => true;
+if (typeof getCurrentUser !== 'function') window.getCurrentUser = () => ({ username: 'Guest', isAdmin: true });
 
 let currentDate = new Date();
 
 document.addEventListener('DOMContentLoaded', function() {
     if (!requireLogin()) return;
-    
-    // Show admin controls if user is admin
+
     if (isAdmin()) {
-        document.getElementById('admin-controls').classList.remove('hidden');
+        document.getElementById('admin-controls')?.classList.remove('hidden');
     }
-    
+
     renderCalendar();
     loadEvents();
-    
-    // Month navigation
-    document.getElementById('prev-month').addEventListener('click', function() {
-        currentDate.setMonth(currentDate.getMonth() - 1);
-        renderCalendar();
-        loadEvents();
-    });
-    
-    document.getElementById('next-month').addEventListener('click', function() {
-        currentDate.setMonth(currentDate.getMonth() + 1);
-        renderCalendar();
-        loadEvents();
-    });
-    
-    // Add event modal
-    const addEventBtn = document.getElementById('add-event-btn');
-    const eventModal = document.getElementById('event-modal');
-    const closeEventModal = document.getElementById('close-event-modal');
-    const cancelEventBtn = document.getElementById('cancel-event-btn');
-    
-    if (addEventBtn) {
-        addEventBtn.addEventListener('click', function() {
-            if (!requireAdmin()) return;
-            eventModal.classList.remove('hidden');
+    // 1. 일정 추가 버튼 (강제 연결)
+    document.getElementById('add-event-btn').onclick = function(e) {
+        const btnToggleAll = document.getElementById('btn-toggle-all');
+        if (btnToggleAll) {
+            btnToggleAll.onclick = function() {
+                isViewAll = !isViewAll;
+                this.textContent = isViewAll ? '이번 달 일정 보기' : '모든 일정 보기';
+                this.className = isViewAll
+                    ? "bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+                    : "bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-medium transition-colors";
+
+                loadEvents(); // 리스트 갱신
+            };
+        }
+        e.preventDefault();
+        const modal = document.getElementById('event-modal');
+        if(modal) {
+            modal.style.display = 'flex';
+            togglePeriodUI(false);
+
+            // [추가] 모달 열 때 반복 컨테이너 숨김
+            const container = document.getElementById('recurrence-end-container');
+            if (container) container.classList.add('hidden');
+
+            // [추가] 체크박스 해제
+            const repeatCheckbox = document.getElementById('repeat-checkbox');
+            if (repeatCheckbox) repeatCheckbox.checked = false;
+        }
+    };
+
+    // 2. 카테고리 버튼 연결
+    document.getElementById('btn-cat-study').onclick = () => updateCategoryUI('event');
+    document.getElementById('btn-cat-activity').onclick = () => updateCategoryUI('club');
+
+
+    // 3. 폼 제출 대신 버튼 클릭으로 제어 (이게 핵심)
+    const submitBtn = document.getElementById('submit-event-btn');
+    if(submitBtn) {
+        submitBtn.onclick = function(e) {
+            e.preventDefault();
+            handleAddEvent();
+        };
+    }
+
+    // 4. 모달 닫기
+    document.getElementById('close-event-modal')?.addEventListener('click', resetAndCloseModal);
+    document.getElementById('cancel-event-btn')?.addEventListener('click', resetAndCloseModal);
+
+    // 5. 기타 UI 이벤트
+    document.getElementById('btn-period-single')?.addEventListener('click', () => togglePeriodUI(false));
+    document.getElementById('btn-period-range')?.addEventListener('click', () => togglePeriodUI(true));
+    document.getElementById('prev-month')?.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); loadEvents();});
+    document.getElementById('next-month')?.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); loadEvents();});
+
+
+    // 반복 일정 체크박스 토글
+    const repeatCheckbox = document.getElementById('repeat-checkbox');
+    if (repeatCheckbox) {
+        repeatCheckbox.addEventListener('change', function() {
+            const container = document.getElementById('recurrence-end-container');
+            if (container) container.classList.toggle('hidden', !this.checked);
         });
     }
-    
-    closeEventModal.addEventListener('click', function() {
-        eventModal.classList.add('hidden');
-        document.getElementById('event-form').reset();
-        hideError('event-error');
-    });
-    
-    cancelEventBtn.addEventListener('click', function() {
-        eventModal.classList.add('hidden');
-        document.getElementById('event-form').reset();
-        hideError('event-error');
-    });
-    
-    // Event form
-    document.getElementById('event-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        handleAddEvent();
+
+    // 반복 주기 버튼 선택 로직 (매일 삭제, 보라색 테마)
+    ['weekly', 'monthly', 'yearly'].forEach(type => {
+        const btn = document.getElementById(`btn-recur-${type}`);
+        if (btn) {
+            btn.onclick = function() {
+                document.getElementById('event-recurrence').value = type;
+
+                // 모든 버튼을 기본 스타일로 초기화
+                document.querySelectorAll('[id^="btn-recur-"]').forEach(b => {
+                    b.className = "cursor-pointer px-4 py-1.5 text-xs font-semibold rounded-md bg-white text-gray-500 border border-gray-200";
+                });
+
+                // 선택된 버튼만 보라색으로 강조
+                this.className = "cursor-pointer px-4 py-1.5 text-xs font-semibold rounded-md bg-purple-600 text-white";
+            };
+        }
     });
 });
 
+function togglePeriodUI(isRange) {
+    const periodTypeInput = document.getElementById('event-period-type');
+    const singleWrapper = document.getElementById('single-date-wrapper');
+    const rangeWrapper = document.getElementById('range-date-wrapper');
+    const btnSingle = document.getElementById('btn-period-single');
+    const btnRange = document.getElementById('btn-period-range');
+
+    periodTypeInput.value = isRange ? 'range' : 'single';
+
+    // 입력창 토글
+    if (singleWrapper) singleWrapper.classList.toggle('hidden', isRange);
+    if (rangeWrapper) rangeWrapper.classList.toggle('hidden', !isRange);
+
+    // 버튼 디자인 토글
+    if (isRange) {
+        btnSingle.className = "cursor-pointer px-4 py-1.5 text-xs font-semibold rounded-md text-gray-500 hover:text-gray-700 transition-all";
+        btnRange.className = "cursor-pointer px-4 py-1.5 text-xs font-semibold rounded-md bg-blue-600 text-white shadow-sm transition-all";
+    } else {
+        btnSingle.className = "cursor-pointer px-4 py-1.5 text-xs font-semibold rounded-md bg-blue-600 text-white shadow-sm transition-all";
+        btnRange.className = "cursor-pointer px-4 py-1.5 text-xs font-semibold rounded-md text-gray-500 hover:text-gray-700 transition-all";
+    }
+}
+
+function setRecurrenceValue(value) {
+    const recurrenceSelect = document.getElementById('event-recurrence');
+    const recurrenceEndContainer = document.getElementById('recurrence-end-container');
+    if (recurrenceSelect) recurrenceSelect.value = value;
+    if (recurrenceEndContainer) recurrenceEndContainer.classList.toggle('hidden', value === 'none');
+}
+function resetAndCloseModal() {
+    const eventModal = document.getElementById('event-modal');
+    if (eventModal) {
+        eventModal.style.display = 'none';
+    }
+    document.getElementById('event-form')?.reset();
+
+    // [추가] 모달 닫을 때 반복 설정 컨테이너 숨김
+    const container = document.getElementById('recurrence-end-container');
+    if (container) container.classList.add('hidden');
+
+    // [추가] 체크박스 해제
+    const repeatCheckbox = document.getElementById('repeat-checkbox');
+    if (repeatCheckbox) repeatCheckbox.checked = false;
+
+    renderCalendar();
+}
+
 function renderCalendar() {
+    const calendarDays = document.getElementById('calendar-days');
+    if (!calendarDays) return;
+    calendarDays.innerHTML = ''; // 기존 달력 내용 삭제
+
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    
-    // Update month title
-    document.getElementById('current-month').textContent = 
-        `${year}년 ${month + 1}월`;
-    
-    // Get first day of month and number of days
+    document.getElementById('current-month').textContent = `${year}년 ${month + 1}월`;
+
+    const events = JSON.parse(localStorage.getItem('events') || '[]');
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-    // Get events for this month (시작일이나 종료일이 이번 달에 걸쳐있으면 가져옴)
-    const events = JSON.parse(localStorage.getItem('events') || '[]');
-    const monthEvents = events.filter(event => {
-        const start = new Date(event.startDate || event.date);
-        const end = new Date(event.endDate || event.date);
-        const firstOfMonth = new Date(year, month, 1);
-        const lastOfMonth = new Date(year, month + 1, 0);
-        return start <= lastOfMonth && end >= firstOfMonth;
-    });
-    
-    // Create calendar days
-    const calendarDays = document.getElementById('calendar-days');
-    calendarDays.innerHTML = '';
-    
-    const today = new Date();
-    const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
-    const todayDate = today.getDate();
-    
-    // Previous month days
-    for (let i = firstDay - 1; i >= 0; i--) {
-        const day = daysInPrevMonth - i;
-        const dayDiv = document.createElement('div');
-        dayDiv.className = 'calendar-day other-month';
-        dayDiv.innerHTML = `<div class="font-semibold text-sm">${day}</div>`;
-        calendarDays.appendChild(dayDiv);
+    // 1. 빈 칸 채우기
+    for (let i = 0; i < firstDay; i++) {
+        calendarDays.appendChild(document.createElement('div')).className = 'calendar-day';
     }
-    
-    // Current month days
+
+    // 2. 날짜 및 이벤트 채우기
     for (let day = 1; day <= daysInMonth; day++) {
         const dayDiv = document.createElement('div');
-        dayDiv.className = 'calendar-day';
-        
-        // Highlight today
-        if (isCurrentMonth && day === todayDate) {
-            dayDiv.classList.add('today');
-        }
-        
-        // Find events for this day
-        const dayEvents = monthEvents.filter(event => {
-            const current = new Date(year, month, day).setHours(0,0,0,0);
-            const start = new Date(event.startDate || event.date).setHours(0,0,0,0);
-            const end = new Date(event.endDate || event.date).setHours(0,0,0,0);
-            return current >= start && current <= end;
-        });
-        
-        let dayHTML = `<div class="font-semibold text-sm mb-1">${day}</div>`;
-        
-        // Add events
-        dayEvents.forEach(event => {
-            // 1. 기본은 행사(파란색)
-            let colorClass = 'bg-blue-500 text-white hover:bg-blue-600';
+        dayDiv.className = 'calendar-day border-t border-l border-gray-100';
+        dayDiv.innerHTML = `<div class="day-number text-xs text-gray-500">${day}</div>`;
 
-            // 2. 동아리(club)인 경우에만 (초록색)
-            if (event.category === 'club') {
-                colorClass = 'bg-green-500 text-white hover:bg-green-600';
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const targetDate = new Date(dateStr);
+
+        const dayEvents = events.filter(e => {
+            // 1. 일반 일정
+            if (dateStr >= e.startDate && dateStr <= e.endDate) return true;
+
+            // 2. 반복 일정 처리
+            if (e.recurrence && e.recurrence !== 'none' && dateStr <= e.recurrenceEnd) {
+                const start = new Date(e.startDate);
+
+                if (e.recurrence === 'weekly') {
+                    return dateStr >= e.startDate && targetDate.getDay() === start.getDay();
+                }
+                if (e.recurrence === 'monthly') {
+                    return dateStr >= e.startDate && targetDate.getDate() === start.getDate();
+                }
+                if (e.recurrence === 'yearly') {
+                    return dateStr >= e.startDate && (targetDate.getMonth() === start.getMonth()) && (targetDate.getDate() === start.getDate());
+                }
             }
-
-            // 3. 기존 class="calendar-event" 뒤에 위에서 결정된 colorClass
-            dayHTML += `<div class="calendar-event ${colorClass}" onclick="viewEvent('${event.id}')" title="${escapeHtml(event.title)}">${escapeHtml(event.title)}</div>`;
+            return false;
         });
 
-        dayDiv.innerHTML = dayHTML;
-        calendarDays.appendChild(dayDiv);
-    }
-    
-    // Next month days
-    const remainingDays = 42 - (firstDay + daysInMonth); // 6 rows * 7 days
-    for (let day = 1; day <= remainingDays; day++) {
-        const dayDiv = document.createElement('div');
-        dayDiv.className = 'calendar-day other-month';
-        dayDiv.innerHTML = `<div class="font-semibold text-sm">${day}</div>`;
+        dayEvents.forEach(evt => {
+            const bar = document.createElement('div');
+            // 동아리(club) 카테고리 색상을 진한 초록색(bg-green-700 text-white)으로 변경
+            bar.className = `text-[10px] px-1 rounded mb-0.5 truncate ${evt.category === 'club' ? 'bg-green-500 text-white' : 'bg-blue-600 text-white'}`;
+            bar.textContent = evt.title;
+            dayDiv.appendChild(bar);
+        });
+
         calendarDays.appendChild(dayDiv);
     }
 }
 
-function loadEvents() {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    
-    const events = JSON.parse(localStorage.getItem('events') || '[]');
-    const monthEvents = events.filter(event => {
-        const eventDate = new Date(event.date);
-        return eventDate.getFullYear() === year && eventDate.getMonth() === month;
-    });
-    
-    // Sort by date
-    monthEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    
-    const eventsList = document.getElementById('events-list');
-    
-    if (monthEvents.length === 0) {
-        eventsList.innerHTML = '<p class="text-gray-500 text-center py-4">이번 달 일정이 없습니다.</p>';
-        return;
-    }
-    
-    eventsList.innerHTML = monthEvents.map(event => {
-        const eventDate = new Date(event.date);
-        const dateStr = `${eventDate.getMonth() + 1}월 ${eventDate.getDate()}일`;
-        
-        return `
-            <div class="flex items-start justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div class="flex-1">
-                    <div class="flex items-center gap-3 mb-1">
-                        <span class="text-blue-600 font-semibold">${dateStr}</span>
-                        <span class="font-medium">${escapeHtml(event.title)}</span>
-                    </div>
-                    ${event.description ? `<p class="text-sm text-gray-600">${escapeHtml(event.description)}</p>` : ''}
-                </div>
-                ${isAdmin() ? `
-                    <button onclick="deleteEvent('${event.id}')" class="text-red-600 hover:text-red-700 text-sm ml-2">
-                        삭제
-                    </button>
-                ` : ''}
-            </div>
-        `;
-    }).join('');
-}
 
 function handleAddEvent() {
-    hideError('event-error');
-
     const title = document.getElementById('event-title').value.trim();
-    const startDate = document.getElementById('event-start-date').value;
-    const endDate = document.getElementById('event-end-date').value;
+    const periodType = document.getElementById('event-period-type')?.value || 'single';
+    const startDate = periodType === 'single' ? document.getElementById('event-start-date').value : document.getElementById('event-range-start').value;
+    const endDate = periodType === 'single' ? startDate : document.getElementById('event-range-end').value;
 
-    // 이 줄이 추가되었습니다! (HTML에서 선택한 행사/동아리 값 가져오기)
-    const category = document.getElementById('event-category').value;
-
-    const description = document.getElementById('event-description').value.trim();
+    // 반복 관련 데이터
+    const isRepeat = document.getElementById('repeat-checkbox')?.checked;
+    const recurrence = document.getElementById('event-recurrence')?.value;
+    const recurrenceEnd = document.getElementById('event-recurrence-end')?.value;
 
     if (!title || !startDate || !endDate) {
-        showError('event-error', '제목과 기간을 모두 입력해주세요.');
-        return;
-    }
-
-    const user = getCurrentUser();
-    if (!user || !user.isAdmin) {
-        showError('event-error', '관리자만 일정을 추가할 수 있습니다.');
+        alert('제목과 날짜를 입력해주세요.');
         return;
     }
 
     const newEvent = {
         id: Date.now().toString(),
         title: title,
-        date: startDate,
         startDate: startDate,
         endDate: endDate,
-
-        // 이 줄이 추가되었습니다! (데이터 저장할 때 분류값도 같이 저장)
-        category: category,
-
-        description: description,
-        author: user.username,
-        createdAt: new Date().toISOString()
+        category: document.getElementById('event-category')?.value || 'event',
+        // 반복 정보 추가
+        recurrence: isRepeat ? recurrence : 'none',
+        recurrenceEnd: recurrenceEnd || '9999-12-31' // 종료일 없으면 무한대
     };
 
     const events = JSON.parse(localStorage.getItem('events') || '[]');
     events.push(newEvent);
     localStorage.setItem('events', JSON.stringify(events));
 
-    // Close modal and reset form
-    document.getElementById('event-modal').classList.add('hidden');
+    // UI 정리
+    document.getElementById('event-modal').style.display = 'none';
     document.getElementById('event-form').reset();
 
-    // Reload calendar and events
+    // 달력 새로고침
     renderCalendar();
     loadEvents();
 }
@@ -243,31 +255,31 @@ function handleAddEvent() {
 function viewEvent(eventId) {
     const events = JSON.parse(localStorage.getItem('events') || '[]');
     const event = events.find(e => e.id === eventId);
-    
+
     if (!event) return;
-    
+
     const eventDate = new Date(event.date);
     const dateStr = `${eventDate.getFullYear()}년 ${eventDate.getMonth() + 1}월 ${eventDate.getDate()}일`;
-    
+
     let message = `${event.title}\n${dateStr}`;
     if (event.description) {
         message += `\n\n${event.description}`;
     }
-    
+
     alert(message);
 }
 
 function deleteEvent(eventId) {
     if (!requireAdmin()) return;
-    
+
     if (!confirm('정말 이 일정을 삭제하시겠습니까?')) {
         return;
     }
-    
+
     const events = JSON.parse(localStorage.getItem('events') || '[]');
     const filteredEvents = events.filter(e => e.id !== eventId);
     localStorage.setItem('events', JSON.stringify(filteredEvents));
-    
+
     // Reload calendar and events
     renderCalendar();
     loadEvents();
@@ -277,4 +289,98 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+function updateCategoryUI(category) {
+    const hiddenInput = document.getElementById('event-category');
+    const btnStudy = document.getElementById('btn-cat-study');
+    const btnActivity = document.getElementById('btn-cat-activity');
+    if (!hiddenInput || !btnStudy || !btnActivity) return;
+
+    hiddenInput.value = category;
+    btnStudy.className = category === 'event' ?
+        "cursor-pointer flex items-center justify-center gap-2 py-3 rounded-xl border border-blue-500 bg-blue-50 text-blue-600 text-sm font-semibold transition-all" :
+        "cursor-pointer flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 bg-white text-sm font-semibold transition-all";
+    btnActivity.className = category === 'club' ?
+        "cursor-pointer flex items-center justify-center gap-2 py-3 rounded-xl border border-green-500 bg-green-50 text-green-600 text-sm font-semibold transition-all" :
+        "cursor-pointer flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 bg-white text-sm font-semibold transition-all";
+}
+function hideError(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+}
+
+function showError(id, msg) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.classList.remove('hidden');
+        el.querySelector('p').textContent = msg;
+    }
+}
+function loadEvents() {
+    const listContainer = document.getElementById('events-list');
+    if (!listContainer) return;
+
+    // [중복 제거 핵심] 리스트를 그리기 전에 기존 내용을 모두 지움
+    listContainer.innerHTML = '';
+
+    const events = JSON.parse(localStorage.getItem('events') || '[]');
+
+    // 모드에 따라 필터링 (isViewAll이 true면 전체 표시, false면 이번 달만)
+    const displayEvents = isViewAll ? events : events.filter(evt => {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        // 이번 달의 범위 설정
+        const monthStart = new Date(year, month, 1);
+        const monthEnd = new Date(year, month + 1, 0, 23, 59, 59);
+
+        // 1. 반복 일정이 아닌 경우: 기존 일반 일정 필터링
+        if (!evt.recurrence || evt.recurrence === 'none') {
+            const start = new Date(evt.startDate);
+            const end = new Date(evt.endDate || evt.startDate);
+            return start <= monthEnd && end >= monthStart;
+        }
+
+        // 2. 반복 일정인 경우: 종료일(recurrenceEnd) 체크 및 이번 달 포함 여부 확인
+        const recEnd = new Date(evt.recurrenceEnd || '9999-12-31');
+        if (recEnd < monthStart) return false; // 종료일이 이번 달 이전이면 제외
+
+        const start = new Date(evt.startDate);
+        if (start > monthEnd) return false; // 시작일이 이번 달 이후면 제외
+
+        // 주기별 세부 조건
+        if (evt.recurrence === 'weekly') return true;
+        if (evt.recurrence === 'monthly') return true;
+        if (evt.recurrence === 'yearly') return start.getMonth() === month;
+
+        return false;
+    });
+
+    displayEvents.forEach(evt => {
+        const item = document.createElement('div');
+        item.className = 'flex justify-between items-center p-3 border-b border-gray-100 hover:bg-gray-50';
+
+        // [수정된 부분] 반복 일정별 기간 표시
+        let dateText = `${evt.startDate} ~ ${evt.endDate}`;
+
+        if (evt.recurrence && evt.recurrence !== 'none') {
+            const endLabel = evt.recurrenceEnd === '9999-12-31' ? '무기한' : evt.recurrenceEnd;
+            if (evt.recurrence === 'weekly') {
+                dateText = `매주 반복 (${evt.startDate} ~ ${endLabel})`;
+            } else if (evt.recurrence === 'monthly') {
+                dateText = `매월 반복 (${evt.startDate} ~ ${endLabel})`;
+            } else if (evt.recurrence === 'yearly') {
+                dateText = `매년 반복 (${evt.startDate} ~ ${endLabel})`;
+            }
+        }
+
+        item.innerHTML = `
+        <div>
+            <span class="font-bold text-gray-800">${evt.title}</span>
+            <div class="text-xs text-blue-600 font-medium">${dateText}</div>
+        </div>
+        <button onclick="deleteEvent('${evt.id}')" class="text-xs text-red-500 hover:underline px-2 py-1">삭제</button>
+    `;
+        listContainer.appendChild(item);
+    });
 }
