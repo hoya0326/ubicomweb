@@ -194,25 +194,25 @@ function renderCalendar() {
         // 클릭 이벤트 추가
         dayDiv.onclick = function() {
             if (dayEvents.length === 0) return;
-
             const evt = dayEvents[0];
             const modal = document.getElementById('view-event-modal');
-
-            document.getElementById('view-event-title').textContent = evt.title || '제목 없음';
-
-            // 이제 여기서 저장된 description 값을 가져옵니다.
-            document.getElementById('view-event-desc').innerHTML = `
-        <p class="mb-2"><strong>날짜:</strong> ${dateStr}</p>
-        <p><strong>설명:</strong> ${evt.description || '설명 없음'}</p>
-    `;
-
             const delBtn = document.getElementById('view-event-delete-btn');
-            delBtn.onclick = function() {
-                if (confirm('정말 이 날짜의 일정만 삭제하시겠습니까?')) {
-                    deleteEvent(evt.id, dateStr);
-                    modal.classList.add('hidden');
-                }
-            };
+
+            document.getElementById('view-event-title').textContent = evt.title;
+            document.getElementById('view-event-desc').innerHTML = `<p class="mb-2"><strong>날짜:</strong> ${dateStr}</p><p><strong>설명:</strong> ${evt.description || '설명 없음'}</p>`;
+
+            // 관리자 여부에 따라 삭제 버튼 보이기/숨기기
+            if (requireAdmin()) {
+                delBtn.classList.remove('hidden');
+                delBtn.onclick = function() {
+                    if (confirm('정말 이 날짜의 일정만 삭제하시겠습니까?')) {
+                        deleteEvent(evt.id, dateStr);
+                        modal.classList.add('hidden');
+                    }
+                };
+            } else {
+                delBtn.classList.add('hidden');
+            }
 
             modal.classList.remove('hidden');
         };
