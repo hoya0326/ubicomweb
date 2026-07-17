@@ -3,7 +3,8 @@
 let currentNoticeId = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (!requireLogin()) return;
+    if (!requireLogin())
+        return;
     
     // Show admin controls if user is admin
     if (isAdmin()) {
