@@ -154,7 +154,7 @@ function resetAndCloseModal() {
 function renderCalendar() {
     const calendarDays = document.getElementById('calendar-days');
     if (!calendarDays) return;
-    calendarDays.innerHTML = ''; // 기존 달력 내용 삭제
+    calendarDays.innerHTML = '';
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -164,44 +164,45 @@ function renderCalendar() {
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    // 1. 빈 칸 채우기
     for (let i = 0; i < firstDay; i++) {
         calendarDays.appendChild(document.createElement('div')).className = 'calendar-day';
     }
 
-    // 2. 날짜 및 이벤트 채우기
     for (let day = 1; day <= daysInMonth; day++) {
         const dayDiv = document.createElement('div');
-        dayDiv.className = 'calendar-day border-t border-l border-gray-100';
+        dayDiv.className = 'calendar-day border-t border-l border-gray-100 cursor-pointer hover:bg-gray-50';
         dayDiv.innerHTML = `<div class="day-number text-xs text-gray-500">${day}</div>`;
 
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const targetDate = new Date(dateStr);
 
+        // 해당 날짜에 있는 이벤트 필터링
         const dayEvents = events.filter(e => {
-            // 1. 일반 일정
+            // 예외 날짜(exceptions)에 포함된 경우 제외
+            if (e.exceptions && e.exceptions.includes(dateStr)) return false;
+
             if (dateStr >= e.startDate && dateStr <= e.endDate) return true;
 
-            // 2. 반복 일정 처리
             if (e.recurrence && e.recurrence !== 'none' && dateStr <= e.recurrenceEnd) {
                 const start = new Date(e.startDate);
-
-                if (e.recurrence === 'weekly') {
-                    return dateStr >= e.startDate && targetDate.getDay() === start.getDay();
-                }
-                if (e.recurrence === 'monthly') {
-                    return dateStr >= e.startDate && targetDate.getDate() === start.getDate();
-                }
-                if (e.recurrence === 'yearly') {
-                    return dateStr >= e.startDate && (targetDate.getMonth() === start.getMonth()) && (targetDate.getDate() === start.getDate());
-                }
+                if (e.recurrence === 'weekly') return dateStr >= e.startDate && targetDate.getDay() === start.getDay();
+                if (e.recurrence === 'monthly') return dateStr >= e.startDate && targetDate.getDate() === start.getDate();
+                if (e.recurrence === 'yearly') return dateStr >= e.startDate && (targetDate.getMonth() === start.getMonth()) && (targetDate.getDate() === start.getDate());
             }
             return false;
         });
 
+        // 클릭 이벤트 추가
+        dayDiv.onclick = function() {
+            dayEvents.forEach(evt => {
+                if (confirm(`[일정 확인]\n제목: ${evt.title}\n설명: ${evt.description || '없음'}\n\n이 날짜(${dateStr})의 일정만 삭제하시겠습니까?`)) {
+                    deleteEvent(evt.id, dateStr);
+                }
+            });
+        };
+
         dayEvents.forEach(evt => {
             const bar = document.createElement('div');
-            // 동아리(club) 카테고리 색상을 진한 초록색(bg-green-700 text-white)으로 변경
             bar.className = `text-[10px] px-1 rounded mb-0.5 truncate ${evt.category === 'club' ? 'bg-green-500 text-white' : 'bg-blue-600 text-white'}`;
             bar.textContent = evt.title;
             dayDiv.appendChild(bar);
@@ -269,18 +270,25 @@ function viewEvent(eventId) {
     alert(message);
 }
 
-function deleteEvent(eventId) {
+function deleteEvent(eventId, clickedDate = null) {
     if (!requireAdmin()) return;
 
-    if (!confirm('정말 이 일정을 삭제하시겠습니까?')) {
-        return;
+    const events = JSON.parse(localStorage.getItem('events') || '[]');
+    const eventIndex = events.findIndex(e => e.id === eventId);
+
+    if (eventIndex === -1) return;
+
+    if (!clickedDate) {
+        // 리스트에서 삭제 버튼 누를 때: 전체 삭제
+        if (!confirm('정말 이 일정을 완전히 삭제하시겠습니까?')) return;
+        events.splice(eventIndex, 1);
+    } else {
+        // 달력에서 개별 삭제할 때: 예외 날짜 추가
+        if (!events[eventIndex].exceptions) events[eventIndex].exceptions = [];
+        events[eventIndex].exceptions.push(clickedDate);
     }
 
-    const events = JSON.parse(localStorage.getItem('events') || '[]');
-    const filteredEvents = events.filter(e => e.id !== eventId);
-    localStorage.setItem('events', JSON.stringify(filteredEvents));
-
-    // Reload calendar and events
+    localStorage.setItem('events', JSON.stringify(events));
     renderCalendar();
     loadEvents();
 }
