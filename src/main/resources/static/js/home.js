@@ -265,8 +265,8 @@ function showDashboard(container, user) {
                                             <button type="button" onclick="toggleApplication(${app.id})" class="w-full flex items-center justify-between gap-3 p-4 text-left focus:outline-none"> 
                                                 <div class="flex items-center gap-3 min-w-0"> 
                                                     <span class="font-bold text-gray-800 text-base truncate">${app.name || app.username || '이름 없음'}</span> 
-                                                    <span class="text-xs text-gray-400 shrink-0">${app.studentId || app.userId || '학번 미상'}</span> 
-                                                    <span class="text-xs text-gray-400 shrink-0">${app.department || app.major || ''}${app.grade ? ' ' + app.grade + '학년' : ''}</span> 
+                                                    <span class="font-semibold text-gray-400 shrink-0">${app.studentId || app.userId || '학번 미상'}</span> 
+                                                    <span class="font-semibold text-gray-400 shrink-0">${app.department || app.major || ''}${app.grade ? ' ' + app.grade + '학년' : ''}</span> 
                                                 </div> 
                                                 <div class="flex items-center gap-3 shrink-0"> 
                                                     <span class="text-xs text-gray-400">${formatDate(app.submittedAt)}</span> 
@@ -326,6 +326,7 @@ function showDashboard(container, user) {
 function toggleApplication(id) {
     const detail = document.getElementById(`detail-${id}`);
     const chevron = document.getElementById(`chevron-${id}`);
+
     if (!detail) return;
 
     const isOpen = detail.classList.contains('open');

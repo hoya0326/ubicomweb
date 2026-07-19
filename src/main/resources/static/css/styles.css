@@ -150,6 +150,7 @@ html {
     animation: slideUp 0.3s ease;
 }
 
+
 @keyframes slideUp {
     from {
         opacity: 0;
