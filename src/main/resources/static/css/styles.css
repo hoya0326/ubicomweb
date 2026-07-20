@@ -8,8 +8,8 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-        sans-serif;
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -150,6 +150,7 @@ html {
     animation: slideUp 0.3s ease;
 }
 
+
 @keyframes slideUp {
     from {
         opacity: 0;
@@ -176,9 +177,46 @@ html {
         min-height: 80px;
         padding: 4px;
     }
-    
+
     .calendar-event {
         font-size: 0.625rem;
         padding: 1px 4px;
     }
+}
+/* 연락처 개별 입력란 통일감 부여 */
+.phone-box {
+    height: 38px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.15s ease-in-out;
+}
+.phone-box:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px #dbeafe;
+}
+.phone-sep {
+    user-select: none;
+}
+/* 일반 부원을 관리자로 위임하는 버튼 (파란색 계열) */
+.btn-role-user {
+    background-color: #ffffff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+    transition: all 0.2s ease;
+}
+.btn-role-user:hover {
+    background-color: #eff6ff;
+}
+
+/* 관리자를 일반 부원으로 해제하는 버튼 (연한 회색/어두운 텍스트 계열) */
+.btn-role-admin {
+    background-color: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #d1d5db;
+    transition: all 0.2s ease;
+}
+.btn-role-admin:hover {
+    background-color: #e5e7eb;
 }

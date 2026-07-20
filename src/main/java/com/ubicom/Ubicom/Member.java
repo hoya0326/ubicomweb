@@ -12,10 +12,14 @@ public class Member {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     public Long id;
     public String name;
+
     @Column(unique = true)
     public Integer userId;
     public String major;
     public String password;
 
+    @Column(name = "EMAIL", length = 100)
+    public String email;
 
+    public String role = "USER";
 }

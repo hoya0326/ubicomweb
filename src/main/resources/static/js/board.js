@@ -177,7 +177,7 @@ function viewPost(postId) {
         localStorage.setItem('posts', JSON.stringify(posts));
     }
     
-    window.location.href = `board-detail.html?id=${postId}`;
+    window.location.href = `/board_detail?id=${postId}`;
 }
 
 function escapeHtml(text) {

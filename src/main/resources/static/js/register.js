@@ -1,63 +1,136 @@
 // Register page functionality
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Redirect if already logged in
-    if (isLoggedIn()) {
+    // 1. 이미 로그인된 상태인지 확인 (auth.js의 isLoggedIn 함수 안전하게 체크)
+    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
         window.location.href = 'index.html';
         return;
     }
-    
+
     const registerForm = document.getElementById('register-form');
-    
-    registerForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        hideError('error-message');
-        
-        const name = document.getElementById('name').value.trim();
-        const studentId = document.getElementById('studentId').value.trim();
-        const department = document.getElementById('department').value.trim();
-        const password = document.getElementById('password').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
-        
-        // Validation
-        if (!name || !studentId || !department || !password || !confirmPassword) {
-            showError('error-message', '모든 필드를 입력해주세요.');
-            return;
+    const passwordInput = document.getElementById('password');
+    const strengthBar = document.getElementById('password-strength-bar');
+    const strengthText = document.getElementById('password-strength-text');
+
+    // 💡 화면에 에러 메시지를 보여주는 자체 함수 (외부 파일에 의존하지 않음)
+    function displayError(message) {
+        const errorDiv = document.getElementById('error-message');
+        if (errorDiv) {
+            errorDiv.classList.remove('hidden'); // 에러창 보이기 (Tailwind CSS)
+            const errorText = errorDiv.querySelector('p');
+            if (errorText) {
+                errorText.textContent = message;
+            }
         }
-        
-        if (studentId.length !== 8) {
-            showError('error-message', '학번은 8자리여야 합니다.');
-            return;
+    }
+
+    // 💡 에러 메시지 창을 숨기는 자체 함수
+    function clearError() {
+        const errorDiv = document.getElementById('error-message');
+        if (errorDiv) {
+            errorDiv.classList.add('hidden'); // 에러창 숨기기 (Tailwind CSS)
         }
-        
-        if (!/^\d{8}$/.test(studentId)) {
-            showError('error-message', '학번은 숫자만 입력 가능합니다.');
-            return;
-        }
-        
-        if (password.length < 4) {
-            showError('error-message', '비밀번호는 최소 4자 이상이어야 합니다.');
-            return;
-        }
-        
-        if (password !== confirmPassword) {
-            showError('error-message', '비밀번호가 일치하지 않습니다.');
-            return;
-        }
-        
-        // Attempt registration
-        const result = registerUser({
-            name: name,
-            studentId: studentId,
-            department: department,
-            password: password
+    }
+
+    if (registerForm) {
+
+        passwordInput.addEventListener('input', function () {
+            const value = passwordInput.value;
+
+            let score = 0;
+
+            if (value.length >= 6) score++;
+            if (/[A-Za-z]/.test(value) && /\d/.test(value)) score++;
+            if (value.length >= 8 && /[^A-Za-z0-9]/.test(value)) score++;
+
+            if (value.length === 0) {
+                strengthBar.style.width = '0%';
+                strengthBar.className = 'h-2 rounded transition-all duration-300';
+                strengthText.textContent = '비밀번호 보안 수준';
+                strengthText.className = 'mt-1 text-sm text-gray-500';
+            } else if (score <= 1) {
+                strengthBar.style.width = '33%';
+                strengthBar.className = 'h-2 rounded transition-all duration-300 bg-red-500';
+                strengthText.textContent = '약함';
+                strengthText.className = 'mt-1 text-sm text-red-600';
+            } else if (score === 2) {
+                strengthBar.style.width = '66%';
+                strengthBar.className = 'h-2 rounded transition-all duration-300 bg-yellow-500';
+                strengthText.textContent = '보통';
+                strengthText.className = 'mt-1 text-sm text-yellow-600';
+            } else {
+                strengthBar.style.width = '100%';
+                strengthBar.className = 'h-2 rounded transition-all duration-300 bg-green-500';
+                strengthText.textContent = '강함';
+                strengthText.className = 'mt-1 text-sm text-green-600';
+            }
         });
-        
-        if (result.success) {
-            alert('회원가입이 완료되었습니다. 로그인해주세요.');
-            window.location.href = 'login.html';
-        } else {
-            showError('error-message', result.error);
-        }
-    });
+
+        registerForm.addEventListener('submit', function(e) {
+            e.preventDefault(); // 기본 submit 작동 중단
+            clearError();       // 이전 에러 흔적 숨기기
+
+            const name = document.getElementById('name').value.trim();
+            const studentId = document.getElementById('studentId').value.trim();
+            const department = document.getElementById('department').value;
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // 1. 빈 값 및 학과 검증
+            if (!name || !studentId || !email || !password || !confirmPassword) {
+                displayError('모든 필드를 입력해주세요.');
+                return;
+            }
+
+            if (!department || department === "") {
+                displayError('학과를 선택해주세요.');
+                return;
+            }
+
+                // 이메일 형식 검증
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    displayError('올바른 이메일 형식을 입력해주세요.');
+                    return;
+                }
+
+
+            // 2. 학번 검증
+            if (studentId.length !== 8) {
+                displayError('학번은 8자리여야 합니다.');
+                return;
+            }
+
+            if (!/^\d{8}$/.test(studentId)) {
+                displayError('학번은 숫자만 입력 가능합니다.');
+                return;
+            }
+
+            // 3. 비밀번호 길이 검증
+            if (password.length < 6) {
+                displayError('비밀번호는 최소 6자 이상이어야 합니다.');
+                return;
+            }
+
+            // 4. 비밀번호 일치 검증
+            if (password !== confirmPassword) {
+                displayError('비밀번호가 일치하지 않습니다.');
+                return;
+            }
+
+            // 5. [최종 교체] 가입 요청 진행
+            if (typeof registerUser === 'function') {
+                // 검증을 무사히 통과했으므로 실제 HTML Form 객체 자체를 전달하여 제출시킵니다.
+                registerUser(registerForm);
+            } else {
+                // 혹시 모를 대체 작동용
+                const studentIdInput = document.getElementById('studentId');
+                const departmentSelect = document.getElementById('department');
+                if (studentIdInput) studentIdInput.name = 'userid';
+                if (departmentSelect) departmentSelect.name = 'major';
+                registerForm.action = '/member';
+                registerForm.submit();
+            }
+        });
+    }
 });

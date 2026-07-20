@@ -157,8 +157,24 @@ function showLandingPage(container) {
 }
 
 function showDashboard(container, user) {
+    if (!container) return;
+
+    // 로컬 스토리지 데이터 바인딩
     const recentNotices = JSON.parse(localStorage.getItem('notices') || '[]').slice(0, 5);
     const recentPosts = JSON.parse(localStorage.getItem('posts') || '[]').slice(0, 5);
+
+    // [확인 완료] 로컬 스토리지에 'applications'가 없으면 빈 배열로 시작
+    const applications = JSON.parse(localStorage.getItem('applications') || '[]');
+
+    // 💡 [수정] 스크린샷의 데이터 구조 반영: user.isAdmin이 true인지 검사합니다.
+    const isAdmin = user && (user.isAdmin === true || user.role === 'ADMIN' || user.role === 'admin');
+
+    // 날짜 포맷 헬퍼 함수
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const d = new Date(dateString);
+        return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    };
 
     container.innerHTML = `
         <div class="min-h-[calc(100vh-16rem)] py-8 px-4 bg-gray-50">
@@ -239,16 +255,114 @@ function showDashboard(container, user) {
                         <h2 class="text-xl font-bold mb-4">최근 공지사항</h2>
                         <div class="space-y-3">
                             ${recentNotices.length > 0 ? recentNotices.map(notice => `
-                                <a href="notice.html" class="block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
-                                    <p class="font-medium truncate">${notice.title}</p>
-                                    <p class="text-sm text-gray-500">${formatDate(notice.createdAt)}</p>
-                                </a>
-                            `).join('') : '<p class="text-gray-500 text-center py-4">공지사항이 없습니다.</p>'}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                                <a href="notice.html" class="block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"> 
+                                    <p class="font-medium text-gray-800 truncate">${notice.title}</p> 
+                                    <p class="text-xs text-gray-400 mt-1">${formatDate(notice.createdAt || notice.date)}</p> 
+                                </a> 
+                            `).join('') : '<p class="text-gray-500 text-center py-8">등록된 공지사항이 없습니다.</p>'}
+                        </div> 
+                    </div> 
+                     
+                </div> 
+                <!-- ================= [ADMIN ONLY] 가입 신청 현황 섹션 ================= --> 
+                ${isAdmin ? `
+                    <div class="mb-8 bg-white rounded-lg shadow-md border border-blue-100 overflow-hidden"> 
+                        <div class="p-6 border-b border-gray-100 bg-white"> 
+                            <div class="flex items-center justify-between"> 
+                                <div class="flex items-center gap-3"> 
+                                    <div class="text-blue-600 bg-blue-50 p-2.5 rounded-lg"> 
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"> 
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path> 
+                                        </svg> 
+                                    </div> 
+                                    <div> 
+                                        <h2 class="text-xl font-bold text-gray-900">2학기 신규회원 가입 신청 현황</h2> 
+                                        <p class="text-sm text-gray-500 mt-0.5">총 ${applications.length}건의 신청이 접수되었습니다.</p> 
+                                    </div> 
+                                </div> 
+                                ${applications.length > 0 ? `
+                                    <span class="bg-blue-600 text-white text-xs font-semibold px-3 py-1 rounded-full animate-pulse"> 
+                                        신규 ${applications.length}건 
+                                    </span> 
+                                ` : ''}
+                            </div> 
+                        </div> 
+                        <div class="p-6 bg-gray-50/40"> 
+                            ${applications.length === 0 ? `
+                                <div class="text-center py-12 text-gray-400"> 
+                                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"> 
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path> 
+                                    </svg> 
+                                    아직 대기 중인 가입 신청서가 없습니다. 
+                                </div> 
+                            ` : `
+                                <div class="flex flex-col gap-3" id="applications-list"> 
+                                    ${applications.map(app => {
+        const expMap = { none: '없음 (완전 처음이에요)', beginner: '초급', intermediate: '중급', advanced: '고급' };
+        const interestMap = { web: '웹 개발', mobile: '모바일 앱', ai: 'AI / 머신러닝', iot: 'IoT / 임베디드', security: '보안', game: '게임 개발' };
+        const expLabel = expMap[app.experience] || app.experience || '-';
+        const interestLabel = (app.interests && app.interests.length)
+            ? app.interests.map(i => interestMap[i] || i).join(', ')
+            : '-';
+        return `
+                                        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all hover:border-blue-200"> 
+                                            <button type="button" onclick="toggleApplication(${app.id})" class="w-full flex items-center justify-between gap-3 p-4 text-left focus:outline-none"> 
+                                                <div class="flex items-center gap-3 min-w-0"> 
+                                                    <span class="font-bold text-gray-800 text-base truncate">${app.name || app.username || '이름 없음'}</span> 
+                                                    <span class="font-semibold text-gray-400 shrink-0">${app.studentId || app.userId || '학번 미상'}</span> 
+                                                    <span class="font-semibold text-gray-400 shrink-0">${app.department || app.major || ''}${app.grade ? ' ' + app.grade + '학년' : ''}</span> 
+                                                </div> 
+                                                <div class="flex items-center gap-3 shrink-0"> 
+                                                    <span class="text-xs text-gray-400">${formatDate(app.submittedAt)}</span> 
+                                                    <svg id="chevron-${app.id}" class="w-4 h-4 text-gray-400 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"> 
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path> 
+                                                    </svg> 
+                                                </div> 
+                                            </button> 
+                                            <div id="detail-${app.id}" class="app-detail overflow-hidden transition-all duration-300 ease-in-out" style="max-height: 0px;"> 
+                                                <div class="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/60"> 
+                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3"> 
+                                                        <div> 
+                                                            <p class="text-xs text-gray-400 mb-1">연락처</p> 
+                                                            <p class="text-sm font-medium text-gray-800">${app.phone || '-'}</p> 
+                                                        </div> 
+                                                        <div> 
+                                                            <p class="text-xs text-gray-400 mb-1">이메일</p> 
+                                                            <p class="text-sm font-medium text-gray-800">${app.email || '-'}</p> 
+                                                        </div> 
+                                                        <div> 
+                                                            <p class="text-xs text-gray-400 mb-1">프로그래밍 경험</p> 
+                                                            <p class="text-sm font-medium text-gray-800">${expLabel}</p> 
+                                                        </div> 
+                                                        <div> 
+                                                            <p class="text-xs text-gray-400 mb-1">관심 분야</p> 
+                                                            <p class="text-sm font-medium text-gray-800">${interestLabel}</p> 
+                                                        </div> 
+                                                    </div> 
+                                                    <div class="mt-4"> 
+                                                        <p class="text-xs text-gray-400 mb-1">지원 동기</p> 
+                                                        <p class="text-sm text-gray-800 bg-white border border-gray-200 rounded-lg px-3 py-2 whitespace-pre-wrap">${app.motivation || '-'}</p> 
+                                                    </div> 
+                                                    ${app.extra ? `
+                                                    <div class="mt-3"> 
+                                                        <p class="text-xs text-gray-400 mb-1">추가 하고 싶은 말</p> 
+                                                        <p class="text-sm text-gray-800 bg-white border border-gray-200 rounded-lg px-3 py-2 whitespace-pre-wrap">${app.extra}</p> 
+                                                    </div> 
+                                                    ` : ''}
+                                                </div> 
+                                            </div> 
+                                        </div> 
+                                        `;
+    }).join('')}
+                                </div> 
+                            `}
+                        </div> 
+                    </div> 
+                ` : ''}
+                <!-- ====================================================================== --> 
+            </div> 
+             
+        </div> 
     `;
 }
 

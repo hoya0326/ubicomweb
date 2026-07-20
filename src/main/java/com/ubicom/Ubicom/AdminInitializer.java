@@ -1,38 +1,47 @@
 package com.ubicom.Ubicom;
 
+import com.ubicom.Ubicom.Member;
+import com.ubicom.Ubicom.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-@Component
+import java.util.List;
+
+//@Component
 @RequiredArgsConstructor
 public class AdminInitializer implements CommandLineRunner {
 
     private final MemberRepository memberRepository;
-    private final PasswordEncoder passwordEncoder; // SecurityConfig에 등록된 암호화 빈
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) throws Exception {
-        Integer adminId = 20233244; // 생성할 관리자 학번
+        // 💡 관리자로 지정할 학번 리스트 (원하는 학번을 언제든 이곳에 추가할 수 있습니다)
+        List<Integer> adminIds = List.of(20233244);
 
-        // 1. DB에 이미 해당 관리자 계정이 있는지 검사
-        if (memberRepository.findByUserId(adminId).isEmpty()) {
+        for (Integer adminId : adminIds) {
+            // 해당 학번의 관리자가 DB에 없는 경우에만 새로 생성
+            if (memberRepository.findByUserId(adminId).isEmpty()) {
+                Member admin = new Member();
+                admin.setUserId(adminId);
 
-            // 2. 관리자 객체 생성 (기존 Member 엔티티 규격에 맞게 세팅)
-            Member admin = new Member();
-            admin.setUserId(adminId);
-            admin.setName("관리자");
-            admin.setMajor("정보보안학과");
+                // 학번에 따른 관리자 이름 설정 (구분용)
+                if (adminId == 20233244) {
+                    admin.setName("관리자1");
+                } else {
+                    admin.setName("관리자2");
+                }
 
-            // [중요] 스프링 시큐리티 로그인 조회를 위해 비밀번호를 반드시 암호화해서 저장합니다.
-            admin.setPassword(passwordEncoder.encode("admin"));
+                admin.setMajor("정보보안학과");
+                // 기본 비밀번호는 "admin"으로 암호화하여 저장
+                admin.setPassword(passwordEncoder.encode("admin"));
+                admin.setRole("ADMIN");
 
-            // 3. 만약 Member 엔티티에 권한(Role) 필드가 있다면 세팅합니다.
-            // 예: admin.setRole("ROLE_ADMIN");
-
-            memberRepository.save(admin);
-            System.out.println("=== [UbiCOM] 관리자 계정이 DB에 자동으로 생성되었습니다. (ID: 20233244) ===");
+                memberRepository.save(admin);
+                System.out.println("=== [UbiCOM] 관리자 계정이 DB에 자동으로 생성되었습니다. (ID: " + adminId + ") ===");
+            }
         }
     }
 }

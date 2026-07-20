@@ -20,11 +20,36 @@
                 <a href="calendar.html" class="hover:text-blue-100 transition-colors">학사일정</a>
                 <a href="board.html" class="hover:text-blue-100 transition-colors">게시판</a>
 
-                <button onclick="showSurvey()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-1.5 px-4 rounded transition-colors text-sm shadow">
-                    📢 2학기 신규회원 가입 신청
+                <!-- Desktop Navigation -->
+                <nav class="hidden md:flex items-center gap-6">
+                    <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors">공지사항</a>
+                    <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors">학사일정</a>
+                    <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors">게시판</a>
+                    <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors">투표</a>
+
+                    <div id="nav-buttons">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </nav>
+
+                <!-- Mobile Menu Button -->
+                <button class="md:hidden p-2" id="mobile-menu-btn">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
                 </button>
 
-                <div id="nav-buttons">
+            <!-- Mobile Navigation -->
+            <nav id="mobile-menu" class="hidden md:hidden py-4 border-t border-blue-500">
+                <div class="flex flex-col gap-3">
+                    <a onclick="location.href='/notice'" class="py-2 hover:text-blue-100 transition-colors">공지사항</a>
+                    <a onclick="location.href='/calendar'" class="py-2 hover:text-blue-100 transition-colors">학사일정</a>
+                    <a onclick="location.href='/board'" class="py-2 hover:text-blue-100 transition-colors">게시판</a>
+                    <a onclick="location.href='/vote'" class="py-2 hover:text-blue-100 transition-colors">투표</a>
+                    <div id="mobile-nav-buttons" class="flex flex-col gap-2 pt-2 border-t border-blue-500">
+                        <!-- Will be populated by JavaScript -->
+
+                    </div>
                 </div>
             </nav>
 

@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     currentPostId = urlParams.get('id');
     
     if (!currentPostId) {
-        window.location.href = 'board.html';
+        window.location.href = '/board';
         return;
     }
     
@@ -27,7 +27,7 @@ function loadPost() {
         document.getElementById('post-content').innerHTML = `
             <div class="p-12 text-center">
                 <p class="text-gray-500 mb-4">게시글을 찾을 수 없습니다.</p>
-                <button onclick="window.location.href='board.html'" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md">
+                <button onclick="window.location.href='/board'" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md">
                     게시판으로 돌아가기
                 </button>
             </div>
@@ -203,7 +203,7 @@ function deletePost() {
     const filteredComments = allComments.filter(c => c.postId !== currentPostId);
     localStorage.setItem('comments', JSON.stringify(filteredComments));
     
-    window.location.href = 'board.html';
+    window.location.href = '/board';
 }
 
 function deleteComment(commentId) {
