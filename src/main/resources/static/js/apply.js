@@ -1,7 +1,193 @@
 // apply.js
 
 let currentAppContainer = null;
+/* ── PhoneInput 컴포넌트 유틸리티 ── */
+const PhoneInput = (() => {
+    const MAX = [3, 4, 4];
+    function getInputs(wrapId) {
+        const wrap = document.getElementById(wrapId);
+        return wrap ? Array.from(wrap.querySelectorAll("input[data-phone]")) : [];
+    }
+    function onInput(inputs, idx, e) {
+        const raw = e.target.value.replace(/\D/g, "");
+        e.target.value = raw.slice(0, MAX[idx]);
+        if (e.target.value.length === MAX[idx] && idx < inputs.length - 1) {
+            inputs[idx + 1].focus();
+        }
+    }
+    function onKeydown(inputs, idx, e) {
+        if (e.key === "Backspace" && e.target.value === "" && idx > 0) {
+            inputs[idx - 1].focus();
+        }
+        const allowed = ["Backspace","Delete","Tab","ArrowLeft","ArrowRight","Home","End"];
+        if (!allowed.includes(e.key) && !/^\d$/.test(e.key)) e.preventDefault();
+    }
+    function onPaste(inputs, idx, e) {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "");
+        if (!text) return;
+        let pos = 0;
+        for (let i = 0; i < inputs.length && pos < text.length; i++) {
+            const chunk = text.slice(pos, pos + MAX[i]);
+            inputs[i].value = chunk;
+            pos += chunk.length;
+        }
+        const lastFilled = inputs.reduce((acc, inp, i) => inp.value.length > 0 ? i : acc, 0);
+        inputs[Math.min(lastFilled + 1, inputs.length - 1)].focus();
+    }
+    return {
+        init(wrapId) {
+            const inputs = getInputs(wrapId);
+            inputs.forEach((inp, idx) => {
+                inp.addEventListener("input", (e) => onInput(inputs, idx, e));
+                inp.addEventListener("keydown", (e) => onKeydown(inputs, idx, e));
+                inp.addEventListener("paste", (e) => onPaste(inputs, idx, e));
+            });
+        },
+        getValue(wrapId) {
+            return getInputs(wrapId).map((i) => i.value.trim()).join("-");
+        },
+        isEmpty(wrapId) {
+            return getInputs(wrapId).every((i) => i.value.trim() === "");
+        },
+        setError(wrapId, on) {
+            getInputs(wrapId).forEach((inp) => {
+                inp.style.borderColor = on ? "#ef4444" : "";
+                inp.style.boxShadow = on ? "0 0 0 2px #fee2e2" : "";
+            });
+        }
+    };
+})();
 
+// DOM 로드 시 연락처 기능 활성화
+document.addEventListener("DOMContentLoaded", () => {
+    PhoneInput.init("applyPhoneWrap");
+});
+
+// Character counter for motivation
+const motivationField = document.getElementById('motivation');
+const motivationCount = document.getElementById('motivation-count');
+motivationField.addEventListener('input', function() {
+    const len = this.value.length;
+    motivationCount.textContent = len;
+    if (len > 500) {
+        this.value = this.value.substring(0, 500);
+        motivationCount.textContent = 500;
+    }
+});
+
+// Form submission
+document.getElementById('apply-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // 💡 에러창 숨기기
+    clearError();
+    PhoneInput.setError("applyPhoneWrap", false);
+
+    // Collect values
+    const name = document.getElementById('name').value.trim();
+    const studentId = document.getElementById('studentId').value.trim();
+    const department = document.getElementById('department').value.trim();
+    const grade = document.getElementById('grade').value;
+    const email = document.getElementById('email').value.trim();
+    const genderElement = document.querySelector('input[name="gender"]:checked');
+    const experience = document.querySelector('input[name="experience"]:checked');
+    const motivation = document.getElementById('motivation').value.trim();
+    const previousMember = document.querySelector('input[name="previousMember"]:checked');
+    const studentCouncil = document.querySelector('input[name="studentCouncil"]:checked');
+    const otherClub = document.querySelector('input[name="otherClub"]:checked');
+    const referrer = document.getElementById('referrer').value.trim();
+
+    // 3칸 분할 컴포넌트에서 연락처 값 병합 취득
+    const phone = PhoneInput.getValue("applyPhoneWrap");
+
+    // Validation (유효성 검사 시작 부분 - 전부 displayError로 교체)
+    if (!name) { displayError('이름을 입력해주세요.'); return; }
+    if (!/^\d{8}$/.test(studentId)) { displayError('학번은 8자리 숫자로 입력해주세요.'); return; }
+    if (!department) { displayError('학과를 선택해주세요.'); return; }
+    if (!grade) { displayError('학년을 선택해주세요.'); return; }
+
+    // 성별 유효성 체크
+    if (!genderElement) { displayError('성별을 선택해주세요.'); return; }
+
+    // 연락처 유효성 체크 및 에러 메시지
+    if (PhoneInput.isEmpty("applyPhoneWrap")) {
+        displayError('연락처를 입력해주세요.');
+        PhoneInput.setError("applyPhoneWrap", true);
+        return;
+    }
+
+    const phoneParts = phone.split('-');
+    if (phoneParts.length !== 3 || phoneParts[0].length < 3 || phoneParts[1].length < 3 || phoneParts[2].length < 4) {
+        displayError('올바른 전화번호 형식이 아닙니다. (예: 010-1234-5678)');
+        PhoneInput.setError("applyPhoneWrap", true);
+        return;
+    }
+
+    // 이메일 유효성 체크 및 에러 메시지
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        displayError('올바른 이메일 형식이 아닙니다.');
+        return;
+    }
+
+    if (!experience) { displayError('프로그래밍 경험 수준을 선택해주세요.'); return; }
+    if (!motivation) { displayError('지원 동기를 작성해주세요.'); return; }
+    if (!previousMember) { displayError('이전에 유비컴에 가입하셨었는지 선택해주세요.'); return; }
+    if (!studentCouncil) { displayError('학생회 가입 여부를 선택해주세요.'); return; }
+    if (!otherClub) { displayError('다른 IT대학 과동아리 가입 여부를 선택해주세요.'); return; }
+    if (!referrer) { displayError('추천인을 입력해주세요.'); return; }
+
+    const extra = document.getElementById('extra').value.trim();
+
+    // Save to localStorage
+    const applications = JSON.parse(localStorage.getItem('applications') || '[]');
+    applications.push({
+        id: Date.now(),
+        name,
+        studentId,
+        department,
+        grade,
+        gender: genderElement.value,
+        phone,
+        email,
+        experience: experience.value,
+        previousMember: previousMember.value,
+        studentCouncil: studentCouncil.value,
+        otherClub: otherClub.value,
+        referrer,
+        motivation,
+        extra,
+        submittedAt: new Date().toISOString(),
+        status: 'pending'
+    });
+    localStorage.setItem('applications', JSON.stringify(applications));
+
+    // Show success
+    document.getElementById('form-container').classList.add('hidden');
+    document.getElementById('success-container').classList.remove('hidden');
+});
+
+// 💡 화면에 에러 메시지를 보여주는 자체 함수 (기존 showError를 대체)
+function displayError(message) {
+    const errorDiv = document.getElementById('error-message');
+    if (errorDiv) {
+        errorDiv.classList.remove('hidden');
+        const errorText = errorDiv.querySelector('p');
+        if (errorText) {
+            errorText.textContent = message;
+        }
+        // 경고창이 눈에 띄도록 화면 스크롤 부드럽게 이동
+        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+// 💡 에러 메시지 창을 숨기는 자체 함수
+function clearError() {
+    const errorDiv = document.getElementById('error-message');
+    if (errorDiv) {
+        errorDiv.classList.add('hidden');
+    }
+}
 function renderApplicationList(container) {
     currentAppContainer = container;
     const applications = JSON.parse(localStorage.getItem('applications') || '[]');
