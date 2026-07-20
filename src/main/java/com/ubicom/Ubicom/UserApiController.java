@@ -5,8 +5,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,28 +18,7 @@ import java.util.Map;
 public class UserApiController {
 
     private final MemberRepository memberRepository;
-    private final UsersRepository usersRepository;
     private final PasswordEncoder passwordEncoder;
-
-    @PostMapping("/api/admin/users/add")
-    public Map<String, Object> addApprovedUser(
-            @RequestBody Users user
-    ) {
-        Map<String, Object> responseData = new HashMap<>();
-
-        if (usersRepository.findByUserId(user.userId).isPresent()) {
-            responseData.put("success", false);
-            responseData.put("message", "이미 승인된 학번입니다.");
-            return responseData;
-        }
-
-        usersRepository.save(user);
-
-        responseData.put("success", true);
-        responseData.put("message", "승인 명단에 등록되었습니다.");
-
-        return responseData;
-    }
 
     @GetMapping("/api/user")
     public Map<String, Object> getCurrentUser(
