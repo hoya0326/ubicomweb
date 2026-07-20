@@ -1,3 +1,5 @@
+
+apply.html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -111,14 +113,20 @@
                         <label class="block text-sm font-semibold text-gray-700 mb-1" for="department">
                             학과 <span class="text-red-500">*</span>
                         </label>
-                        <input
-                                type="text"
+                        <select
                                 id="department"
-                                name="department"
-                                placeholder="예: 컴퓨터공학과"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                name="major"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 required
-                        />
+                        >
+                            <option value="">선택해주세요</option>
+                            <option value="정보통신">정보통신</option>
+                            <option value="정보보안">정보보안</option>
+                            <option value="전자공학">전자공학</option>
+                            <option value="컴퓨터공학">컴퓨터공학</option>
+                            <option value="인공지능">인공지능</option>
+                            <option value="모빌리티">모빌리티</option>
+                        </select>
                     </div>
 
                     <!-- 학년 -->
@@ -194,37 +202,70 @@
                         </div>
                     </div>
 
-                    <!-- 관심 분야 (다중 선택) -->
+                    <!-- 이전 가입 여부 -->
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            관심 분야 <span class="text-gray-400 font-normal">(중복 선택 가능)</span>
+                            이전에 유비컴에 가입하셨었나요? <span class="text-red-500">*</span>
                         </label>
                         <div class="grid grid-cols-2 gap-2">
                             <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="checkbox" name="interest" value="web" class="text-blue-600" />
-                                <span class="text-sm">웹 개발</span>
+                                <input type="radio" name="previousMember" value="yes" class="text-blue-600" required />
+                                <span class="text-sm">네</span>
                             </label>
                             <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="checkbox" name="interest" value="mobile" class="text-blue-600" />
-                                <span class="text-sm">모바일 앱</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="checkbox" name="interest" value="ai" class="text-blue-600" />
-                                <span class="text-sm">AI / 머신러닝</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="checkbox" name="interest" value="iot" class="text-blue-600" />
-                                <span class="text-sm">IoT / 임베디드</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="checkbox" name="interest" value="security" class="text-blue-600" />
-                                <span class="text-sm">보안</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="checkbox" name="interest" value="game" class="text-blue-600" />
-                                <span class="text-sm">게임 개발</span>
+                                <input type="radio" name="previousMember" value="no" class="text-blue-600" />
+                                <span class="text-sm">아니오</span>
                             </label>
                         </div>
+                    </div>
+
+                    <!-- 학생회 가입 여부 -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            학생회에 가입되어있거나 가입할 예정인가요? <span class="text-red-500">*</span>
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                <input type="radio" name="studentCouncil" value="yes" class="text-blue-600" required />
+                                <span class="text-sm">네</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                <input type="radio" name="studentCouncil" value="no" class="text-blue-600" />
+                                <span class="text-sm">아니오</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 다른 IT대학 과동아리 가입 여부 -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            다른 IT대학 과동아리 가입되어있거나 가입 예정인가요? <span class="text-red-500">*</span>
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                <input type="radio" name="otherClub" value="yes" class="text-blue-600" required />
+                                <span class="text-sm">네</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                <input type="radio" name="otherClub" value="no" class="text-blue-600" />
+                                <span class="text-sm">아니오</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 추천인 -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1" for="referrer">
+                            추천인 <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                                type="text"
+                                id="referrer"
+                                name="referrer"
+                                placeholder="추천인이 없으면 '없음'이라고 입력해주세요"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                required
+                        />
                     </div>
 
                     <!-- 지원 동기 -->
@@ -401,6 +442,10 @@
         const email = document.getElementById('email').value.trim();
         const experience = document.querySelector('input[name="experience"]:checked');
         const motivation = document.getElementById('motivation').value.trim();
+        const previousMember = document.querySelector('input[name="previousMember"]:checked');
+        const studentCouncil = document.querySelector('input[name="studentCouncil"]:checked');
+        const otherClub = document.querySelector('input[name="otherClub"]:checked');
+        const referrer = document.getElementById('referrer').value.trim();
 
         // 💡 3칸 분할 컴포넌트에서 연락처 값 병합 취득
         const phone = PhoneInput.getValue("applyPhoneWrap");
@@ -426,9 +471,11 @@
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('올바른 이메일 주소를 입력해주세요.'); return; }
         if (!experience) { showError('프로그래밍 경험 수준을 선택해주세요.'); return; }
         if (!motivation) { showError('지원 동기를 작성해주세요.'); return; }
+        if (!previousMember) { showError('이전에 유비컴에 가입하셨었는지 선택해주세요.'); return; }
+        if (!studentCouncil) { showError('학생회 가입 여부를 선택해주세요.'); return; }
+        if (!otherClub) { showError('다른 IT대학 과동아리 가입 여부를 선택해주세요.'); return; }
+        if (!referrer) { showError('추천인을 입력해주세요.'); return; }
 
-        // Collect interests
-        const interests = Array.from(document.querySelectorAll('input[name="interest"]:checked')).map(cb => cb.value);
         const extra = document.getElementById('extra').value.trim();
 
         // Save to localStorage
@@ -442,7 +489,10 @@
             phone,
             email,
             experience: experience.value,
-            interests,
+            previousMember: previousMember.value,
+            studentCouncil: studentCouncil.value,
+            otherClub: otherClub.value,
+            referrer,
             motivation,
             extra,
             submittedAt: new Date().toISOString(),

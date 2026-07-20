@@ -264,9 +264,10 @@ function showDashboard(container, user) {
                                         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all hover:border-blue-200"> 
                                             <button type="button" onclick="toggleApplication(${app.id})" class="w-full flex items-center justify-between gap-3 p-4 text-left focus:outline-none"> 
                                                 <div class="flex items-center gap-3 min-w-0"> 
+<!--                                                    관리자 계정에서 2학기 신규회원 가입신청 현황 학번, 학과 학년 글자크기-->
                                                     <span class="font-bold text-gray-800 text-base truncate">${app.name || app.username || '이름 없음'}</span> 
-                                                    <span class="text-xs text-gray-400 shrink-0">${app.studentId || app.userId || '학번 미상'}</span> 
-                                                    <span class="text-xs text-gray-400 shrink-0">${app.department || app.major || ''}${app.grade ? ' ' + app.grade + '학년' : ''}</span> 
+                                                    <span class="text-xs text-gray-800 shrink-0">${app.studentId || app.userId || '학번 미상'}</span> 
+                                                    <span class="text-xs text-gray-800 shrink-0">${app.department || app.major || ''}${app.grade ? ' ' + app.grade + '학년' : ''}</span> 
                                                 </div> 
                                                 <div class="flex items-center gap-3 shrink-0"> 
                                                     <span class="text-xs text-gray-400">${formatDate(app.submittedAt)}</span> 
