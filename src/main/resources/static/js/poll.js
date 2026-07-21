@@ -531,6 +531,14 @@ function init() {
             if (e.target === this) closeCreateForm();
         });
     }
+
+    // 📌 URL Parameter 확인 후 새 투표 만들기 모달 자동 호출
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("openModal") === "true") {
+        openCreateForm();
+        // 주소창 파라미터 정리 (뒤로가기/새로고침 시 모달 중복 노출 방지)
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 }
 
 document.addEventListener("DOMContentLoaded", init);
