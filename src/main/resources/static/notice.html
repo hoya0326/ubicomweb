@@ -6,18 +6,8 @@
     <title>공지사항 - UbiCOM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/styles.css">
-    <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;background:#f9fafb;color:#111827}
-        /* SEARCH + BTNS */
-        .toolbar{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap}
-        .search-wrap{position:relative;flex:1;min-width:180px;}
-        .search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:#9ca3af;pointer-events:none}
-        .search-wrap input{width:100%;padding:9px 14px 9px 36px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;outline:none}
-        .search-wrap input:focus{border-color:#2563eb;box-shadow:0 0 0 3px #dbeafe}
-    </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col bg-gray-50">
 <!-- Header -->
 <header class="bg-blue-600 text-white shadow-lg">
     <div class="container mx-auto px-4">
@@ -30,120 +20,177 @@
                 <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors">투표</a>
                 <div id="nav-buttons"></div>
             </nav>
-
-            <!-- Mobile Menu Button -->
-            <button class="md:hidden p-2" id="mobile-menu-btn">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                </svg>
-            </button>
         </div>
-        <!-- Mobile Navigation -->
-        <nav id="mobile-menu" class="hidden md:hidden py-4 border-t border-blue-500">
-            <div class="flex flex-col gap-3">
-                <a onclick="location.href='/notice'" class="py-2 hover:text-blue-100 transition-colors">공지사항</a>
-                <a onclick="location.href='/calendar'" class="py-2 hover:text-blue-100 transition-colors">학사일정</a>
-                <a onclick="location.href='/board'" class="py-2 hover:text-blue-100 transition-colors">게시판</a>
-                <a onclick="location.href='/vote'" class="py-2 hover:text-blue-100 transition-colors">투표</a>
-                <div id="mobile-nav-buttons" class="flex flex-col gap-2 pt-2 border-t border-blue-500">
-                    <!-- Will be populated by JavaScript -->
-                </div>
-            </div>
-        </nav>
     </div>
 </header>
 
 <!-- Main Content -->
-<main class="flex-1 py-8 px-4 bg-gray-50">
-    <div class="container mx-auto max-w-5xl">
-        <div class="mb-8">
-            <h1 class="text-4xl font-bold mb-2">공지사항</h1>
-            <p class="text-gray-600">UbiCOM 동아리의 공지사항과 소식을 확인하세요</p>
+<main class="flex-1 py-8 px-4">
+    <div class="container mx-auto max-w-6xl">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">공지사항</h1>
+                <p class="text-gray-600 mt-1">학과 및 학회 주요 소식을 확인하세요.</p>
+            </div>
+            <div id="admin-controls" class="hidden">
+                <button id="create-notice-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    <span>새 공지 작성</span>
+                </button>
+            </div>
         </div>
 
-        <!-- 검색 입력창 & 작성 버튼 영역 -->
-        <div class="flex flex-col sm:flex-row gap-4 mb-6">
-            <div class="search-wrap">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input type="text" placeholder="공지사항 검색..." oninput="onSearch(this.value)"/>
-            </div>
-
-            <!-- Create Notice Button (Admin only) -->
-            <div id="admin-controls" class="hidden">
-                <button id="create-notice-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium whitespace-nowrap transition-colors">
-                    📄 공지사항 작성
-                </button>
+        <!-- Search Bar -->
+        <div class="mb-6">
+            <div class="relative">
+                <input
+                        type="text"
+                        id="search-input"
+                        placeholder="제목 또는 내용으로 검색..."
+                        oninput="onSearch(this.value)"
+                        class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white shadow-sm"
+                >
+                <svg class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
             </div>
         </div>
 
         <!-- Notices List -->
         <div id="notices-list" class="space-y-4">
-            <!-- Will be populated by JavaScript -->
+            <!-- Notices will be loaded here -->
         </div>
     </div>
 </main>
 
 <!-- Create Notice Modal -->
-<div id="create-modal" class="modal-overlay hidden">
-    <div class="modal-content max-w-2xl bg-white p-6 rounded-lg shadow-xl mx-auto mt-20">
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-2xl font-bold">새 공지사항 작성</h2>
-            <button id="close-modal" class="text-gray-500 hover:text-gray-700">
+<div id="create-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-2xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4 pb-2 border-b">
+            <h2 class="text-xl font-bold text-gray-900">새 공지사항 작성</h2>
+            <button id="close-modal" class="text-gray-400 hover:text-gray-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
 
-        <div id="modal-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-            <p class="text-sm text-red-800"></p>
-        </div>
-
         <form id="create-notice-form" class="space-y-4">
+            <div id="modal-error" class="hidden p-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-200"></div>
+
             <div>
-                <label for="notice-title" class="block text-sm font-medium text-gray-700 mb-2">제목</label>
+                <label for="notice-title" class="block text-sm font-medium text-gray-700 mb-1">제목</label>
                 <input
                         type="text"
                         id="notice-title"
-                        placeholder="공지사항 제목을 입력하세요"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
+                        placeholder="공지사항 제목을 입력하세요"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none"
                 >
             </div>
 
             <div>
-                <label for="notice-content" class="block text-sm font-medium text-gray-700 mb-2">내용</label>
+                <label for="notice-content" class="block text-sm font-medium text-gray-700 mb-1">내용</label>
                 <textarea
                         id="notice-content"
-                        rows="8"
-                        placeholder="공지사항 내용을 입력하세요"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        rows="6"
                         required
+                        placeholder="공지사항 내용을 상세히 입력하세요"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
                 ></textarea>
             </div>
 
-            <div class="flex justify-end gap-2">
-                <button type="button" id="cancel-btn" class="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">취소</button>
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md transition-colors">작성하기</button>
+            <!-- 📊 투표 첨부 옵션 -->
+            <div class="pt-2 border-t border-gray-100">
+                <label class="inline-flex items-center cursor-pointer">
+                    <input
+                            type="checkbox"
+                            id="attach-poll-check"
+                            onchange="togglePollForm(this.checked)"
+                            class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    >
+                    <span class="ml-2 text-sm font-medium text-gray-800 flex items-center gap-1">
+                        📊 투표 첨부하기
+                    </span>
+                </label>
+
+                <!-- 투표 상세 입력 폼 -->
+                <div id="poll-form-area" class="hidden mt-4 p-4 bg-gray-50 border border-gray-200 rounded-md space-y-4">
+                    <div>
+                        <label for="poll-question" class="block text-xs font-medium text-gray-600 mb-1">투표 질문 (미입력 시 공지 제목 사용)</label>
+                        <input type="text" id="poll-question" placeholder="예: 이번 모임 참석 여부를 알려주세요" class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">선택지 목록</label>
+                        <div id="poll-options-container" class="space-y-2">
+                            <!-- JS 동적 생성 -->
+                        </div>
+                        <button type="button" onclick="addPollOptionField()" class="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium">+ 선택지 추가</button>
+                    </div>
+
+                    <!-- ⏰ 마감기한 설정 -->
+                    <div>
+                        <label for="poll-expires-at" class="block text-xs font-medium text-gray-600 mb-1">마감기한 설정 (선택사항)</label>
+                        <input
+                                type="datetime-local"
+                                id="poll-expires-at"
+                                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                    </div>
+
+                    <div class="flex items-center gap-4 text-xs text-gray-700 pt-2 border-t border-gray-200">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="poll-anonymous" class="mr-1.5 rounded text-blue-600"> 익명 투표
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="poll-multiple" class="mr-1.5 rounded text-blue-600"> 복수 선택 허용
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 border-t">
+                <button
+                        type="button"
+                        id="cancel-btn"
+                        class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md font-medium transition-colors"
+                >
+                    취소
+                </button>
+                <button
+                        type="submit"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
+                >
+                    등록
+                </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Footer -->
-<footer class="bg-gray-800 text-white py-8 mt-auto">
-    <div class="container mx-auto px-4">
-        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <p class="text-xl font-bold">UbiCOM</p>
-                <p class="text-sm text-gray-400 mt-1">Ubiquitous Computing Club</p>
-            </div>
-            <div class="text-sm text-gray-400 text-center md:text-right">
-                <p>&copy; 2026 UbiCOM. All rights reserved.</p>
-            </div>
+<!-- 🗑️ 커스텀 삭제 확인 모달 -->
+<div id="delete-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-sm w-full p-6 shadow-xl text-center">
+        <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 mx-auto flex items-center justify-center mb-4">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-2">공지사항 삭제</h3>
+        <p class="text-sm text-gray-600 mb-6">정말로 이 공지사항을 삭제하시겠습니까?<br><span class="text-xs text-red-500">(첨부된 투표도 함께 삭제됩니다)</span></p>
+        <div class="flex justify-center gap-3">
+            <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium transition-colors">
+                취소
+            </button>
+            <button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium transition-colors">
+                삭제하기
+            </button>
         </div>
     </div>
-</footer>
+</div>
 
 <script src="js/auth.js"></script>
 <script src="js/main.js"></script>
