@@ -52,6 +52,10 @@ public class HomeController {
         return "forward:/admin-members.html";
     }
 
+    @GetMapping("/notice_detail")
+    public String notice_detail() {
+        return "forward:/notice-detail.html";
+    }
 
     @GetMapping("/test2")
     String test2() {
