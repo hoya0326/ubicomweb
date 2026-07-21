@@ -7,6 +7,7 @@ let polls = [];
 let currentFilter = "all";
 let currentUser = null;
 const selectedOptions = {}; // pollId → Set
+const expandedState = {}; // pollId → boolean (기본값: false / 접힘)
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────
 function getUser() {
@@ -83,7 +84,6 @@ function loadPolls() {
     polls = [...standalone, ...attached];
 }
 
-// 유저별 투표 내역 저장
 function saveVote(poll, optionIds) {
     const key = poll._storageKey || "standalonePolls";
     const stored = JSON.parse(localStorage.getItem(key) || "[]");
@@ -94,10 +94,8 @@ function saveVote(poll, optionIds) {
 
     const myId = currentUser.id || currentUser.username;
 
-    // 기존 투표 기록 삭제
     stored[idx].votes = stored[idx].votes.filter(v => v.userId !== myId);
 
-    // 새 투표 추가
     stored[idx].votes.push({
         userId: myId,
         optionIds: optionIds,
@@ -171,7 +169,7 @@ function renderVoteForm(poll) {
         return `
           <p class="vote-hint">로그인 후 투표할 수 있습니다.</p>
           <div class="vote-actions mt-3">
-            <button class="btn-see-result" onclick="showResult('${poll.id}')">📊 결과 보기</button>
+            <button class="btn-see-result" onclick="showResult('${poll.id}')"> 결과 보기</button>
           </div>
         `;
     }
@@ -203,7 +201,7 @@ function renderVoteForm(poll) {
         <div id="vote-error-${poll.id}" class="vote-error hidden"></div>
         <div class="vote-actions">
           ${!ended ? `<button class="btn-vote" onclick="submitVote('${poll.id}')">${myVote ? "투표 수정하기" : "투표하기"}</button>` : ""}
-          <button class="btn-see-result" onclick="showResult('${poll.id}')">📊 결과 보기</button>
+          <button class="btn-see-result" onclick="showResult('${poll.id}')"> 결과 보기</button>
         </div>
     `;
 }
@@ -212,7 +210,8 @@ function renderPollCard(poll) {
     const ended = isEnded(poll);
     const myVote = getMyVote(poll);
     const hasVoted = !!myVote;
-    const isAdmin = currentUser?.isAdmin || false;
+    // 관리자이거나 본인이 작성한 글인 경우 삭제 버튼 노출
+    const canDelete = currentUser?.isAdmin || (currentUser && (poll.createdBy === currentUser.name || poll.createdBy === currentUser.username));
 
     const statusBadge = ended
         ? `<span class="badge badge-gray">마감</span>`
@@ -233,7 +232,8 @@ function renderPollCard(poll) {
         `${voterCount}명 참여`,
     ].filter(Boolean).join(" · ");
 
-    // 📌 핵심 변경: 접속 직후나 투표 완료 시 바로 결과를 보여주지 않고 항상 투표 폼(또는 결과 보기 버튼)을 기본으로 노출
+    const isExpanded = expandedState[poll.id] === true;
+
     return `
         <div class="poll-card ${ended ? "poll-ended" : ""}" id="card-${poll.id}">
           <button class="poll-header" onclick="toggleExpand('${poll.id}')">
@@ -245,23 +245,24 @@ function renderPollCard(poll) {
               </div>
               <p class="poll-meta">${metaItems}</p>
             </div>
+            
             <div class="poll-header-right">
-              ${isAdmin
-        ? `<button class="btn-trash" onclick="event.stopPropagation(); confirmDelete('${poll.id}')" title="삭제">
+              ${canDelete
+        ? `<button class="btn-trash" type="button" onclick="event.stopPropagation(); confirmDelete('${poll.id}')" title="삭제">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>`
         : ""}
-              <svg class="chevron" id="chevron-${poll.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+              <svg class="chevron ${isExpanded ? "chevron-open" : ""}" id="chevron-${poll.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
             </div>
           </button>
 
           <div class="delete-confirm hidden" id="del-confirm-${poll.id}">
             <span class="del-confirm-text">정말 삭제할까요?</span>
-            <button class="btn-del-ok" onclick="execDelete('${poll.id}')">삭제</button>
-            <button class="btn-del-cancel" onclick="cancelDelete('${poll.id}')">취소</button>
+            <button class="btn-del-ok" type="button" onclick="execDelete('${poll.id}')">삭제</button>
+            <button class="btn-del-cancel" type="button" onclick="cancelDelete('${poll.id}')">취소</button>
           </div>
 
-          <div class="poll-body" id="body-${poll.id}">
+          <div class="poll-body ${isExpanded ? "" : "hidden"}" id="body-${poll.id}">
             <p class="poll-question">${escHtml(poll.question)}</p>
             <div id="content-${poll.id}">
               ${renderVoteForm(poll)}
@@ -309,15 +310,17 @@ function setFilter(key) {
     renderAll();
 }
 
-const expandedState = {};
 function toggleExpand(pollId) {
-    expandedState[pollId] = expandedState[pollId] === false ? true : false;
+    expandedState[pollId] = !expandedState[pollId];
     const body = document.getElementById(`body-${pollId}`);
     const chevron = document.getElementById(`chevron-${pollId}`);
     if (!body) return;
-    const hidden = expandedState[pollId] === false;
-    body.classList.toggle("hidden", hidden);
-    if (chevron) chevron.style.transform = hidden ? "rotate(180deg)" : "";
+
+    const isExpanded = expandedState[pollId];
+    body.classList.toggle("hidden", !isExpanded);
+    if (chevron) {
+        chevron.classList.toggle("chevron-open", isExpanded);
+    }
 }
 
 function onSelectOption(pollId, optId, checked, allowMultiple) {
@@ -370,7 +373,7 @@ function showResult(pollId) {
         contentEl.innerHTML = `
             <div class="result-list">${renderResultBar(poll)}</div>
             <div class="vote-actions mt-3">
-              ${!ended ? `<button class="btn-go-vote" onclick="showVoteForm('${pollId}')">✏️ 투표하기 / 선택 변경</button>` : ""}
+              ${!ended ? `<button class="btn-go-vote" onclick="showVoteForm('${pollId}')"> 투표하러 가기</button>` : ""}
             </div>
         `;
     }
@@ -424,7 +427,8 @@ function openCreateForm() {
     document.getElementById("deadlineFields").classList.add("hidden");
     document.getElementById("fDate").value = "";
     document.getElementById("fTime").value = "23:59";
-    document.getElementById("fError").classList.add("hidden");
+    const fError = document.getElementById("fError");
+    if (fError) fError.classList.add("hidden");
     renderFormOptions();
 }
 
@@ -446,7 +450,7 @@ function renderFormOptions() {
             oninput="updateFormOption(${i}, this.value)"
           />
           ${formOptions.length > 2
-        ? `<button class="btn-remove-opt" onclick="removeFormOption(${i})">
+        ? `<button class="btn-remove-opt" type="button" onclick="removeFormOption(${i})">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                </button>`
         : ""}
