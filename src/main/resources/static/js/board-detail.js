@@ -1,23 +1,4 @@
-// Board detail page functionality
 
-let currentPost = null;
-let currentPostId = null;
-
-document.addEventListener('DOMContentLoaded', function() {
-    if (!requireLogin()) return;
-    
-    // Get post ID from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    currentPostId = urlParams.get('id');
-    
-    if (!currentPostId) {
-        window.location.href = '/board';
-        return;
-    }
-    
-    loadPost();
-    loadComments();
-});
 
 function loadPost() {
     const posts = JSON.parse(localStorage.getItem('posts') || '[]');
