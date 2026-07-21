@@ -137,10 +137,10 @@
         <div class="flex items-center justify-between h-16">
             <button onclick="location.href='/'" class="text-2xl font-bold hover:text-blue-100 transition-colors">UbiCOM</button>
             <nav class="hidden md:flex items-center gap-6">
-                <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors">공지사항</a>
-                <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors">학사일정</a>
-                <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors">게시판</a>
-                <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors font-semibold">투표</a>
+                <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors cursor-pointer">공지사항</a>
+                <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors cursor-pointer">학사일정</a>
+                <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors cursor-pointer">게시판</a>
+                <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors font-semibold cursor-pointer">투표</a>
                 <div id="nav-buttons"></div>
             </nav>
             <!-- Mobile Menu Button -->
@@ -153,18 +153,17 @@
         <!-- Mobile Navigation -->
         <nav id="mobile-menu" class="hidden md:hidden py-4 border-t border-blue-500">
             <div class="flex flex-col gap-3">
-                <a onclick="location.href='/notice'" class="py-2 hover:text-blue-100 transition-colors">공지사항</a>
-                <a onclick="location.href='/calendar'" class="py-2 hover:text-blue-100 transition-colors">학사일정</a>
-                <a onclick="location.href='/board'" class="py-2 hover:text-blue-100 transition-colors">게시판</a>
-                <a onclick="location.href='/vote'" class="py-2 hover:text-blue-100 transition-colors">투표</a>
+                <a onclick="location.href='/notice'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">공지사항</a>
+                <a onclick="location.href='/calendar'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">학사일정</a>
+                <a onclick="location.href='/board'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">게시판</a>
+                <a onclick="location.href='/vote'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">투표</a>
                 <div id="mobile-nav-buttons" class="flex flex-col gap-2 pt-2 border-t border-blue-500">
-                    <!-- Will be populated by JavaScript -->
+                    <!-- JavaScript로 동적 생성 -->
                 </div>
             </div>
         </nav>
     </div>
 </header>
-
 
 <!-- PAGE -->
 <div class="page">
@@ -255,43 +254,51 @@
     </div>
 </div>
 
-<!-- 샘플 데이터 주입 (로컬스토리지가 비어있을 때) -->
-<script>
-
-
-    function logout() {
-        localStorage.removeItem("currentUser");
-        location.reload();
-    }
-
-    // nav 사용자 표시
-    function updateNav() {
-        const user = JSON.parse(localStorage.getItem("currentUser") || "null");
-        const nameEl = document.getElementById("navUsername");
-        const btnEl = document.getElementById("logoutBtn");
-        if (user) {
-            nameEl.textContent = user.name || user.username;
-            btnEl.style.display = "";
-        } else {
-            nameEl.textContent = "";
-            btnEl.style.display = "none";
-        }
-    }
-
-    seedData();
-    updateNav();
-</script>
-
-//수정1. 변수 참조 오류 및 함수 중복 및 정의 에러
-<!-- JS 파일들을 올바른 순서(로그인 데이터 준비 -> 메인 -> 투표 실행)로 로드합니다 -->
+<!-- JS 모듈 순서대로 로드 -->
 <script src="js/auth.js"></script>
 <script src="js/main.js"></script>
 <script src="js/poll.js"></script>
 
 <script>
-    // 페이지가 열릴 때 모바일 메뉴 작동 및 상단 로그인 버튼 상태 표시를 안전하게 처리합니다
+    // 로그아웃 처리 함수
+    function logout() {
+        localStorage.removeItem("currentUser");
+        location.reload();
+    }
+
+    // 네비게이션 로그인/로그아웃 상태 표시 업데이트
+    function updateNav() {
+        const user = JSON.parse(localStorage.getItem("currentUser") || "null");
+        const navButtons = document.getElementById("nav-buttons");
+        const mobileNav = document.getElementById("mobile-nav-buttons");
+
+        if (user) {
+            const btnHtml = `
+                <span class="mr-4 font-semibold text-blue-100 text-sm">${user.name || user.username}님</span>
+                <button onclick="logout()" class="text-sm bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded transition-colors">로그아웃</button>
+            `;
+            if (navButtons) navButtons.innerHTML = btnHtml;
+            if (mobileNav) mobileNav.innerHTML = btnHtml;
+        } else {
+            const btnHtml = `
+                <button onclick="location.href='/login'" class="text-sm bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded transition-colors">로그인</button>
+            `;
+            if (navButtons) navButtons.innerHTML = btnHtml;
+            if (mobileNav) mobileNav.innerHTML = btnHtml;
+        }
+    }
+
+    // DOM 로드 완료 후 실행
     document.addEventListener('DOMContentLoaded', function() {
-        // 1. 모바일 메뉴 여닫기 기능 작동
+        // 샘플 데이터 시딩 (auth.js 또는 main.js에 정의된 경우 실행)
+        if (typeof seedData === 'function') {
+            seedData();
+        }
+
+        // 네비게이션 바 초기화
+        updateNav();
+
+        // 모바일 토글 메뉴 이벤트 바인딩
         const mobileMenuBtn = document.getElementById("mobile-menu-btn");
         const mobileMenu = document.getElementById("mobile-menu");
         if (mobileMenuBtn && mobileMenu) {
@@ -299,37 +306,7 @@
                 mobileMenu.classList.toggle("hidden");
             });
         }
-
-        // 2. 상단 네비게이션 로그인/로그아웃 버튼 표시
-        if (typeof updateNav === 'function') {
-            updateNav();
-        } else {
-            const user = JSON.parse(localStorage.getItem("currentUser") || "null");
-            const navButtons = document.getElementById("nav-buttons");
-            const mobileNav = document.getElementById("mobile-nav-buttons");
-
-            if (user) {
-                const btnHtml = `
-                    <span class="mr-4 font-semibold text-blue-100 text-sm">${user.name || user.username}님</span>
-                    <button onclick="logout()" class="text-sm bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded transition-colors">로그아웃</button>
-                `;
-                if (navButtons) navButtons.innerHTML = btnHtml;
-                if (mobileNav) mobileNav.innerHTML = btnHtml;
-            } else {
-                const btnHtml = `
-                    <button onclick="location.href='/login'" class="text-sm bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded transition-colors">로그인</button>
-                `;
-                if (navButtons) navButtons.innerHTML = btnHtml;
-                if (mobileNav) mobileNav.innerHTML = btnHtml;
-            }
-        }
     });
-
-    // 로그아웃 처리 함수
-    function logout() {
-        localStorage.removeItem("currentUser");
-        location.reload();
-    }
 </script>
 </body>
 </html>
