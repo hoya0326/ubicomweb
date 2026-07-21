@@ -83,7 +83,7 @@ function loadPolls() {
     polls = [...standalone, ...attached];
 }
 
-// [핵심] 유저별 투표 내역 저장 (기존 유저 투표 제거 후 새 투표 추가 -> 타인 투표 보존)
+// 유저별 투표 내역 저장
 function saveVote(poll, optionIds) {
     const key = poll._storageKey || "standalonePolls";
     const stored = JSON.parse(localStorage.getItem(key) || "[]");
@@ -94,10 +94,10 @@ function saveVote(poll, optionIds) {
 
     const myId = currentUser.id || currentUser.username;
 
-    // 해당 유저의 기존 투표 기록 삭제 (중복 중첩 방지)
+    // 기존 투표 기록 삭제
     stored[idx].votes = stored[idx].votes.filter(v => v.userId !== myId);
 
-    // 새 투표 데이터 추가
+    // 새 투표 추가
     stored[idx].votes.push({
         userId: myId,
         optionIds: optionIds,
@@ -168,32 +168,42 @@ function renderResultBar(poll) {
 
 function renderVoteForm(poll) {
     if (!currentUser) {
-        return `<p class="vote-hint">로그인 후 투표할 수 있습니다.</p>`;
+        return `
+          <p class="vote-hint">로그인 후 투표할 수 있습니다.</p>
+          <div class="vote-actions mt-3">
+            <button class="btn-see-result" onclick="showResult('${poll.id}')">📊 결과 보기</button>
+          </div>
+        `;
     }
-    if (isEnded(poll)) {
-        return `<p class="vote-hint">마감된 투표입니다.</p>`;
-    }
-    const inputType = poll.allowMultiple ? "checkbox" : "radio";
 
-    const opts = poll.options.map(opt => `
-        <label class="opt-label" id="optlabel-${poll.id}-${opt.id}">
+    const ended = isEnded(poll);
+    const inputType = poll.allowMultiple ? "checkbox" : "radio";
+    const myVote = getMyVote(poll);
+
+    const opts = poll.options.map(opt => {
+        const checked = myVote?.optionIds.includes(opt.id) ? "checked" : "";
+        return `
+        <label class="opt-label ${checked ? "opt-selected" : ""}" id="optlabel-${poll.id}-${opt.id}">
           <input
             type="${inputType}"
             name="poll-${poll.id}"
             value="${opt.id}"
             class="opt-input"
+            ${ended ? "disabled" : ""}
+            ${checked}
             onchange="onSelectOption('${poll.id}', '${opt.id}', this.checked, ${poll.allowMultiple})"
           />
           <span class="opt-text">${escHtml(opt.text)}</span>
         </label>
-    `).join("");
+        `;
+    }).join("");
 
     return `
         <div class="opts-list" id="opts-${poll.id}">${opts}</div>
         <div id="vote-error-${poll.id}" class="vote-error hidden"></div>
         <div class="vote-actions">
-          <button class="btn-vote" onclick="submitVote('${poll.id}')">투표하기</button>
-          <button class="btn-see-result" onclick="showResult('${poll.id}')">결과 보기</button>
+          ${!ended ? `<button class="btn-vote" onclick="submitVote('${poll.id}')">${myVote ? "투표 수정하기" : "투표하기"}</button>` : ""}
+          <button class="btn-see-result" onclick="showResult('${poll.id}')">📊 결과 보기</button>
         </div>
     `;
 }
@@ -202,7 +212,6 @@ function renderPollCard(poll) {
     const ended = isEnded(poll);
     const myVote = getMyVote(poll);
     const hasVoted = !!myVote;
-    const showResult = hasVoted || ended;
     const isAdmin = currentUser?.isAdmin || false;
 
     const statusBadge = ended
@@ -224,15 +233,7 @@ function renderPollCard(poll) {
         `${voterCount}명 참여`,
     ].filter(Boolean).join(" · ");
 
-    const bodyContent = showResult
-        ? `
-            <div class="result-list">${renderResultBar(poll)}</div>
-            ${!hasVoted && !ended
-            ? `<button class="btn-go-vote" onclick="showVoteForm('${poll.id}')">투표하러 가기</button>`
-            : ""}
-          `
-        : renderVoteForm(poll);
-
+    // 📌 핵심 변경: 접속 직후나 투표 완료 시 바로 결과를 보여주지 않고 항상 투표 폼(또는 결과 보기 버튼)을 기본으로 노출
     return `
         <div class="poll-card ${ended ? "poll-ended" : ""}" id="card-${poll.id}">
           <button class="poll-header" onclick="toggleExpand('${poll.id}')">
@@ -263,7 +264,7 @@ function renderPollCard(poll) {
           <div class="poll-body" id="body-${poll.id}">
             <p class="poll-question">${escHtml(poll.question)}</p>
             <div id="content-${poll.id}">
-              ${bodyContent}
+              ${renderVoteForm(poll)}
             </div>
           </div>
         </div>
@@ -272,7 +273,7 @@ function renderPollCard(poll) {
 
 function renderPollList() {
     const container = document.getElementById("pollList");
-    if (!container) return; // pollList 요소가 없는 페이지(공지사항 등) 대비 예외 처리
+    if (!container) return;
 
     const filtered = getFiltered();
     if (filtered.length === 0) {
@@ -363,10 +364,14 @@ function showResult(pollId) {
     const poll = polls.find(p => p.id === pollId);
     if (!poll) return;
     const contentEl = document.getElementById(`content-${pollId}`);
+    const ended = isEnded(poll);
+
     if (contentEl) {
         contentEl.innerHTML = `
             <div class="result-list">${renderResultBar(poll)}</div>
-            <button class="btn-go-vote" onclick="showVoteForm('${pollId}')">투표하러 가기</button>
+            <div class="vote-actions mt-3">
+              ${!ended ? `<button class="btn-go-vote" onclick="showVoteForm('${pollId}')">✏️ 투표하기 / 선택 변경</button>` : ""}
+            </div>
         `;
     }
 }
@@ -532,11 +537,9 @@ function init() {
         });
     }
 
-    // 📌 URL Parameter 확인 후 새 투표 만들기 모달 자동 호출
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("openModal") === "true") {
         openCreateForm();
-        // 주소창 파라미터 정리 (뒤로가기/새로고침 시 모달 중복 노출 방지)
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 }
