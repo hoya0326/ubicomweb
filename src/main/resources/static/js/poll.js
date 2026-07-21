@@ -36,9 +36,9 @@ function getCount(poll, optId) {
     return poll.votes.filter(v => v.optionIds && v.optionIds.includes(optId)).length;
 }
 
-function getTotalVotes(poll) {
+function getVoterCount(poll) {
     if (!poll.votes) return 0;
-    return poll.votes.reduce((s, v) => s + (v.optionIds ? v.optionIds.length : 0), 0);
+    return poll.votes.length;
 }
 
 function getVoters(poll, optId) {
@@ -51,7 +51,8 @@ function getVoters(poll, optId) {
 
 function getMyVote(poll) {
     if (!currentUser || !poll.votes) return null;
-    return poll.votes.slice().reverse().find(v => v.userId === (currentUser.id || currentUser.username)) || null;
+    const myId = currentUser.id || currentUser.username;
+    return poll.votes.slice().reverse().find(v => v.userId === myId) || null;
 }
 
 function escHtml(str) {
@@ -94,8 +95,10 @@ function saveVote(poll, optionIds) {
 
     const myId = currentUser.id || currentUser.username;
 
+    // 기존 내 투표 기록 제거
     stored[idx].votes = stored[idx].votes.filter(v => v.userId !== myId);
 
+    // 신규 투표 기록 추가
     stored[idx].votes.push({
         userId: myId,
         optionIds: optionIds,
@@ -143,12 +146,14 @@ function renderFilterTabs() {
 
 function renderResultBar(poll) {
     const myVote = getMyVote(poll);
-    const total = getTotalVotes(poll);
+    const totalVoters = getVoterCount(poll);
+
     return poll.options.map(opt => {
         const count = getCount(poll, opt.id);
-        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        const pct = totalVoters > 0 ? Math.round((count / totalVoters) * 100) : 0;
         const isMyChoice = myVote?.optionIds.includes(opt.id);
         const voters = getVoters(poll, opt.id);
+
         return `
           <div class="result-item">
             <div class="result-label">
@@ -169,7 +174,7 @@ function renderVoteForm(poll) {
         return `
           <p class="vote-hint">로그인 후 투표할 수 있습니다.</p>
           <div class="vote-actions mt-3">
-            <button class="btn-see-result" onclick="showResult('${poll.id}')"> 결과 보기</button>
+            <button class="btn-see-result" onclick="showResult('${poll.id}')">결과 보기</button>
           </div>
         `;
     }
@@ -178,8 +183,12 @@ function renderVoteForm(poll) {
     const inputType = poll.allowMultiple ? "checkbox" : "radio";
     const myVote = getMyVote(poll);
 
+    if (myVote && myVote.optionIds && !selectedOptions[poll.id]) {
+        selectedOptions[poll.id] = new Set(myVote.optionIds);
+    }
+
     const opts = poll.options.map(opt => {
-        const checked = myVote?.optionIds.includes(opt.id) ? "checked" : "";
+        const checked = selectedOptions[poll.id] ? selectedOptions[poll.id].has(opt.id) : (myVote?.optionIds.includes(opt.id));
         return `
         <label class="opt-label ${checked ? "opt-selected" : ""}" id="optlabel-${poll.id}-${opt.id}">
           <input
@@ -188,7 +197,7 @@ function renderVoteForm(poll) {
             value="${opt.id}"
             class="opt-input"
             ${ended ? "disabled" : ""}
-            ${checked}
+            ${checked ? "checked" : ""}
             onchange="onSelectOption('${poll.id}', '${opt.id}', this.checked, ${poll.allowMultiple})"
           />
           <span class="opt-text">${escHtml(opt.text)}</span>
@@ -201,7 +210,7 @@ function renderVoteForm(poll) {
         <div id="vote-error-${poll.id}" class="vote-error hidden"></div>
         <div class="vote-actions">
           ${!ended ? `<button class="btn-vote" onclick="submitVote('${poll.id}')">${myVote ? "투표 수정하기" : "투표하기"}</button>` : ""}
-          <button class="btn-see-result" onclick="showResult('${poll.id}')"> 결과 보기</button>
+          <button class="btn-see-result" onclick="showResult('${poll.id}')">결과 보기</button>
         </div>
     `;
 }
@@ -210,8 +219,9 @@ function renderPollCard(poll) {
     const ended = isEnded(poll);
     const myVote = getMyVote(poll);
     const hasVoted = !!myVote;
-    // 관리자이거나 본인이 작성한 글인 경우 삭제 버튼 노출
-    const canDelete = currentUser?.isAdmin || (currentUser && (poll.createdBy === currentUser.name || poll.createdBy === currentUser.username));
+
+    const isOwner = currentUser && (poll.createdBy === currentUser.name || poll.createdBy === currentUser.username);
+    const canDelete = currentUser?.isAdmin || isOwner;
 
     const statusBadge = ended
         ? `<span class="badge badge-gray">마감</span>`
@@ -219,7 +229,7 @@ function renderPollCard(poll) {
             ? `<span class="badge badge-green">참여 완료</span>`
             : `<span class="badge badge-blue">진행 중</span>`;
 
-    const voterCount = poll.votes ? poll.votes.length : 0;
+    const voterCount = getVoterCount(poll);
 
     const metaItems = [
         `${escHtml(poll.createdBy)} · ${formatDate(poll.createdAt)}`,
@@ -236,25 +246,29 @@ function renderPollCard(poll) {
 
     return `
         <div class="poll-card ${ended ? "poll-ended" : ""}" id="card-${poll.id}">
-          <button class="poll-header" onclick="toggleExpand('${poll.id}')">
-            <div class="poll-header-left">
-              <div class="poll-title-row">
-                <svg class="icon-bar" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                <h3 class="poll-title">${escHtml(poll.title)}</h3>
+          <!-- 헤더: 투표 제목 및 우측에 쓰레기통 + 화살표 아이콘 배치 -->
+          <div class="poll-header" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 16px; cursor: pointer;" onclick="toggleExpand('${poll.id}')">
+            <div class="poll-header-left" style="flex: 1; min-width: 0;">
+              <div class="poll-title-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <svg class="icon-bar" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" style="width:20px; height:20px; flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <h3 class="poll-title" style="margin: 0; word-break: break-all;">${escHtml(poll.title)}</h3>
                 ${statusBadge}
               </div>
-              <p class="poll-meta">${metaItems}</p>
+              <p class="poll-meta" style="margin-top: 6px; margin-bottom: 0;">${metaItems}</p>
             </div>
-            
-            <div class="poll-header-right">
+
+            <!-- 제목 우측: 삭제(쓰레기통) 및 펼침(화살표) 버튼 -->
+            <div class="poll-header-actions" style="display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: 12px;" onclick="event.stopPropagation();">
               ${canDelete
-        ? `<button class="btn-trash" type="button" onclick="event.stopPropagation(); confirmDelete('${poll.id}')" title="삭제">
+        ? `<button class="btn-trash" type="button" onclick="confirmDelete('${poll.id}')" title="삭제">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                  </button>`
+                   </button>`
         : ""}
-              <svg class="chevron ${isExpanded ? "chevron-open" : ""}" id="chevron-${poll.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              <button type="button" onclick="toggleExpand('${poll.id}')" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">
+                <svg class="chevron ${isExpanded ? "chevron-open" : ""}" id="chevron-${poll.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              </button>
             </div>
-          </button>
+          </div>
 
           <div class="delete-confirm hidden" id="del-confirm-${poll.id}">
             <span class="del-confirm-text">정말 삭제할까요?</span>
@@ -262,6 +276,7 @@ function renderPollCard(poll) {
             <button class="btn-del-cancel" type="button" onclick="cancelDelete('${poll.id}')">취소</button>
           </div>
 
+          <!-- 본문 영역 -->
           <div class="poll-body ${isExpanded ? "" : "hidden"}" id="body-${poll.id}">
             <p class="poll-question">${escHtml(poll.question)}</p>
             <div id="content-${poll.id}">
@@ -373,7 +388,7 @@ function showResult(pollId) {
         contentEl.innerHTML = `
             <div class="result-list">${renderResultBar(poll)}</div>
             <div class="vote-actions mt-3">
-              ${!ended ? `<button class="btn-go-vote" onclick="showVoteForm('${pollId}')"> 투표하러 가기</button>` : ""}
+              ${!ended ? `<button class="btn-go-vote" onclick="showVoteForm('${pollId}')">투표하러 가기</button>` : ""}
             </div>
         `;
     }
