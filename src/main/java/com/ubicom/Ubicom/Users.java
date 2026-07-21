@@ -32,6 +32,9 @@ public class Users{
     @Column(name = "PHONE")
     public String phone;
 
+    @Column(name = "EMAIL", length = 100)
+    public String email;
+
     // getter/setter
 
 

@@ -18,6 +18,8 @@ public class Member {
     public String major;
     public String password;
 
-    // 💡 [추가] 유저의 권한을 저장할 필드 (기본값은 일반 유저인 "USER"로 세팅)
+    @Column(name = "EMAIL", length = 100)
+    public String email;
+
     public String role = "USER";
 }

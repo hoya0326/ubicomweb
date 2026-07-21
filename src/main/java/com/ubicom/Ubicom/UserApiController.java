@@ -1,15 +1,12 @@
 package com.ubicom.Ubicom;
 
-import jakarta.servlet.http.HttpServletResponse; // 1. import 추가
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,19 +16,39 @@ import java.util.Map;
 public class UserApiController {
 
     private final MemberRepository memberRepository;
+    private final UsersRepository usersRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @PostMapping("/api/admin/users/add")
+    public Map<String, Object> addApprovedUser(
+            @RequestBody Users user
+    ) {
+        Map<String, Object> responseData = new HashMap<>();
+
+        if (usersRepository.findByUserId(user.userId).isPresent()) {
+            responseData.put("success", false);
+            responseData.put("message", "이미 승인된 학번입니다.");
+            return responseData;
+        }
+
+        usersRepository.save(user);
+
+        responseData.put("success", true);
+        responseData.put("message", "승인 명단에 등록되었습니다.");
+
+        return responseData;
+    }
 
     @GetMapping("/api/user")
     public Map<String, Object> getCurrentUser(
             @AuthenticationPrincipal User principal,
-            jakarta.servlet.http.HttpServletResponse response) { // 1. 매개변수에 response 추가
+            jakarta.servlet.http.HttpServletResponse response) {
 
-        // 2. 서버 단에서도 브라우저 캐시를 완전히 차단하는 HTTP 헤더 설정
         response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate"); // HTTP 1.1
         response.setHeader("Pragma", "no-cache"); // HTTP 1.0
         response.setHeader("Expires", "0"); // Proxies
 
-        Map<String, Object> responseData = new HashMap<>(); // 변수명 혼선 방지
+        Map<String, Object> responseData = new HashMap<>();
 
         if (principal != null) {
             Integer userId = Integer.parseInt(principal.getUsername());
@@ -44,7 +61,8 @@ public class UserApiController {
                 responseData.put("username", member.getName());
                 responseData.put("department", member.getMajor());
 
-                if (member.getUserId() == 20233244) {
+                // ✨ [수정] 하드코딩된 학번을 지우고, DB의 role이 "ADMIN"인지 판별하여 주입합니다.
+                if (member.getRole() != null && "ADMIN".equalsIgnoreCase(member.getRole())) {
                     responseData.put("isAdmin", true);
                 } else {
                     responseData.put("isAdmin", false);

@@ -99,6 +99,18 @@
                 </div>
 
                 <div class="space-y-2">
+                    <label for="email" class="block text-sm font-medium text-gray-700">이메일</label>
+                    <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            placeholder="example@gmail.com"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                    >
+                </div>
+
+                <div class="space-y-2">
                     <label for="password" class="block text-sm font-medium text-gray-700">비밀번호</label>
                     <input
                             type="password"
@@ -109,6 +121,15 @@
                             required
                     >
                     <label for="password" class="block text-sm font-small text-gray-700">비밀번호는 6자 이상 입력해주시길 바랍니다.</label>
+                    <div class="mt-2">
+                        <div class="w-full h-2 bg-gray-200 rounded">
+                            <div id="password-strength-bar" class="h-2 rounded transition-all duration-300" style="width: 0%;"></div>
+                        </div>
+
+                        <p id="password-strength-text" class="mt-1 text-sm text-gray-500">
+                            비밀번호 보안 수준
+                        </p>
+                    </div>
                 </div>
 
                 <div class="space-y-2">
@@ -154,8 +175,8 @@
         </div>
     </div>
 </footer>
-
 <script src="js/auth.js"></script>
+<script src="js/main.js"></script>
 <script src="js/register.js"></script>
 </body>
 </html>

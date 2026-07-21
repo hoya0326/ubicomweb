@@ -158,9 +158,27 @@
       </div>
       <div class="form-group">
         <label>새 비밀번호 <span class="req">*</span></label>
+
         <div class="input-wrap">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+
           <input type="password" id="new-password" placeholder="최소 6자 이상" />
+        </div>
+
+        <div style="margin-top: 8px;">
+          <div style="width: 100%; height: 8px; background: #e5e7eb; border-radius: 9999px;">
+            <div
+                    id="password-strength-bar"
+                    style="width: 0%; height: 8px; border-radius: 9999px; transition: 0.3s;"
+            ></div>
+          </div>
+
+          <p id="password-strength-text" class="hint">
+            비밀번호 보안 수준
+          </p>
         </div>
       </div>
       <div class="form-group">
@@ -244,6 +262,42 @@
     alertBox.className = success ? "alert alert-success" : "alert alert-error";
     alertBox.style.display = "flex";
   }
+
+  const newPasswordInput = document.getElementById("new-password");
+  const strengthBar = document.getElementById("password-strength-bar");
+  const strengthText = document.getElementById("password-strength-text");
+
+  newPasswordInput.addEventListener("input", function () {
+    const value = newPasswordInput.value;
+
+    let score = 0;
+
+    if (value.length >= 6) score++;
+    if (/[A-Za-z]/.test(value) && /\d/.test(value)) score++;
+    if (value.length >= 8 && /[^A-Za-z0-9]/.test(value)) score++;
+
+    if (value.length === 0) {
+      strengthBar.style.width = "0%";
+      strengthBar.style.background = "transparent";
+      strengthText.textContent = "비밀번호 보안 수준";
+      strengthText.style.color = "#9ca3af";
+    } else if (score <= 1) {
+      strengthBar.style.width = "33%";
+      strengthBar.style.background = "#ef4444";
+      strengthText.textContent = "약함";
+      strengthText.style.color = "#dc2626";
+    } else if (score === 2) {
+      strengthBar.style.width = "66%";
+      strengthBar.style.background = "#eab308";
+      strengthText.textContent = "보통";
+      strengthText.style.color = "#ca8a04";
+    } else {
+      strengthBar.style.width = "100%";
+      strengthBar.style.background = "#22c55e";
+      strengthText.textContent = "강함";
+      strengthText.style.color = "#16a34a";
+    }
+  });
 
   document.getElementById("profile-save-btn")
           .addEventListener("click", async function () {
@@ -348,6 +402,11 @@
                 document.getElementById("current-password").value = "";
                 document.getElementById("new-password").value = "";
                 document.getElementById("confirm-password").value = "";
+
+                strengthBar.style.width = "0%";
+                strengthBar.style.background = "transparent";
+                strengthText.textContent = "비밀번호 보안 수준";
+                strengthText.style.color = "#9ca3af";
               }
 
             } catch (error) {
