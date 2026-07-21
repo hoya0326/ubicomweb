@@ -11,6 +11,7 @@ const expandedState = {}; // pollId → boolean (기본값: false / 접힘)
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────
 function getUser() {
+    if (!requireLogin()) return;
     try {
         const u = localStorage.getItem("currentUser");
         return u ? JSON.parse(u) : null;
