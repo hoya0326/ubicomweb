@@ -60,6 +60,7 @@ public class UserApiController {
                 responseData.put("studentId", member.getUserId());
                 responseData.put("username", member.getName());
                 responseData.put("department", member.getMajor());
+                responseData.put("phone", member.getPhone());
 
                 // ✨ [수정] 하드코딩된 학번을 지우고, DB의 role이 "ADMIN"인지 판별하여 주입합니다.
                 if (member.getRole() != null && "ADMIN".equalsIgnoreCase(member.getRole())) {
@@ -82,7 +83,8 @@ public class UserApiController {
     public Map<String, Object> updateProfile(
             @AuthenticationPrincipal User principal,
             @RequestParam String name,
-            @RequestParam String department
+            @RequestParam String department,
+            @RequestParam String phone
     ) {
         Map<String, Object> responseData = new HashMap<>();
 
@@ -94,6 +96,7 @@ public class UserApiController {
 
         name = name.trim();
         department = department.trim();
+        phone = phone.trim();
 
         if (name.isEmpty()) {
             responseData.put("success", false);
@@ -104,6 +107,13 @@ public class UserApiController {
         if (department.isEmpty()) {
             responseData.put("success", false);
             responseData.put("message", "학과를 입력해주세요.");
+            return responseData;
+        }
+
+
+        if (phone.isEmpty()) {
+            responseData.put("success", false);
+            responseData.put("message", "전화번호를 입력해주세요.");
             return responseData;
         }
 
@@ -119,6 +129,7 @@ public class UserApiController {
         Member member = memberOpt.get();
         member.setName(name);
         member.setMajor(department);
+        member.setPhone(phone);
 
         memberRepository.save(member);
 
