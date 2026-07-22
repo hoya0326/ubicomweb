@@ -32,14 +32,45 @@
         /* POLL CARD */
         .poll-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; margin-bottom: 16px; overflow: hidden; }
         .poll-ended { opacity: .8; }
-        .poll-header { width: 100%; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px; background: none; border: none; cursor: pointer; text-align: left; }
-        .poll-header:hover { background: #f9fafb; }
+
+        /* POLL HEADER (아이콘 오른쪽 상단 고정을 위해 flex-start 및 flex-row 강제 적용) */
+        .poll-header {
+            width: 100% !important;
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: flex-start !important;
+            justify-content: space-between !important;
+            gap: 12px !important;
+            padding: 20px 24px !important;
+            background: none !important;
+            border: none !important;
+            cursor: pointer !important;
+            text-align: left !important;
+        }
+        .poll-header:hover { background: #f9fafb !important; }
         .poll-header-left { flex: 1; min-width: 0; }
         .poll-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
         .poll-title { font-size: 16px; font-weight: 700; }
         .poll-meta { font-size: 12px; color: #6b7280; line-height: 1.6; }
-        .poll-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .chevron { width: 18px; height: 18px; color: #9ca3af; transition: transform .2s; flex-shrink: 0; }
+
+        /* POLL HEADER RIGHT & BUTTONS (쓰레기통과 화살표를 우측 상단에 나란히 고정) */
+        .poll-header-right {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            align-self: flex-start !important;
+            gap: 8px !important;
+            flex-shrink: 0 !important;
+            margin-top: -2px !important;
+        }
+        .chevron {
+            width: 20px !important;
+            height: 20px !important;
+            color: #9ca3af !important;
+            transition: transform .2s ease !important;
+            flex-shrink: 0 !important;
+        }
+        .chevron-open { transform: rotate(180deg) !important; }
 
         /* BADGE */
         .badge { display: inline-block; border-radius: 9999px; font-size: 11px; font-weight: 700; padding: 2px 9px; }
@@ -47,10 +78,21 @@
         .badge-green { background: #dcfce7; color: #15803d; }
         .badge-gray { background: #f3f4f6; color: #6b7280; }
 
-        /* DELETE */
-        .btn-trash { background: none; border: none; cursor: pointer; color: #f87171; padding: 4px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
-        .btn-trash:hover { color: #dc2626; background: #fef2f2; }
-        .btn-trash svg { width: 16px; height: 16px; }
+        /* DELETE BUTTON */
+        .btn-trash {
+            background: none !important;
+            border: none !important;
+            cursor: pointer !important;
+            color: #ef4444 !important;
+            padding: 4px !important;
+            border-radius: 8px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all .15s ease !important;
+        }
+        .btn-trash:hover { color: #dc2626 !important; background: #fef2f2 !important; }
+        .btn-trash svg { width: 20px !important; height: 20px !important; }
         .delete-confirm { padding: 8px 20px 12px; display: flex; align-items: center; gap: 10px; }
         .del-confirm-text { font-size: 13px; font-weight: 600; color: #dc2626; }
         .btn-del-ok { background: #dc2626; color: #fff; border: none; border-radius: 7px; padding: 5px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -137,10 +179,10 @@
         <div class="flex items-center justify-between h-16">
             <button onclick="location.href='/'" class="text-2xl font-bold hover:text-blue-100 transition-colors">UbiCOM</button>
             <nav class="hidden md:flex items-center gap-6">
-                <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors">공지사항</a>
-                <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors">학사일정</a>
-                <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors">게시판</a>
-                <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors font-semibold">투표</a>
+                <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors cursor-pointer">공지사항</a>
+                <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors cursor-pointer">학사일정</a>
+                <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors cursor-pointer">게시판</a>
+                <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors font-semibold cursor-pointer">투표</a>
                 <div id="nav-buttons"></div>
             </nav>
             <!-- Mobile Menu Button -->
@@ -153,18 +195,17 @@
         <!-- Mobile Navigation -->
         <nav id="mobile-menu" class="hidden md:hidden py-4 border-t border-blue-500">
             <div class="flex flex-col gap-3">
-                <a onclick="location.href='/notice'" class="py-2 hover:text-blue-100 transition-colors">공지사항</a>
-                <a onclick="location.href='/calendar'" class="py-2 hover:text-blue-100 transition-colors">학사일정</a>
-                <a onclick="location.href='/board'" class="py-2 hover:text-blue-100 transition-colors">게시판</a>
-                <a onclick="location.href='/vote'" class="py-2 hover:text-blue-100 transition-colors">투표</a>
+                <a onclick="location.href='/notice'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">공지사항</a>
+                <a onclick="location.href='/calendar'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">학사일정</a>
+                <a onclick="location.href='/board'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">게시판</a>
+                <a onclick="location.href='/vote'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">투표</a>
                 <div id="mobile-nav-buttons" class="flex flex-col gap-2 pt-2 border-t border-blue-500">
-                    <!-- Will be populated by JavaScript -->
+                    <!-- JavaScript로 동적 생성 -->
                 </div>
             </div>
         </nav>
     </div>
 </header>
-
 
 <!-- PAGE -->
 <div class="page">
@@ -255,34 +296,56 @@
     </div>
 </div>
 
-<!-- 샘플 데이터 주입 (로컬스토리지가 비어있을 때) -->
+<!-- JS 모듈 순서대로 로드 -->
+<script src="js/auth.js"></script>
+<script src="js/main.js"></script>
+<script src="js/poll.js"></script>
+
 <script>
-
-
+    // 로그아웃 처리 함수
     function logout() {
         localStorage.removeItem("currentUser");
         location.reload();
     }
 
-    // nav 사용자 표시
+    // 네비게이션 로그인/로그아웃 상태 표시 업데이트
     function updateNav() {
         const user = JSON.parse(localStorage.getItem("currentUser") || "null");
-        const nameEl = document.getElementById("navUsername");
-        const btnEl = document.getElementById("logoutBtn");
+        const navButtons = document.getElementById("nav-buttons");
+        const mobileNav = document.getElementById("mobile-nav-buttons");
+
         if (user) {
-            nameEl.textContent = user.name || user.username;
-            btnEl.style.display = "";
+            const btnHtml = `
+                <span class="mr-4 font-semibold text-blue-100 text-sm">${user.name || user.username}님</span>
+                <button onclick="logout()" class="text-sm bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded transition-colors">로그아웃</button>
+            `;
+            if (navButtons) navButtons.innerHTML = btnHtml;
+            if (mobileNav) mobileNav.innerHTML = btnHtml;
         } else {
-            nameEl.textContent = "";
-            btnEl.style.display = "none";
+            const btnHtml = `
+                <button onclick="location.href='/login'" class="text-sm bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded transition-colors">로그인</button>
+            `;
+            if (navButtons) navButtons.innerHTML = btnHtml;
+            if (mobileNav) mobileNav.innerHTML = btnHtml;
         }
     }
 
-    seedData();
-    updateNav();
+    // DOM 로드 완료 후 실행
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof seedData === 'function') {
+            seedData();
+        }
+
+        updateNav();
+
+        const mobileMenuBtn = document.getElementById("mobile-menu-btn");
+        const mobileMenu = document.getElementById("mobile-menu");
+        if (mobileMenuBtn && mobileMenu) {
+            mobileMenuBtn.addEventListener("click", function() {
+                mobileMenu.classList.toggle("hidden");
+            });
+        }
+    });
 </script>
-<script src="js/poll.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/main.js"></script>
 </body>
 </html>

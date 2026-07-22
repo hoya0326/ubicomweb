@@ -5,8 +5,10 @@ let isViewAll = false;
 let currentDate = new Date();
 let currentUser = null;
 
+
 // 공통 인증 상태 확인 함수 (UserApiController 기반)
 function checkAuthStatus() {
+
     const u = localStorage.getItem("currentUser");
     currentUser = u ? JSON.parse(u) : null;
     return currentUser;
@@ -18,6 +20,7 @@ function isAdmin() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    if (!requireLogin()) return;
     // 세션 정보 최신화
     checkAuthStatus();
 
