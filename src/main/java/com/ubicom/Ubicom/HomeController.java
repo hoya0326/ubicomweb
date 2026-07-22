@@ -42,6 +42,11 @@ public class HomeController {
         return "forward:/board-detail.html";
     }
 
+    @GetMapping("/email")
+    public String email() {
+        return "forward:/email-register.html";
+    }
+
     @GetMapping("/apply")
     public String apply() {
         return "forward:/apply.html";

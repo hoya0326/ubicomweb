@@ -26,16 +26,12 @@
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
-<!-- Header -->
-<header class="bg-blue-600 text-white shadow-lg">
-    <div class="container mx-auto px-4">
-        <div class="flex items-center justify-between h-16">
+<header class="bg-blue-600 text-white shadow-lg w-full">
+    <!-- container 대신 w-full과 px-6(좌우 여백) 사용 -->
+    <div class="w-full px-6 flex items-center justify-between h-16">
             <button onclick="location.href='/'" class="text-2xl font-bold hover:text-blue-100 transition-colors">UbiCOM</button>
             <nav class="hidden md:flex items-center gap-6">
-                <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors">공지사항</a>
-                <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors">학사일정</a>
-                <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors">게시판</a>
-                <a onclick="location.href='/poll'" class="hover:text-blue-100 transition-colors">투표</a>
+
                 <div id="nav-buttons"></div>
             </nav>
             <!-- Mobile Menu Button -->
@@ -48,10 +44,7 @@
         <!-- Mobile Navigation -->
         <nav id="mobile-menu" class="hidden md:hidden py-4 border-t border-blue-500">
             <div class="flex flex-col gap-3">
-                <a onclick="location.href='/notice'" class="py-2 hover:text-blue-100 transition-colors">공지사항</a>
-                <a onclick="location.href='/calendar'" class="py-2 hover:text-blue-100 transition-colors">학사일정</a>
-                <a onclick="location.href='/board'" class="py-2 hover:text-blue-100 transition-colors">게시판</a>
-                <a onclick="location.href='/poll'" class="py-2 hover:text-blue-100 transition-colors">투표</a>
+
                 <div id="mobile-nav-buttons" class="flex flex-col gap-2 pt-2 border-t border-blue-500">
                     <!-- Will be populated by JavaScript -->
                 </div>
