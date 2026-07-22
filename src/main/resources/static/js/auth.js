@@ -1,17 +1,17 @@
 // Authentication utilities (Spring Security & DB Integrated)
-//auth.js
+// auth.js
 
-// [변경] 관리자 초기화는 이제 스프링 부트(백엔드/DB)가 수행하므로 프론트엔드에서는 제거하거나 비워둡니다.
+// [변경] 관리자 초기화는 백엔드에서 수행
 function initializeAdmin() {
     console.log("Admin initialization is now handled by the Spring Boot backend.");
 }
 
-// 1. 현재 로그인 여부 확인 (로컬 캐시 기준 - UI 깜빡임 방지용)
+// 1. 현재 로그인 여부 확인 (로컬 캐시 기준)
 function isLoggedIn() {
     return !!localStorage.getItem('currentUser');
 }
 
-// 2. 현재 로그인된 유저 정보 가져오기 (로컬 캐시 기준)
+// 2. 현재 로그인된 유저 정보 가져오기
 function getCurrentUser() {
     const user = localStorage.getItem('currentUser');
     try {
@@ -21,53 +21,57 @@ function getCurrentUser() {
     }
 }
 
-// 3. 현재 유저가 관리자인지 확인 (허용할 관리자 학번 배열 지정)
+// 3. 현재 유저가 관리자인지 확인
 function isAdmin() {
     const user = getCurrentUser();
     if (!user) return false;
 
-    // DB에서 보낸 isAdmin 플래그가 true이거나, 지정된 관리자 학번에 해당하는지 교차 검증
     const adminIds = [20233244, 20233293];
     const userStudentId = parseInt(user.studentId);
 
     return user.isAdmin === true || adminIds.includes(userStudentId);
 }
 
-// 4. [★수정] 백엔드 세션을 조회하고, 화면 그리기를 강제 동기화하는 함수
+// 4. 백엔드 세션을 조회하고, 화면 그리기를 강제 동기화하는 함수
 function verifyAuthentication() {
     return fetch('/api/user?t=' + Date.now(), { cache: 'no-store' })
         .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
+            if (!response.ok) {
+                return { isLoggedIn: false };
+            }
             return response.json();
         })
         .then(data => {
-            const wasLoggedInBefore = !!localStorage.getItem('currentUser');
-
-            if (data.isLoggedIn) {
+            if (data && data.isLoggedIn) {
                 const adminIds = [20233244, 20233293];
                 const studentIdInt = parseInt(data.studentId);
-
-                // 💡 [해결 포인트] 백엔드가 이름 필드(data.name)를 주면 그것을 쓰고, 없으면 data.username을 씁니다.
-                // 스프링 시큐리티에서 Principal로 학번을 쓸 때 이름 자리에 학번이 들어가는 문제를 방지합니다.
                 const realName = data.name || data.username;
 
                 const currentUser = {
                     username: realName,
                     studentId: data.studentId,
                     department: data.department,
+                    email: data.email || '', // ★ 이메일 필드 저장
                     isAdmin: data.isAdmin || adminIds.includes(studentIdInt)
                 };
 
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
-
-                // 💡 중요: 인증 정보를 갱신하자마자 이벤트를 발생시켜 main.js가 알 수 있도록 합니다.
                 window.dispatchEvent(new CustomEvent('authVerified', { detail: currentUser }));
+
+                // 💡 [핵심] 로그인된 상태인데 이메일이 없고, 현재 위치가 /email 페이지가 아니라면 리다이렉트
+                const currentPath = window.location.pathname.toLowerCase();
+                const isEmailPage = currentPath.includes('/email');
+                const isLoginPage = currentPath.includes('/login');
+
+                if ((!data.email || data.email.trim() === '') && !isEmailPage && !isLoginPage) {
+                    window.location.href = '/email'; // 원하시는 /email 경로로 이동
+                    return { success: true, user: currentUser, redirected: true };
+                }
 
                 return { success: true, user: currentUser };
             } else {
                 localStorage.removeItem('currentUser');
                 window.dispatchEvent(new CustomEvent('authVerified', { detail: null }));
-
                 return { success: false };
             }
         })
@@ -79,11 +83,12 @@ function verifyAuthentication() {
         });
 }
 
-// 5. 로그인 처리 후 곧바로 동기화 및 페이지 이동 유도
+// 5. 로그인 처리 (SecurityConfig의 usernameParameter("userid")에 필드명 맞춤)
 async function loginUser(studentId, password) {
     try {
         const formData = new URLSearchParams();
-        formData.append('username', studentId);
+        // ★ SecurityConfig의 .usernameParameter("userid")와 이름을 똑같이 맞춰줍니다.
+        formData.append('userid', studentId);
         formData.append('password', password);
 
         const response = await fetch('/login', {
@@ -95,12 +100,10 @@ async function loginUser(studentId, password) {
         });
 
         if (response.ok || response.redirected) {
-            // 로그인 직후 비동기로 세션 정보를 확실하게 받아와 로컬스토리지를 갱신합니다.
             const verifyResult = await verifyAuthentication();
 
             if (verifyResult.success) {
-                // 로그인이 성공하면 메인 페이지로 이동시켜 자연스럽게 화면을 다시 로드하도록 합니다.
-                window.location.href = 'index.html';
+                window.location.href = '/';
             }
             return { success: true, user: verifyResult.user };
         } else {
@@ -111,7 +114,7 @@ async function loginUser(studentId, password) {
     }
 }
 
-// 6. 실제 페이지의 Form 엘리먼트를 직접 받아 전송합니다.
+// 6. 회원가입 처리
 function registerUser(formElement) {
     try {
         const nameInput = formElement.querySelector('#name');
@@ -140,11 +143,29 @@ function logoutUser() {
     window.location.href = '/logout';
 }
 
-// 8. 페이지 보호 (로그인 체크)
+// 8. 페이지 보호 (★ 비로그인 시 회원가입 및 로그인 페이지 진입을 강력하게 완하여 허용)
 function requireLogin() {
+    const path = window.location.pathname.toLowerCase();
+
+    // 메인(/), 로그인(/login), 회원가입(/register) 경로는 로그인 여부 체크를 전면 건너뜁니다.
+    if (
+        path === '/' ||
+        path === '' ||
+        path.includes('/login') ||
+        path.includes('/register') ||
+        path.includes('/email') ||
+        path.includes('/apply') ||
+        path.includes('login.html') ||
+        path.includes('register.html')
+
+    ) {
+        return true;
+    }
+
+    // 그 외 회원 전용 페이지(/notice, /board 등)에만 비로그인 체크 적용
     if (!isLoggedIn()) {
         alert('로그인이 필요한 서비스입니다.');
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return false;
     }
     return true;
@@ -154,18 +175,22 @@ function requireLogin() {
 function requireAdmin() {
     if (!isAdmin()) {
         alert('관리자만 접근할 수 있습니다.');
-        window.location.href = 'index.html';
+        window.location.href = '/';
         return false;
     }
     return true;
 }
 
-// 페이지가 로드될 때 항상 백엔드와 세션을 동기화합니다.
+// 페이지가 로드될 때 세션 동기화 및 페이지 권한 검사 진행
 document.addEventListener('DOMContentLoaded', function() {
+    // 1. 현재 주소가 회원 전용 페이지인지 확인 후 알림 창 띄우기
+    requireLogin();
+
+    // 2. 백엔드 세션 동기화
     verifyAuthentication();
 });
 
-// 브라우저가 뒤로가기나 화면 전환으로 이전 스냅샷(bfcache)을 복원했을 때도 캐시를 새로고침합니다.
+// 브라우저 뒤로가기/앞으로가기 스냅샷 복원 시 세션 동기화
 window.addEventListener('pageshow', function(event) {
     if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
         verifyAuthentication();

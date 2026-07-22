@@ -1,4 +1,71 @@
 // login.js
+document.addEventListener('DOMContentLoaded', async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('error')) {
+        const errorMsg = urlParams.get('message') || '학번 또는 비밀번호가 일치하지 않습니다.';
+        showError('error-message', decodeURIComponent(errorMsg));
+    }
+
+    // 💡 이미 로그인된 유저가 로그인 페이지에 접근한 경우
+    if (isLoggedIn() && !urlParams.has('error')) {
+        try {
+            // 사용자 정보를 불러와 이메일 유무 확인
+            const response = await fetch('/api/user?t=' + Date.now(), { cache: 'no-store' });
+            if (response.ok) {
+                const user = await response.json();
+                // 이메일이 없거나 비어있는 경우 이메일 등록 페이지로 이동
+                if (!user.email || user.email.trim() === '') {
+                    window.location.href = '/email-register';
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+
+        // 이메일이 정상적으로 존재하면 메인으로 이동
+        window.location.href = '/';
+        return;
+    }
+
+    const loginForm = document.getElementById('login-form');
+    const passwordInput = document.getElementById('password');
+    const capsLockMessage = document.getElementById('caps-lock-message');
+
+    function updateCapsLockState(event) {
+        if (event.getModifierState('CapsLock')) {
+            capsLockMessage.classList.remove('hidden');
+        } else {
+            capsLockMessage.classList.add('hidden');
+        }
+    }
+
+    if (passwordInput && capsLockMessage) {
+        passwordInput.addEventListener('keydown', updateCapsLockState);
+        passwordInput.addEventListener('keyup', updateCapsLockState);
+    }
+
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(e) {
+            hideError('error-message');
+
+            const studentId = document.getElementById('studentId').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!studentId || !password) {
+                e.preventDefault();
+                showError('error-message', '학번과 비밀번호를 모두 입력해주세요.');
+                return;
+            }
+
+            if (studentId.length !== 8) {
+                e.preventDefault();
+                showError('error-message', '학번은 8자리여야 합니다.');
+                return;
+            }
+        });
+    }
+});
 document.addEventListener('DOMContentLoaded', function() {
     // 💡 1. URL 파라미터에 error가 포함되어 있다면 로그인 실패 에러 메시지 노출
     const urlParams = new URLSearchParams(window.location.search);
