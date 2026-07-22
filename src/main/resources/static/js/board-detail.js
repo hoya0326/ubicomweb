@@ -19,33 +19,44 @@ document.addEventListener('DOMContentLoaded', function() {
     loadComments();
 });
 
-// ✨ 작성자 본인 여부를 다각도로 체크하는 헬퍼 함수
+// 작성자 본인 또는 관리자 권한 확인
 function isAuthorOrAdmin(post) {
     if (!post) return false;
 
-    // 1. 관리자 체크
     const userIsAdmin = typeof isAdmin === 'function' ? isAdmin() : false;
     if (userIsAdmin) return true;
 
-    // 2. 현재 로그인 사용자 가져오기
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     if (!user) return false;
 
-    // 3. ID, StudentId, Username 등 가용 가능한 식별값들을 비교
     const currentUserId = String(user.id || user.studentId || user.username || '');
     const postAuthorId = String(post.authorId || post.studentId || post.author || '');
 
-    // 사용자 정보나 게시글 정보에 ID가 존재하는 경우 비교
-    if (currentUserId && postAuthorId) {
-        if (currentUserId === postAuthorId) return true;
+    if (currentUserId && postAuthorId && currentUserId === postAuthorId) {
+        return true;
     }
 
-    // 이름(username) 기반 보조 검증 (익명이 아닌 경우)
     if (user.username && post.author && user.username === post.author) {
         return true;
     }
 
     return false;
+}
+
+// ✨ 날짜 포맷 함수 (YYYY. MM. DD. HH:mm)
+function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString; // 날짜 변환 실패시 원본 반환
+
+    return date.toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
 }
 
 function loadPost() {
@@ -66,10 +77,19 @@ function loadPost() {
 
     currentPost = post;
     const userIsAdmin = typeof isAdmin === 'function' ? isAdmin() : false;
-
-    // ✨ 보완된 본인/관리자 권한 판별 함수 적용
     const canManage = isAuthorOrAdmin(post);
     const displayAuthor = getDisplayAuthor(post, userIsAdmin);
+
+    // ✨ 수정 여부 확인 (createdAt과 updatedAt이 다르고 1초 이상 차이나면 수정된 것)
+    const createdTime = new Date(post.createdAt).getTime();
+    const updatedTime = post.updatedAt ? new Date(post.updatedAt).getTime() : createdTime;
+    const isEdited = post.updatedAt && (updatedTime - createdTime > 1000);
+
+    // ✨ 날짜 표시용 HTML 구성
+    let timeHtml = `<span>${formatDate(post.createdAt)}</span>`;
+    if (isEdited) {
+        timeHtml += `<span class="text-xs text-gray-400 ml-1">(수정됨: ${formatDate(post.updatedAt)})</span>`;
+    }
 
     document.getElementById('post-content').innerHTML = `
         <div class="p-6">
@@ -94,11 +114,12 @@ function loadPost() {
                     </svg>
                     <span>${displayAuthor}</span>
                 </div>
+                <!-- ✨ 작성일 및 수정일 출력 영역 -->
                 <div class="flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
-                    <span>${typeof formatFullDate === 'function' ? formatFullDate(post.createdAt) : post.createdAt.split('T')[0]}</span>
+                    ${timeHtml}
                 </div>
                 <div class="flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,7 +183,7 @@ function renderEditForm() {
     document.getElementById('edit-post-form').addEventListener('submit', handleUpdatePost);
 }
 
-// 게시글 수정 저장
+// ✨ 게시글 수정 저장 (updatedAt 갱신 핵심 로직)
 function handleUpdatePost(e) {
     e.preventDefault();
 
@@ -185,10 +206,13 @@ function handleUpdatePost(e) {
     if (postIndex !== -1) {
         posts[postIndex].title = updatedTitle;
         posts[postIndex].content = updatedContent;
+
+        // ✨ 핵심: 로컬 스토리지에 수정 시간을 현재 시간 ISO 문자열로 저장
         posts[postIndex].updatedAt = new Date().toISOString();
+
         localStorage.setItem('posts', JSON.stringify(posts));
 
-        loadPost();
+        loadPost(); // 화면 다시 그리기
     }
 }
 
@@ -204,7 +228,6 @@ function loadComments() {
         <div class="p-6">
             <h2 class="text-xl font-bold mb-6">댓글 ${comments.length}개</h2>
             
-            <!-- Comment Form -->
             <form id="comment-form" class="mb-6 space-y-4">
                 <textarea 
                     id="comment-content"
@@ -220,7 +243,6 @@ function loadComments() {
                 </div>
             </form>
             
-            <!-- Comments List -->
             ${comments.length > 0 ? `
                 <div class="border-t pt-6 space-y-4">
                     ${comments.map(comment => {
@@ -234,7 +256,7 @@ function loadComments() {
                                         </svg>
                                         <span class="font-medium">${escapeHtml(comment.author)}</span>
                                         <span class="text-gray-500">·</span>
-                                        <span class="text-gray-500">${typeof formatFullDate === 'function' ? formatFullDate(comment.createdAt) : comment.createdAt.split('T')[0]}</span>
+                                        <span class="text-gray-500">${formatDate(comment.createdAt)}</span>
                                     </div>
                                     ${canDeleteComment ? `
                                         <button onclick="deleteComment('${comment.id}')" class="text-red-600 hover:text-red-700 text-sm transition-colors">

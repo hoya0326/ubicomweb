@@ -1,4 +1,5 @@
 // Authentication utilities (Spring Security & DB Integrated)
+//auth.js
 
 // [변경] 관리자 초기화는 이제 스프링 부트(백엔드/DB)가 수행하므로 프론트엔드에서는 제거하거나 비워둡니다.
 function initializeAdmin() {
