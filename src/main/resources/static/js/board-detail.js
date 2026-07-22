@@ -19,10 +19,37 @@ document.addEventListener('DOMContentLoaded', function() {
     loadComments();
 });
 
+// ✨ 작성자 본인 여부를 다각도로 체크하는 헬퍼 함수
+function isAuthorOrAdmin(post) {
+    if (!post) return false;
+
+    // 1. 관리자 체크
+    const userIsAdmin = typeof isAdmin === 'function' ? isAdmin() : false;
+    if (userIsAdmin) return true;
+
+    // 2. 현재 로그인 사용자 가져오기
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) return false;
+
+    // 3. ID, StudentId, Username 등 가용 가능한 식별값들을 비교
+    const currentUserId = String(user.id || user.studentId || user.username || '');
+    const postAuthorId = String(post.authorId || post.studentId || post.author || '');
+
+    // 사용자 정보나 게시글 정보에 ID가 존재하는 경우 비교
+    if (currentUserId && postAuthorId) {
+        if (currentUserId === postAuthorId) return true;
+    }
+
+    // 이름(username) 기반 보조 검증 (익명이 아닌 경우)
+    if (user.username && post.author && user.username === post.author) {
+        return true;
+    }
+
+    return false;
+}
+
 function loadPost() {
     const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-
-    // ★ 핵심 수정: String()으로 변환하여 자료형 불일치 문제 해결
     const post = posts.find(p => String(p.id) === String(currentPostId));
 
     if (!post) {
@@ -38,19 +65,25 @@ function loadPost() {
     }
 
     currentPost = post;
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     const userIsAdmin = typeof isAdmin === 'function' ? isAdmin() : false;
-    const canDelete = userIsAdmin || (user && user.id === post.authorId);
+
+    // ✨ 보완된 본인/관리자 권한 판별 함수 적용
+    const canManage = isAuthorOrAdmin(post);
     const displayAuthor = getDisplayAuthor(post, userIsAdmin);
 
     document.getElementById('post-content').innerHTML = `
         <div class="p-6">
             <div class="flex items-start justify-between gap-4 mb-4">
                 <h1 class="text-3xl font-bold flex-1">${escapeHtml(post.title)}</h1>
-                ${canDelete ? `
-                    <button onclick="deletePost()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm">
-                        삭제
-                    </button>
+                ${canManage ? `
+                    <div class="flex items-center gap-2">
+                        <button onclick="renderEditForm()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                            수정
+                        </button>
+                        <button onclick="deletePost()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                            삭제
+                        </button>
+                    </div>
                 ` : ''}
             </div>
             
@@ -87,14 +120,82 @@ function loadPost() {
     `;
 }
 
+// 게시글 수정 폼 렌더링
+function renderEditForm() {
+    if (!currentPost) return;
+
+    document.getElementById('post-content').innerHTML = `
+        <div class="p-6">
+            <h2 class="text-2xl font-bold mb-4">게시글 수정</h2>
+            <form id="edit-post-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">제목</label>
+                    <input 
+                        type="text" 
+                        id="edit-title" 
+                        value="${escapeHtml(currentPost.title)}" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                        required
+                    />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">내용</label>
+                    <textarea 
+                        id="edit-content" 
+                        rows="10" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                        required
+                    >${escapeHtml(currentPost.content)}</textarea>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="loadPost()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm transition-colors">
+                        취소
+                    </button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                        저장
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.getElementById('edit-post-form').addEventListener('submit', handleUpdatePost);
+}
+
+// 게시글 수정 저장
+function handleUpdatePost(e) {
+    e.preventDefault();
+
+    if (!isAuthorOrAdmin(currentPost)) {
+        alert('수정 권한이 없습니다.');
+        return;
+    }
+
+    const updatedTitle = document.getElementById('edit-title').value.trim();
+    const updatedContent = document.getElementById('edit-content').value.trim();
+
+    if (!updatedTitle || !updatedContent) {
+        alert('제목과 내용을 입력해주세요.');
+        return;
+    }
+
+    const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+    const postIndex = posts.findIndex(p => String(p.id) === String(currentPostId));
+
+    if (postIndex !== -1) {
+        posts[postIndex].title = updatedTitle;
+        posts[postIndex].content = updatedContent;
+        posts[postIndex].updatedAt = new Date().toISOString();
+        localStorage.setItem('posts', JSON.stringify(posts));
+
+        loadPost();
+    }
+}
+
 function loadComments() {
     const allComments = JSON.parse(localStorage.getItem('comments') || '[]');
-
-    // ★ 핵심 수정: String() 변환
     const comments = allComments.filter(c => String(c.postId) === String(currentPostId));
     comments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
 
     const commentsSection = document.getElementById('comments-section');
     if (!commentsSection) return;
@@ -122,26 +223,29 @@ function loadComments() {
             <!-- Comments List -->
             ${comments.length > 0 ? `
                 <div class="border-t pt-6 space-y-4">
-                    ${comments.map(comment => `
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="flex items-start justify-between gap-4 mb-2">
-                                <div class="flex items-center gap-2 text-sm">
-                                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                    </svg>
-                                    <span class="font-medium">${escapeHtml(comment.author)}</span>
-                                    <span class="text-gray-500">·</span>
-                                    <span class="text-gray-500">${typeof formatFullDate === 'function' ? formatFullDate(comment.createdAt) : comment.createdAt.split('T')[0]}</span>
+                    ${comments.map(comment => {
+        const canDeleteComment = isAuthorOrAdmin(comment);
+        return `
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <div class="flex items-start justify-between gap-4 mb-2">
+                                    <div class="flex items-center gap-2 text-sm">
+                                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                        <span class="font-medium">${escapeHtml(comment.author)}</span>
+                                        <span class="text-gray-500">·</span>
+                                        <span class="text-gray-500">${typeof formatFullDate === 'function' ? formatFullDate(comment.createdAt) : comment.createdAt.split('T')[0]}</span>
+                                    </div>
+                                    ${canDeleteComment ? `
+                                        <button onclick="deleteComment('${comment.id}')" class="text-red-600 hover:text-red-700 text-sm transition-colors">
+                                            삭제
+                                        </button>
+                                    ` : ''}
                                 </div>
-                                ${user && user.id === comment.authorId ? `
-                                    <button onclick="deleteComment('${comment.id}')" class="text-red-600 hover:text-red-700 text-sm">
-                                        삭제
-                                    </button>
-                                ` : ''}
+                                <p class="text-gray-700 whitespace-pre-wrap">${escapeHtml(comment.content)}</p>
                             </div>
-                            <p class="text-gray-700 whitespace-pre-wrap">${escapeHtml(comment.content)}</p>
-                        </div>
-                    `).join('')}
+                        `;
+    }).join('')}
                 </div>
             ` : ''}
         </div>
@@ -170,7 +274,7 @@ function handleAddComment(e) {
         postId: currentPostId,
         content: content,
         author: user.username,
-        authorId: user.id,
+        authorId: user.id || user.studentId || user.username,
         createdAt: new Date().toISOString()
     };
 
@@ -190,6 +294,11 @@ function handleAddComment(e) {
 }
 
 function deletePost() {
+    if (!isAuthorOrAdmin(currentPost)) {
+        alert('삭제 권한이 없습니다.');
+        return;
+    }
+
     if (!confirm('정말 이 게시글을 삭제하시겠습니까?')) return;
 
     const posts = JSON.parse(localStorage.getItem('posts') || '[]');
@@ -204,9 +313,18 @@ function deletePost() {
 }
 
 function deleteComment(commentId) {
+    const allComments = JSON.parse(localStorage.getItem('comments') || '[]');
+    const targetComment = allComments.find(c => String(c.id) === String(commentId));
+
+    if (!targetComment) return;
+
+    if (!isAuthorOrAdmin(targetComment)) {
+        alert('댓글을 삭제할 권한이 없습니다.');
+        return;
+    }
+
     if (!confirm('정말 이 댓글을 삭제하시겠습니까?')) return;
 
-    const allComments = JSON.parse(localStorage.getItem('comments') || '[]');
     const filteredComments = allComments.filter(c => String(c.id) !== String(commentId));
     localStorage.setItem('comments', JSON.stringify(filteredComments));
 
