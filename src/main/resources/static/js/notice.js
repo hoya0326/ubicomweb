@@ -6,10 +6,10 @@ let noticePollOptions = ['', '']; // 투표 동적 선택지 상태 관리
 let targetNoticeIdToDelete = null; // 삭제할 공지 ID 저장용
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (!requireLogin()) return;
+    if (typeof requireLogin === 'function' && !requireLogin()) return;
 
     // Show admin controls if user is admin
-    if (isAdmin()) {
+    if (typeof isAdmin === 'function' && isAdmin()) {
         const adminControls = document.getElementById('admin-controls');
         if (adminControls) adminControls.classList.remove('hidden');
     }
@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (createNoticeBtn) {
         createNoticeBtn.addEventListener('click', function() {
-            if (!requireAdmin()) return;
+            if (typeof requireAdmin === 'function' && !requireAdmin()) return;
             resetNoticeForm();
             createModal.classList.remove('hidden');
         });
@@ -65,7 +65,7 @@ function resetNoticeForm() {
     const form = document.getElementById('create-notice-form');
     if (form) form.reset();
 
-    hideError('modal-error');
+    if (typeof hideError === 'function') hideError('modal-error');
 
     // 투표 영역 초기화
     const attachCheck = document.getElementById('attach-poll-check');
@@ -157,7 +157,7 @@ function renderNotices() {
         return;
     }
 
-    const adminUser = isAdmin();
+    const adminUser = typeof isAdmin === 'function' ? isAdmin() : false;
 
     noticesList.innerHTML = filteredNotices.map(notice => `
         <div class="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6 relative group">
@@ -211,7 +211,7 @@ function renderNotices() {
 function openDeleteModal(event, noticeId) {
     if (event) event.stopPropagation();
 
-    if (!isAdmin()) {
+    if (typeof isAdmin === 'function' && !isAdmin()) {
         alert('관리자 권한이 필요합니다.');
         return;
     }
@@ -234,41 +234,50 @@ function executeDeleteNotice() {
 
     const noticeId = targetNoticeIdToDelete;
 
-    // 1. 공지사항 목록에서 삭제
+    // 1. 공지사항 목록에서 삭제 (String으로 안전 비교)
     let notices = JSON.parse(localStorage.getItem('notices') || '[]');
-    notices = notices.filter(n => n.id !== noticeId);
+    notices = notices.filter(n => String(n.id) !== String(noticeId));
     localStorage.setItem('notices', JSON.stringify(notices));
 
-    // 2. 관련 첨부 투표 삭제
+    // 2. 관련 첨부 투표 삭제 (String으로 안전 비교)
     let polls = JSON.parse(localStorage.getItem('polls') || '[]');
-    polls = polls.filter(p => p.noticeId !== noticeId);
+    polls = polls.filter(p => String(p.noticeId) !== String(noticeId));
     localStorage.setItem('polls', JSON.stringify(polls));
 
     closeDeleteModal();
     loadNotices();
 }
 
-// 상세 페이지 이동 함수
+// 상세 페이지 이동 함수 (.html 확장자 제거)
 function goToNoticeDetail(noticeId) {
-    window.location.href = `/notice-detail.html?id=${noticeId}`;
+    // 조회수 증가
+    const notices = JSON.parse(localStorage.getItem('notices') || '[]');
+    const noticeIndex = notices.findIndex(n => String(n.id) === String(noticeId));
+    if (noticeIndex !== -1) {
+        notices[noticeIndex].views = (notices[noticeIndex].views || 0) + 1;
+        localStorage.setItem('notices', JSON.stringify(notices));
+    }
+
+    // .html 확장자 제거하여 이동
+    window.location.href = `/notice_detail?id=${noticeId}`;
 }
 
 // 공지사항 및 투표 생성 처리
 function handleCreateNotice() {
-    hideError('modal-error');
+    if (typeof hideError === 'function') hideError('modal-error');
 
     const title = document.getElementById('notice-title').value.trim();
     const content = document.getElementById('notice-content').value.trim();
     const isAttachPoll = document.getElementById('attach-poll-check')?.checked || false;
 
     if (!title || !content) {
-        showError('modal-error', '제목과 내용을 모두 입력해주세요.');
+        if (typeof showError === 'function') showError('modal-error', '제목과 내용을 모두 입력해주세요.');
         return;
     }
 
-    const user = getCurrentUser();
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     if (!user || !user.isAdmin) {
-        showError('modal-error', '관리자만 공지사항을 작성할 수 있습니다.');
+        if (typeof showError === 'function') showError('modal-error', '관리자만 공지사항을 작성할 수 있습니다.');
         return;
     }
 
@@ -285,7 +294,7 @@ function handleCreateNotice() {
 
         validOptions = noticePollOptions.map(opt => opt.trim()).filter(Boolean);
         if (validOptions.length < 2) {
-            showError('modal-error', '투표 첨부 시 선택지는 최소 2개 이상 입력해야 합니다.');
+            if (typeof showError === 'function') showError('modal-error', '투표 첨부 시 선택지는 최소 2개 이상 입력해야 합니다.');
             return;
         }
 
@@ -338,7 +347,8 @@ function handleCreateNotice() {
     }
 
     // 모달 닫기 및 초기화
-    document.getElementById('create-modal').classList.add('hidden');
+    const createModal = document.getElementById('create-modal');
+    if (createModal) createModal.classList.add('hidden');
     resetNoticeForm();
 
     // 목록 다시 불러오기

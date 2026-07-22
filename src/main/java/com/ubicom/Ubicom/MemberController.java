@@ -7,13 +7,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import org.springframework.web.bind.annotation.RequestParam;
 import java.security.SecureRandom;
-
 import java.io.IOException;
 import java.io.PrintWriter;
 
@@ -34,22 +31,23 @@ public class MemberController {
     @PostMapping("/member")
     @Transactional
     public String addMember(
-            String name,
-            Integer userid,
-            String major,
-            String password,
-            String email,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Integer userid,
+            @RequestParam(required = false) String major,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String password,
+            @RequestParam(required = false) String email,
             HttpServletResponse response
     ) throws Exception {
-
-        var result = usersRepository.findByUserId(userid);
-        var result2 = memberRepository.findByUserId(userid);
 
         // 1. 학번 자릿수 검증 (8자리)
         if (userid == null || (int)(Math.log10(userid) + 1) != 8) {
             showAlert(response, "학번 8자리를 정확히 입력해주세요.");
             return null;
         }
+
+        var result = usersRepository.findByUserId(userid);
+        var result2 = memberRepository.findByUserId(userid);
 
         // 2. 존재하지 않는 학번 검증
         if (result.isEmpty()) {
@@ -68,6 +66,7 @@ public class MemberController {
         member.setName(name);
         member.setUserId(userid);
         member.setMajor(major);
+        member.setPhone(phone);
         member.setEmail(email);
 
         var hash = passwordEncoder.encode(password);
@@ -206,8 +205,6 @@ public class MemberController {
 
         String temporaryPassword = createTemporaryPassword();
 
-
-
         emailService.sendTemporaryPassword(
                 member.getEmail(),
                 temporaryPassword
@@ -226,11 +223,8 @@ public class MemberController {
     }
 
     private String createTemporaryPassword() {
-
         SecureRandom random = new SecureRandom();
-
         int number = 100000 + random.nextInt(900000);
-
         return String.valueOf(number);
     }
 
@@ -241,16 +235,11 @@ public class MemberController {
     ) throws IOException {
 
         response.setContentType("text/html; charset=UTF-8");
-
         PrintWriter out = response.getWriter();
-
         out.println("<script>");
         out.println("alert('" + message + "');");
         out.println("location.href='" + location + "';");
         out.println("</script>");
-
         out.flush();
     }
 }
-
-
