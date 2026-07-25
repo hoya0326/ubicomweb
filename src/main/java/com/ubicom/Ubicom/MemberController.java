@@ -115,13 +115,13 @@ public class MemberController {
         Member member = memberResult.get();
 
         if (member.getEmail() == null || member.getEmail().isBlank()) {
-            return "redirect:/email-register";
+            return "redirect:/email";
         }
 
         return "redirect:/";
     }
 
-    @GetMapping("/email-register")
+    @GetMapping("/email")
     public String emailRegister(Authentication authentication) {
 
         if (authentication == null
