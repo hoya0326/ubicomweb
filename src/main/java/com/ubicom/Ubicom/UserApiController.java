@@ -62,7 +62,9 @@ public class UserApiController {
                 responseData.put("department", member.getMajor());
                 responseData.put("phone", member.getPhone());
 
-                // ✨ [수정] 하드코딩된 학번을 지우고, DB의 role이 "ADMIN"인지 판별하여 주입합니다.
+                // ★ [핵심 추가] 이 한 줄을 추가해야 auth.js가 등록된 이메일을 인식합니다!
+                responseData.put("email", member.getEmail());
+
                 if (member.getRole() != null && "ADMIN".equalsIgnoreCase(member.getRole())) {
                     responseData.put("isAdmin", true);
                 } else {

@@ -47,24 +47,28 @@ function verifyAuthentication() {
                 const studentIdInt = parseInt(data.studentId);
                 const realName = data.name || data.username;
 
+                // DB에서 방금 업데이트된 data.email 값을 확실히 받아서 갱신
                 const currentUser = {
                     username: realName,
                     studentId: data.studentId,
                     department: data.department,
-                    email: data.email || '', // ★ 이메일 필드 저장
+                    email: data.email || '', // ★ 최신 이메일 저장
                     isAdmin: data.isAdmin || adminIds.includes(studentIdInt)
                 };
 
+                // 로컬스토리지 갱신
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 window.dispatchEvent(new CustomEvent('authVerified', { detail: currentUser }));
 
-                // 💡 [핵심] 로그인된 상태인데 이메일이 없고, 현재 위치가 /email 페이지가 아니라면 리다이렉트
                 const currentPath = window.location.pathname.toLowerCase();
                 const isEmailPage = currentPath.includes('/email');
                 const isLoginPage = currentPath.includes('/login');
 
-                if ((!data.email || data.email.trim() === '') && !isEmailPage && !isLoginPage) {
-                    window.location.href = '/email'; // 원하시는 /email 경로로 이동
+                // 💡 [수정] 백엔드에서 내려온 email 값이 확실하게 존재한다면 절대 /email로 보내지 않음!
+                const hasEmail = data.email && data.email.trim() !== '';
+
+                if (!hasEmail && !isEmailPage && !isLoginPage) {
+                    window.location.href = '/email';
                     return { success: true, user: currentUser, redirected: true };
                 }
 
