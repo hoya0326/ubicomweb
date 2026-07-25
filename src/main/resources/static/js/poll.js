@@ -11,11 +11,12 @@ const expandedState = {}; // pollId → boolean (기본값: false / 접힘)
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────
 function getUser() {
-    if (!requireLogin()) return;
     try {
         const u = localStorage.getItem("currentUser");
         return u ? JSON.parse(u) : null;
-    } catch { return null; }
+    } catch {
+        return null;
+    }
 }
 
 function formatDeadline(iso) {
@@ -247,19 +248,17 @@ function renderPollCard(poll) {
 
     return `
         <div class="poll-card ${ended ? "poll-ended" : ""}" id="card-${poll.id}">
-          <!-- 헤더: 투표 제목 및 우측에 쓰레기통 + 화살표 아이콘 배치 -->
-          <div class="poll-header" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 16px; cursor: pointer;" onclick="toggleExpand('${poll.id}')">
-            <div class="poll-header-left" style="flex: 1; min-width: 0;">
-              <div class="poll-title-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <div class="poll-header" onclick="toggleExpand('${poll.id}')">
+            <div class="poll-header-left">
+              <div class="poll-title-row">
                 <svg class="icon-bar" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" style="width:20px; height:20px; flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                <h3 class="poll-title" style="margin: 0; word-break: break-all;">${escHtml(poll.title)}</h3>
+                <h3 class="poll-title">${escHtml(poll.title)}</h3>
                 ${statusBadge}
               </div>
-              <p class="poll-meta" style="margin-top: 6px; margin-bottom: 0;">${metaItems}</p>
+              <p class="poll-meta">${metaItems}</p>
             </div>
 
-            <!-- 제목 우측: 삭제(쓰레기통) 및 펼침(화살표) 버튼 -->
-            <div class="poll-header-actions" style="display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: 12px;" onclick="event.stopPropagation();">
+            <div class="poll-header-right" onclick="event.stopPropagation();">
               ${canDelete
         ? `<button class="btn-trash" type="button" onclick="confirmDelete('${poll.id}')" title="삭제">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -277,7 +276,6 @@ function renderPollCard(poll) {
             <button class="btn-del-cancel" type="button" onclick="cancelDelete('${poll.id}')">취소</button>
           </div>
 
-          <!-- 본문 영역 -->
           <div class="poll-body ${isExpanded ? "" : "hidden"}" id="body-${poll.id}">
             <p class="poll-question">${escHtml(poll.question)}</p>
             <div id="content-${poll.id}">
@@ -311,10 +309,11 @@ function renderAll() {
 
     const btnArea = document.getElementById("createBtnArea");
     if (btnArea) {
-        if (currentUser) {
+        // 관리자 계정(currentUser.isAdmin이 true)인 경우에만 생성 버튼 표시
+        if (currentUser && currentUser.isAdmin) {
             btnArea.innerHTML = `<button class="btn-new-poll" onclick="openCreateForm()">+ 새 투표 만들기</button>`;
         } else {
-            btnArea.innerHTML = `<span class="text-xs text-gray-500">※ 로그인 후 투표 가능</span>`;
+            btnArea.innerHTML = ``;
         }
     }
     renderPollList();
@@ -426,8 +425,8 @@ function execDelete(pollId) {
 let formOptions = ["", ""];
 
 function openCreateForm() {
-    if (!currentUser) {
-        alert("로그인이 필요합니다.");
+    if (!currentUser || !currentUser.isAdmin) {
+        alert("관리자만 투표를 생성할 수 있습니다.");
         return;
     }
 
@@ -494,8 +493,8 @@ function toggleDeadlineFields() {
 }
 
 function submitCreatePoll() {
-    if (!currentUser) {
-        alert("로그인이 필요합니다.");
+    if (!currentUser || !currentUser.isAdmin) {
+        alert("관리자 권한이 필요합니다.");
         return;
     }
 
@@ -526,7 +525,7 @@ function submitCreatePoll() {
         allowMultiple,
         endsAt: useDeadline ? new Date(`${deadlineDate}T${deadlineTime}`).toISOString() : null,
         createdAt: new Date().toISOString(),
-        createdBy: currentUser.name || currentUser.username || "사용자",
+        createdBy: currentUser.name || currentUser.username || "관리자",
         votes: [],
     });
     localStorage.setItem("standalonePolls", JSON.stringify(stored));
