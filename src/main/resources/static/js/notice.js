@@ -5,7 +5,7 @@ let searchQuery = ''; // 검색어 저장용
 let noticePollOptions = ['', '']; // 투표 동적 선택지 상태 관리
 let targetNoticeIdToDelete = null; // 삭제할 공지 ID 저장용
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     if (!requireLogin()) return;
 
     // Show admin controls if user is admin
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelBtn = document.getElementById('cancel-btn');
 
     if (createNoticeBtn) {
-        createNoticeBtn.addEventListener('click', function() {
+        createNoticeBtn.addEventListener('click', function () {
             if (!requireAdmin()) return;
             resetNoticeForm();
             createModal.classList.remove('hidden');
@@ -31,14 +31,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (closeModal) {
-        closeModal.addEventListener('click', function() {
+        closeModal.addEventListener('click', function () {
             createModal.classList.add('hidden');
             resetNoticeForm();
         });
     }
 
     if (cancelBtn) {
-        cancelBtn.addEventListener('click', function() {
+        cancelBtn.addEventListener('click', function () {
             createModal.classList.add('hidden');
             resetNoticeForm();
         });
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Create notice form
     const createNoticeForm = document.getElementById('create-notice-form');
     if (createNoticeForm) {
-        createNoticeForm.addEventListener('submit', function(e) {
+        createNoticeForm.addEventListener('submit', function (e) {
             e.preventDefault();
             handleCreateNotice();
         });
@@ -325,7 +325,7 @@ function handleCreateNotice() {
             noticeId: noticeId,
             title: `[공지] ${title}`,
             question: pollQuestion,
-            options: validOptions.map((optText, idx) => ({ id: String(idx), text: optText })),
+            options: validOptions.map((optText, idx) => ({id: String(idx), text: optText})),
             isAnonymous: isAnonymous,
             allowMultiple: allowMultiple,
             expiresAt: expiresAt,
