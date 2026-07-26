@@ -243,7 +243,7 @@ function renderVoteForm(poll) {
     if (!currentUser) {
         return `
           <p class="vote-hint">로그인 후 투표할 수 있습니다.</p>
-          <div class="vote-actions mt-3">
+          <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end;">
             <button class="btn-see-result" onclick="showResult('${poll.id}')">결과 보기</button>
           </div>
         `;
@@ -276,9 +276,10 @@ function renderVoteForm(poll) {
     return `
         <div class="opts-list" id="opts-${poll.id}">${opts}</div>
         <div id="vote-error-${poll.id}" class="vote-error hidden"></div>
-        <div class="vote-actions">
-          <button class="btn-vote" onclick="submitVote('${poll.id}')">${myVote ? "투표 수정하기" : "투표하기"}</button>
+        <!-- 투표하기 버튼 오른쪽 정렬 -->
+        <div class="vote-actions" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
           <button class="btn-see-result" onclick="showResult('${poll.id}')">결과 보기</button>
+          <button class="btn-vote" onclick="submitVote('${poll.id}')">투표하기</button>
         </div>
     `;
 }
@@ -312,6 +313,16 @@ function renderPollCard(poll) {
     ].filter(Boolean).join(" · ");
 
     const isExpanded = expandedState[poll.id] === true;
+
+    // 투표 다시 하기 버튼 빨간색 스타일 적용
+    const initialContent = (hasVoted || ended)
+        ? `
+            <div class="result-list">${renderResultBar(poll)}</div>
+            <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end; align-items: center;">
+              ${!ended ? `<button class="btn-see-result" style="color: #ef4444;" onclick="showVoteForm('${poll.id}')">투표 다시 하기</button>` : ""}
+            </div>
+          `
+        : renderVoteForm(poll);
 
     return `
         <div class="poll-card ${ended ? "poll-ended" : ""}" id="card-${poll.id}">
@@ -349,7 +360,7 @@ function renderPollCard(poll) {
           <div class="poll-body ${isExpanded ? "" : "hidden"}" id="body-${poll.id}">
             <p class="poll-question">${escHtml(poll.question)}</p>
             <div id="content-${poll.id}">
-              ${renderVoteForm(poll)}
+              ${initialContent}
             </div>
           </div>
         </div>
@@ -441,11 +452,14 @@ function submitVote(pollId) {
     if (!currentUser) { showVoteError(errEl, "로그인 후 투표할 수 있습니다."); return; }
     if (sel.length === 0) { showVoteError(errEl, "선택지를 선택해주세요."); return; }
 
+    // 투표 제출 저장
     saveVote(poll, sel);
     delete selectedOptions[pollId];
 
+    // 최신 데이터 갱신 후 화면을 그리고, 사용자가 바로 결과를 보도록 조치
     loadPolls();
     renderAll();
+    showResult(pollId);
 }
 
 function showVoteError(el, msg) {
@@ -463,8 +477,8 @@ function showResult(pollId) {
     if (contentEl) {
         contentEl.innerHTML = `
             <div class="result-list">${renderResultBar(poll)}</div>
-            <div class="vote-actions mt-3">
-              ${!ended ? `<button class="btn-go-vote" onclick="showVoteForm('${pollId}')">투표하러 가기</button>` : ""}
+            <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end; align-items: center;">
+              ${!ended ? `<button class="btn-see-result" style="color: #ef4444;" onclick="showVoteForm('${pollId}')">투표 다시 하기</button>` : ""}
             </div>
         `;
     }

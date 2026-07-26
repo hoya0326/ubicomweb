@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 });
 
-// ── 유틸리티 (poll.js 동일) ──────────────────────────────────────────────
+// ── 유틸리티 ─────────────────────────────────────────────────────────────
 function getUser() {
     try {
         const u = localStorage.getItem("currentUser");
@@ -140,7 +140,7 @@ function loadAttachedPoll(noticeId) {
     renderNoticePollCard();
 }
 
-// ── 렌더링 함수 (poll.js 완벽 이식) ─────────────────────────────────────────
+// ── 렌더링 함수 ───────────────────────────────────────────────────────────
 function renderResultBar(poll) {
     const myVote = getMyVote(poll);
     const totalVoters = getVoterCount(poll);
@@ -170,7 +170,7 @@ function renderVoteForm(poll) {
     if (!currentUser) {
         return `
           <p class="vote-hint">로그인 후 투표할 수 있습니다.</p>
-          <div class="vote-actions mt-3">
+          <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end;">
             <button class="btn-see-result" onclick="showNoticeResult('${poll.id}')">결과 보기</button>
           </div>
         `;
@@ -205,9 +205,10 @@ function renderVoteForm(poll) {
     return `
         <div class="opts-list" id="opts-${poll.id}">${opts}</div>
         <div id="vote-error-${poll.id}" class="vote-error hidden"></div>
-        <div class="vote-actions">
-          ${!ended ? `<button class="btn-vote" onclick="submitNoticeVote('${poll.id}')">${myVote ? "투표 수정하기" : "투표하기"}</button>` : ""}
+        <!-- 1. 버튼 구역 오른쪽 정렬 및 버튼 배치 -->
+        <div class="vote-actions" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 12px;">
           <button class="btn-see-result" onclick="showNoticeResult('${poll.id}')">결과 보기</button>
+          ${!ended ? `<button class="btn-vote" onclick="submitNoticeVote('${poll.id}')">투표하기</button>` : ""}
         </div>
     `;
 }
@@ -239,6 +240,16 @@ function renderNoticePollCard() {
         `${voterCount}명 참여`,
     ].filter(Boolean).join(" · ");
 
+    // 2. 이미 투표했거나 마감된 경우 처음에 결과 화면으로 렌더링 ("투표 다시 하기" 빨간색 적용)
+    const initialContent = (hasVoted || ended)
+        ? `
+            <div class="result-list">${renderResultBar(poll)}</div>
+            <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end; align-items: center;">
+              ${!ended ? `<button class="btn-see-result" style="color: #ef4444;" onclick="showNoticeVoteForm('${poll.id}')">투표 다시 하기</button>` : ""}
+            </div>
+          `
+        : renderVoteForm(poll);
+
     container.innerHTML = `
         <div class="poll-card-inner" id="card-${poll.id}">
           <div class="poll-header" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 20px 24px; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">
@@ -255,14 +266,14 @@ function renderNoticePollCard() {
           <div class="poll-body" id="body-${poll.id}">
             <p class="poll-question">${escHtml(poll.question)}</p>
             <div id="content-${poll.id}">
-              ${renderVoteForm(poll)}
+              ${initialContent}
             </div>
           </div>
         </div>
     `;
 }
 
-// ── 인터랙션 동작 (poll.js 동일) ──────────────────────────────────────────
+// ── 인터랙션 동작 ──────────────────────────────────────────────────────────
 function onSelectNoticeOption(pollId, optId, checked, allowMultiple) {
     if (!selectedNoticeOptions[pollId]) selectedNoticeOptions[pollId] = new Set();
     if (allowMultiple) {
@@ -288,10 +299,13 @@ function submitNoticeVote(pollId) {
     if (!currentUser) { showVoteError(errEl, "로그인 후 투표할 수 있습니다."); return; }
     if (sel.length === 0) { showVoteError(errEl, "선택지를 선택해주세요."); return; }
 
+    // 투표 저장
     saveNoticeVote(currentPoll, sel);
     delete selectedNoticeOptions[pollId];
 
+    // 헤더 상태 정보(참여 완료 배지 등) 갱신 및 바로 결과 화면 보이기
     loadAttachedPoll(currentNotice.id);
+    showNoticeResult(pollId);
 }
 
 function saveNoticeVote(poll, optionIds) {
@@ -324,10 +338,11 @@ function showNoticeResult(pollId) {
     const ended = isEnded(currentPoll);
 
     if (contentEl) {
+        // 2. 결과 화면에서 "투표 다시 하기" 버튼 빨간색 적용
         contentEl.innerHTML = `
             <div class="result-list">${renderResultBar(currentPoll)}</div>
-            <div class="vote-actions mt-3">
-              ${!ended ? `<button class="btn-go-vote" onclick="showNoticeVoteForm('${pollId}')">투표하러 가기</button>` : ""}
+            <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end; align-items: center;">
+              ${!ended ? `<button class="btn-see-result" style="color: #ef4444;" onclick="showNoticeVoteForm('${pollId}')">투표 다시 하기</button>` : ""}
             </div>
         `;
     }
