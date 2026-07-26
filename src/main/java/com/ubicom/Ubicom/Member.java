@@ -10,19 +10,21 @@ import lombok.Setter;
 public class Member {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    public Long id;
-    public String name;
+    private Long id;
+
+    private String name;
 
     @Column(unique = true)
-    public Integer userId;
-    public String major;
-    public String password;
+    private Integer userId;
+
+    private String major;
+    private String password;
 
     @Column(name = "EMAIL", length = 100)
-    public String email;
+    private String email;
 
     @Column(length = 20)
-    public String phone;
+    private String phone;
 
-    public String role = "USER";
+    private String role = "USER";
 }

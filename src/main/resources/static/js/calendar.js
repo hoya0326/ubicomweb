@@ -4,11 +4,10 @@
 let isViewAll = false;
 let currentDate = new Date();
 let currentUser = null;
-
+let cachedEvents = []; // DB에서 가져온 일정 메모리 캐시
 
 // 공통 인증 상태 확인 함수 (UserApiController 기반)
 function checkAuthStatus() {
-
     const u = localStorage.getItem("currentUser");
     currentUser = u ? JSON.parse(u) : null;
     return currentUser;
@@ -19,34 +18,32 @@ function isAdmin() {
     return currentUser && currentUser.isAdmin === true;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    if (!requireLogin()) return;
+document.addEventListener('DOMContentLoaded', async function () {
+    if (typeof requireLogin === 'function' && !requireLogin()) return;
+
     // 세션 정보 최신화
     checkAuthStatus();
 
     // 관리자일 경우에만 관리자 전용 컨트롤 UI 노출
-    if (isAdmin()) {
-        document.getElementById('admin-controls')?.classList.remove('hidden');
-    } else {
-        document.getElementById('admin-controls')?.classList.add('hidden');
+    const adminControls = document.getElementById('admin-controls');
+    if (adminControls) {
+        adminControls.classList.toggle('hidden', !isAdmin());
     }
 
-    // 기본 캘린더 및 리스트 렌더링
-    renderCalendar();
-    loadEvents();
+    // 초기 일정 목록 DB에서 로드 후 캘린더/리스트 렌더링
+    await fetchAndRenderSchedules();
 
-    // 2. [수정] 모든 일정 보기 / 이번 달 일정 보기 토글 버튼
+    // 2. 모든 일정 보기 / 이번 달 일정 보기 토글 버튼
     const btnToggleAll = document.getElementById('btn-toggle-all');
     if (btnToggleAll) {
-        btnToggleAll.onclick = function() {
+        btnToggleAll.onclick = function () {
             isViewAll = !isViewAll;
             this.textContent = isViewAll ? '이번 달 일정 보기' : '모든 일정 보기';
             this.className = isViewAll
                 ? "cursor-pointer bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
                 : "cursor-pointer bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-medium transition-colors";
 
-            // ✨ [추가] 하단 리스트의 h2 타이틀 문구를 조건에 맞게 변경합니다.
-            const listTitle = document.querySelector('#events-list').previousElementSibling;
+            const listTitle = document.querySelector('#events-list')?.previousElementSibling;
             if (listTitle && listTitle.tagName === 'H2') {
                 listTitle.textContent = isViewAll ? '모든 일정' : '이번 달 일정';
             }
@@ -58,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 3. 일정 추가 모달 열기 버튼
     const addEventBtn = document.getElementById('add-event-btn');
     if (addEventBtn) {
-        addEventBtn.onclick = function(e) {
+        addEventBtn.onclick = function (e) {
             e.preventDefault();
 
             if (!isAdmin()) {
@@ -67,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const modal = document.getElementById('event-modal');
-            if(modal) {
+            if (modal) {
                 modal.style.display = 'flex';
                 togglePeriodUI(false);
 
@@ -90,8 +87,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 5. 일정 저장 버튼 비동기 제어
     const submitBtn = document.getElementById('submit-event-btn');
-    if(submitBtn) {
-        submitBtn.onclick = function(e) {
+    if (submitBtn) {
+        submitBtn.onclick = function (e) {
             e.preventDefault();
             handleAddEvent();
         };
@@ -116,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 반복 일정 체크박스 디스플레이 핸들러
     const repeatCheckbox = document.getElementById('repeat-checkbox');
     if (repeatCheckbox) {
-        repeatCheckbox.addEventListener('change', function() {
+        repeatCheckbox.addEventListener('change', function () {
             const container = document.getElementById('recurrence-end-container');
             if (container) container.classList.toggle('hidden', !this.checked);
         });
@@ -126,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ['weekly', 'monthly', 'yearly'].forEach(type => {
         const btn = document.getElementById(`btn-recur-${type}`);
         if (btn) {
-            btn.onclick = function() {
+            btn.onclick = function () {
                 const hiddenRecurInput = document.getElementById('event-recurrence');
                 if (hiddenRecurInput) hiddenRecurInput.value = type;
 
@@ -139,7 +136,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// ── 7. UI 제어 및 캘린더 코어 엔진 ───────────────────────────
+
+// ── 2. REST API 연동 데이터 로드 ───────────────────────────
+async function fetchAndRenderSchedules() {
+    try {
+        const response = await fetch('/api/schedules');
+        if (!response.ok) throw new Error('일정 목록을 가져오는데 실패했습니다.');
+
+        cachedEvents = await response.json();
+        renderCalendar();
+        loadEvents();
+    } catch (error) {
+        console.error('일정 데이터 로드 중 오류 발생:', error);
+    }
+}
+
+
+// ── 3. UI 제어 및 캘린더 코어 엔진 ───────────────────────────
 function togglePeriodUI(isRange) {
     const periodTypeInput = document.getElementById('event-period-type');
     const singleWrapper = document.getElementById('single-date-wrapper');
@@ -176,6 +189,7 @@ function resetAndCloseModal() {
     renderCalendar();
 }
 
+// ── 3. UI 제어 및 캘린더 코어 엔진 ───────────────────────────
 function renderCalendar() {
     const calendarDays = document.getElementById('calendar-days');
     if (!calendarDays) return;
@@ -187,16 +201,13 @@ function renderCalendar() {
     const currentMonthEl = document.getElementById('current-month');
     if (currentMonthEl) currentMonthEl.textContent = `${year}년 ${month + 1}월`;
 
-    const events = JSON.parse(localStorage.getItem('events') || '[]');
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    // 첫 주 빈칸 매핑
     for (let i = 0; i < firstDay; i++) {
         calendarDays.appendChild(document.createElement('div')).className = 'calendar-day';
     }
 
-    // 날짜 칸 빌드
     for (let day = 1; day <= daysInMonth; day++) {
         const dayDiv = document.createElement('div');
         dayDiv.className = 'calendar-day border-t border-l border-gray-100 cursor-pointer hover:bg-gray-50';
@@ -205,11 +216,11 @@ function renderCalendar() {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const targetDate = new Date(dateStr);
 
-        const dayEvents = events.filter(e => {
+        const dayEvents = cachedEvents.filter(e => {
             if (e.exceptions && e.exceptions.includes(dateStr)) return false;
             if (dateStr >= e.startDate && dateStr <= e.endDate) return true;
 
-            if (e.recurrence && e.recurrence !== 'none' && dateStr <= e.recurrenceEnd) {
+            if (e.recurrence && e.recurrence !== 'none' && dateStr <= (e.recurrenceEnd || '9999-12-31')) {
                 const start = new Date(e.startDate);
                 if (e.recurrence === 'weekly') return dateStr >= e.startDate && targetDate.getDay() === start.getDay();
                 if (e.recurrence === 'monthly') return dateStr >= e.startDate && targetDate.getDate() === start.getDate();
@@ -218,7 +229,8 @@ function renderCalendar() {
             return false;
         });
 
-        dayDiv.onclick = function() {
+        // 캘린더 날짜 타일 클릭 시 (개별 날짜 모달 오픈)
+        dayDiv.onclick = function () {
             if (dayEvents.length === 0) return;
             const evt = dayEvents[0];
             const modal = document.getElementById('view-event-modal');
@@ -229,13 +241,27 @@ function renderCalendar() {
             document.getElementById('view-event-title').textContent = evt.title;
             document.getElementById('view-event-desc').innerHTML = `<p class="mb-2"><strong>날짜:</strong> ${dateStr}</p><p><strong>설명:</strong> ${escapeHtml(evt.description || '설명 없음')}</p>`;
 
-            // ✨ [수정] 하드코딩 함수가 아닌 실제 DB 권한 상태(isAdmin())를 대조하여 삭제 분기 처리
+            // 관리자 권한 제어
             if (isAdmin()) {
                 if (delBtn) {
                     delBtn.classList.remove('hidden');
-                    delBtn.onclick = function() {
-                        if (confirm('정말 이 날짜의 일정만 삭제하시겠습니까?')) {
-                            deleteEvent(evt.id, dateStr);
+                    // 반복 일정 여부에 따른 지능형 삭제 분기
+                    if (evt.recurrence && evt.recurrence !== 'none') {
+                        delBtn.textContent = '이 날짜 일정만 삭제';
+                    } else {
+                        delBtn.textContent = '일정 삭제';
+                    }
+
+                    // 삭제 버튼 클릭 시 동작 지정
+                    delBtn.onclick = function () {
+                        const isRepeat = evt.recurrence && evt.recurrence !== 'none';
+                        const confirmMsg = isRepeat
+                            ? `${dateStr} 일자 일정만 삭제하시겠습니까?`
+                            : '이 일정을 삭제하시겠습니까?';
+
+                        if (confirm(confirmMsg)) {
+                            // 반복 일정인 경우 특정 날짜(dateStr)만 제외 요청
+                            deleteEvent(evt.id, isRepeat ? dateStr : null);
                             modal.classList.add('hidden');
                         }
                     };
@@ -258,20 +284,22 @@ function renderCalendar() {
     }
 }
 
-// ── 8. 비즈니스 백엔드 트랜잭션 라우터 ───────────────────────────
-function handleAddEvent() {
+
+// ── 4. 비즈니스 백엔드 트랜잭션 라우터 ───────────────────────────
+async function handleAddEvent() {
     if (!isAdmin()) {
         alert("일정을 추가할 수 있는 권한이 없습니다.");
         return;
     }
 
-    const title = document.getElementById('event-title').value.trim();
+    const titleInput = document.getElementById('event-title');
+    const title = titleInput ? titleInput.value.trim() : '';
     const periodType = document.getElementById('event-period-type')?.value || 'single';
     const startDate = periodType === 'single' ? document.getElementById('event-start-date').value : document.getElementById('event-range-start').value;
     const endDate = periodType === 'single' ? startDate : document.getElementById('event-range-end').value;
 
     const isRepeat = document.getElementById('repeat-checkbox')?.checked;
-    const recurrence = document.getElementById('event-recurrence')?.value;
+    const recurrence = document.getElementById('event-recurrence')?.value || 'none';
     const recurrenceEnd = document.getElementById('event-recurrence-end')?.value;
 
     if (!title || !startDate || !endDate) {
@@ -279,8 +307,7 @@ function handleAddEvent() {
         return;
     }
 
-    const newEvent = {
-        id: Date.now().toString(),
+    const payload = {
         title: title,
         startDate: startDate,
         endDate: endDate,
@@ -290,49 +317,81 @@ function handleAddEvent() {
         recurrenceEnd: isRepeat && recurrenceEnd ? recurrenceEnd : '9999-12-31'
     };
 
-    const events = JSON.parse(localStorage.getItem('events') || '[]');
-    events.push(newEvent);
-    localStorage.setItem('events', JSON.stringify(events));
+    const submitBtn = document.getElementById('submit-event-btn');
 
-    document.getElementById('event-modal').style.display = 'none';
-    document.getElementById('event-form').reset();
+    try {
+        if (submitBtn) submitBtn.disabled = true;
 
-    renderCalendar();
-    loadEvents();
+        const response = await fetch('/api/schedules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || '일정 등록에 실패했습니다.');
+        }
+
+        resetAndCloseModal();
+        await fetchAndRenderSchedules();
+
+    } catch (error) {
+        console.error('일정 추가 실패:', error);
+        alert(error.message || '서버 통신 실패');
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
 }
 
-function deleteEvent(eventId, clickedDate = null) {
-    // ✨ [수정] 안전 차단 가드를 실시간 DB 세션 권한으로 통합
+async function deleteEvent(eventId, clickedDate = null) {
     if (!isAdmin()) {
         alert("일정 권한 수정 및 삭제는 관리자만 가능합니다.");
         return;
     }
 
-    const events = JSON.parse(localStorage.getItem('events') || '[]');
-    const eventIndex = events.findIndex(e => e.id === eventId);
-    if (eventIndex === -1) return;
+    try {
+        if (!clickedDate) {
+            // 일정 전체 삭제 API 호출
+            if (!confirm('정말 이 일정을 완전히 삭제하시겠습니까?')) return;
 
-    if (!clickedDate) {
-        if (!confirm('정말 이 일정을 완전히 삭제하시겠습니까?')) return;
-        events.splice(eventIndex, 1);
-    } else {
-        if (!events[eventIndex].exceptions) events[eventIndex].exceptions = [];
-        events[eventIndex].exceptions.push(clickedDate);
+            const response = await fetch(`/api/schedules/${eventId}`, {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || '일정 삭제 실패');
+            }
+        } else {
+            // 특정 날짜만 예외(단건 제외) 처리 API 호출
+            const response = await fetch(`/api/schedules/${eventId}/exception?dateStr=${encodeURIComponent(clickedDate)}`, {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || '날짜 제외 실패');
+            }
+        }
+
+        await fetchAndRenderSchedules();
+
+    } catch (error) {
+        console.error('일정 삭제 오류:', error);
+        alert(error.message || '삭제 처리 중 오류가 발생했습니다.');
     }
-
-    localStorage.setItem('events', JSON.stringify(events));
-    renderCalendar();
-    loadEvents();
 }
 
+// ── 일정 목록 렌더링 ───────────────────────────
 function loadEvents() {
     const listContainer = document.getElementById('events-list');
     if (!listContainer) return;
 
     listContainer.innerHTML = '';
-    const events = JSON.parse(localStorage.getItem('events') || '[]');
 
-    const displayEvents = isViewAll ? events : events.filter(evt => {
+    const displayEvents = isViewAll ? cachedEvents : cachedEvents.filter(evt => {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
 
@@ -360,7 +419,6 @@ function loadEvents() {
 
     displayEvents.forEach(evt => {
         const item = document.createElement('div');
-        // ✨ [수정] 클릭 가능한 커서 스타일(cursor-pointer) 및 hover 효과 추가
         item.className = 'flex justify-between items-center p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors';
 
         let dateText = `${evt.startDate} ~ ${evt.endDate}`;
@@ -371,9 +429,8 @@ function loadEvents() {
             else if (evt.recurrence === 'yearly') dateText = `매년 반복 (${evt.startDate} ~ ${endLabel})`;
         }
 
-        // ✨ [추가] 카드 자체를 클릭했을 때 상세보기 모달을 띄우는 이벤트 바인딩
-        item.onclick = function(e) {
-            // 삭제 버튼을 누른 경우는 상세보기 모달이 뜨지 않도록 방어 코드 추가
+        // 목록 아이템 클릭 시 (전체 일정 정보 모달 오픈)
+        item.onclick = function (e) {
             if (e.target.tagName === 'BUTTON') return;
 
             const modal = document.getElementById('view-event-modal');
@@ -381,7 +438,6 @@ function loadEvents() {
             if (!modal) return;
 
             document.getElementById('view-event-title').textContent = evt.title;
-            // 리스트에서 볼 때는 단일 예외 날짜가 아닌 전체 기간(dateText) 혹은 시작일을 보여줍니다.
             document.getElementById('view-event-desc').innerHTML = `
                 <p class="mb-2"><strong>기간:</strong> ${dateText}</p>
                 <p><strong>설명:</strong> ${escapeHtml(evt.description || '설명 없음')}</p>
@@ -390,10 +446,10 @@ function loadEvents() {
             if (isAdmin()) {
                 if (delBtn) {
                     delBtn.classList.remove('hidden');
-                    delBtn.onclick = function() {
-                        if (confirm('정말 이 일정을 완전히 삭제하시겠습니까?')) {
-                            // 리스트에서 삭제할 때는 특정 날짜 예외처리가 아니라 '전체 삭제'이므로 두 번째 인자를 넘기지 않습니다.
-                            deleteEvent(evt.id);
+                    delBtn.textContent = '일정 전체 삭제';
+                    delBtn.onclick = function () {
+                        if (confirm('정말 이 일정을 완전히 삭제하시겠습니까? (반복 규칙 포함)')) {
+                            deleteEvent(evt.id); // 전체 삭제 (clickedDate = null)
                             modal.classList.add('hidden');
                         }
                     };
@@ -406,7 +462,7 @@ function loadEvents() {
         };
 
         const deleteButtonHtml = isAdmin()
-            ? `<button onclick="deleteEvent('${evt.id}')" class="text-xs text-red-500 hover:underline px-2 py-1 relative z-10">삭제</button>`
+            ? `<button onclick="event.stopPropagation(); deleteEvent('${evt.id}')" class="text-xs text-red-500 hover:underline px-2 py-1 relative z-10">삭제</button>`
             : '';
 
         item.innerHTML = `

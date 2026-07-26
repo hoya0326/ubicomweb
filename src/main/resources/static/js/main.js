@@ -28,13 +28,14 @@ function updateNavigation() {
                 <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors cursor-pointer">학사일정</a>
                 <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors cursor-pointer">게시판</a>
                 <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors cursor-pointer">투표</a>
-                ${adminMenuHtml}
+                
             `;
         }
 
         // Desktop User Profile & Logout
         navButtons.innerHTML = `
             <div class="flex items-center gap-4">
+                ${adminMenuHtml}
                 <a onclick="location.href='/profile'" class="text-sm hover:text-blue-100 transition-colors cursor-pointer">${displayName}님</a>
                 <button onclick="logoutUser()" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors">
                     로그아웃
