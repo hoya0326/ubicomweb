@@ -4,38 +4,38 @@ let searchQuery = '';
 
 document.addEventListener('DOMContentLoaded', function() {
     if (!requireLogin()) return;
-    
+
     loadPosts();
-    
+
     // Search functionality
     const searchInput = document.getElementById('search-input');
     searchInput.addEventListener('input', function(e) {
         searchQuery = e.target.value.toLowerCase();
         loadPosts();
     });
-    
+
     // Create post button
     const createPostBtn = document.getElementById('create-post-btn');
     const createModal = document.getElementById('create-modal');
     const closeModal = document.getElementById('close-modal');
     const cancelBtn = document.getElementById('cancel-btn');
-    
+
     createPostBtn.addEventListener('click', function() {
         createModal.classList.remove('hidden');
     });
-    
+
     closeModal.addEventListener('click', function() {
         createModal.classList.add('hidden');
         document.getElementById('create-post-form').reset();
         hideError('modal-error');
     });
-    
+
     cancelBtn.addEventListener('click', function() {
         createModal.classList.add('hidden');
         document.getElementById('create-post-form').reset();
         hideError('modal-error');
     });
-    
+
     // Create post form
     const createPostForm = document.getElementById('create-post-form');
     createPostForm.addEventListener('submit', function(e) {
@@ -44,24 +44,40 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// ✨ 날짜 포맷 헬퍼 함수 (안전한 파싱)
+function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+
+    return date.toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
 function loadPosts() {
     const posts = JSON.parse(localStorage.getItem('posts') || '[]');
     const user = getCurrentUser();
     const userIsAdmin = isAdmin();
-    
+
     // Sort by date (newest first)
     posts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    
+
     // Filter by search query
     const filteredPosts = posts.filter(post => {
         const searchText = searchQuery.toLowerCase();
         return post.title.toLowerCase().includes(searchText) ||
-               post.content.toLowerCase().includes(searchText) ||
-               post.author.toLowerCase().includes(searchText);
+            post.content.toLowerCase().includes(searchText) ||
+            post.author.toLowerCase().includes(searchText);
     });
-    
+
     const postsList = document.getElementById('posts-list');
-    
+
     if (filteredPosts.length === 0) {
         postsList.innerHTML = `
             <div class="bg-white rounded-lg shadow p-12 text-center text-gray-500">
@@ -70,10 +86,21 @@ function loadPosts() {
         `;
         return;
     }
-    
+
     postsList.innerHTML = filteredPosts.map(post => {
         const displayAuthor = getDisplayAuthor(post, userIsAdmin);
-        
+
+        // ✨ 수정 여부 판별 (createdAt과 updatedAt을 비교)
+        const createdTime = new Date(post.createdAt).getTime();
+        const updatedTime = post.updatedAt ? new Date(post.updatedAt).getTime() : createdTime;
+        const isEdited = post.updatedAt && (updatedTime - createdTime > 1000);
+
+        // ✨ 수정된 경우 (수정됨) 문구 추가
+        let timeDisplay = formatDate(post.createdAt);
+        if (isEdited) {
+            timeDisplay += ` <span class="text-xs text-gray-400">(수정됨)</span>`;
+        }
+
         return `
             <div class="bg-white rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer p-6" onclick="viewPost('${post.id}')">
                 <div class="flex items-start justify-between gap-4 mb-4">
@@ -94,7 +121,8 @@ function loadPosts() {
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                         </svg>
-                        <span>${formatDate(post.createdAt)}</span>
+                        <!-- ✨ 작성일 + (수정됨) 표시 -->
+                        <span>${timeDisplay}</span>
                     </div>
                     <div class="flex items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,42 +155,43 @@ function getDisplayAuthor(post, userIsAdmin) {
 
 function handleCreatePost() {
     hideError('modal-error');
-    
+
     const title = document.getElementById('post-title').value.trim();
     const content = document.getElementById('post-content').value.trim();
     const isAnonymous = document.getElementById('anonymous-checkbox').checked;
-    
+
     if (!title || !content) {
         showError('modal-error', '제목과 내용을 모두 입력해주세요.');
         return;
     }
-    
+
     const user = getCurrentUser();
     if (!user) {
         showError('modal-error', '로그인이 필요합니다.');
         return;
     }
-    
+
     const newPost = {
         id: Date.now().toString(),
         title: title,
         content: content,
         author: user.username,
-        authorId: user.id,
+        authorId: user.id || user.studentId || user.username,
         createdAt: new Date().toISOString(),
+        updatedAt: null, // ✨ 게시글 생성 초기에는 updatedAt을 null로 설정
         views: 0,
         comments: 0,
         isAnonymous: isAnonymous
     };
-    
+
     const posts = JSON.parse(localStorage.getItem('posts') || '[]');
     posts.push(newPost);
     localStorage.setItem('posts', JSON.stringify(posts));
-    
+
     // Close modal and reset form
     document.getElementById('create-modal').classList.add('hidden');
     document.getElementById('create-post-form').reset();
-    
+
     // Reload posts
     loadPosts();
 }
@@ -170,17 +199,18 @@ function handleCreatePost() {
 function viewPost(postId) {
     // Increment view count
     const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-    const postIndex = posts.findIndex(p => p.id === postId);
-    
+    const postIndex = posts.findIndex(p => String(p.id) === String(postId));
+
     if (postIndex !== -1) {
         posts[postIndex].views = (posts[postIndex].views || 0) + 1;
         localStorage.setItem('posts', JSON.stringify(posts));
     }
-    
+
     window.location.href = `/board_detail?id=${postId}`;
 }
 
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;

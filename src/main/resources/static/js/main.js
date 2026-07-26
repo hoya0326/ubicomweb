@@ -1,7 +1,9 @@
 // Main navigation and common functionality
 
-// [★수정] 로그인 상태에 따라 상단 네비게이션 바를 업데이트하는 함수
+// [★수정] 로그인 상태에 따라 상단 네비게이션 바 및 메뉴 전체를 업데이트하는 함수
 function updateNavigation() {
+    const mainNav = document.getElementById('main-nav');
+    const mobileMainNav = document.getElementById('mobile-main-nav');
     const navButtons = document.getElementById('nav-buttons');
     const mobileNavButtons = document.getElementById('mobile-nav-buttons');
 
@@ -16,13 +18,23 @@ function updateNavigation() {
 
         // 관리자용 메뉴 태그 생성
         const adminMenuHtml = user.isAdmin
-            ? `<a onclick="location.href='/admin_members'" class="text-sm py-2 hover:text-blue-100 transition-colors cursor-pointer">동아리원 관리</a>`
+            ? `<a onclick="location.href='/admin_members'" class="hover:text-blue-100 transition-colors cursor-pointer">동아리원 관리</a>`
             : '';
 
-        // Desktop navigation (이름 왼쪽에 관리자 메뉴 삽입)
+        // ✨ 1. 로그인 상태일 때만 메인 메뉴들(공지사항, 학사일정, 게시판, 투표) 노출
+        if (mainNav) {
+            mainNav.innerHTML = `
+                <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors cursor-pointer">공지사항</a>
+                <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors cursor-pointer">학사일정</a>
+                <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors cursor-pointer">게시판</a>
+                <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors cursor-pointer">투표</a>
+                ${adminMenuHtml}
+            `;
+        }
+
+        // Desktop User Profile & Logout
         navButtons.innerHTML = `
             <div class="flex items-center gap-4">
-                ${adminMenuHtml}
                 <a onclick="location.href='/profile'" class="text-sm hover:text-blue-100 transition-colors cursor-pointer">${displayName}님</a>
                 <button onclick="logoutUser()" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors">
                     로그아웃
@@ -30,11 +42,21 @@ function updateNavigation() {
             </div>
         `;
 
-        // Mobile navigation
+        // Mobile Main Menu
+        if (mobileMainNav) {
+            mobileMainNav.innerHTML = `
+                <a onclick="location.href='/notice'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">공지사항</a>
+                <a onclick="location.href='/calendar'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">학사일정</a>
+                <a onclick="location.href='/board'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">게시판</a>
+                <a onclick="location.href='/vote'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">투표</a>
+                ${user.isAdmin ? `<a onclick="location.href='/admin_members'" class="py-2 hover:text-blue-100 transition-colors cursor-pointer">동아리원 관리</a>` : ''}
+            `;
+        }
+
+        // Mobile Logout
         if (mobileNavButtons) {
             mobileNavButtons.innerHTML = `
-                ${adminMenuHtml}
-                <a onclick="location.href='/profile'" class="text-sm py-2 hover:text-blue-100 transition-colors">${displayName}님</a>
+                <a onclick="location.href='/profile'" class="text-sm py-2 hover:text-blue-100 transition-colors cursor-pointer">${displayName}님</a>
                 <button onclick="logoutUser()" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full mt-2">
                     로그아웃
                 </button>
@@ -42,7 +64,11 @@ function updateNavigation() {
         }
     }
     else {
-        // Desktop navigation (로그아웃 상태)
+        // ✨ 2. 비로그인 상태일 때는 주요 메뉴 영역을 모두 숨김
+        if (mainNav) mainNav.innerHTML = '';
+        if (mobileMainNav) mobileMainNav.innerHTML = '';
+
+        // Desktop navigation (로그인 / 회원가입 버튼만 노출)
         navButtons.innerHTML = `
             <div class="flex gap-2">
                 <a onclick="location.href='/login'" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer">
@@ -54,10 +80,10 @@ function updateNavigation() {
             </div>
         `;
 
-        // Mobile navigation
+        // Mobile navigation (로그인 / 회원가입 버튼만 노출)
         if (mobileNavButtons) {
             mobileNavButtons.innerHTML = `
-                <a onclick="location.href='/login'" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors text-center">
+                <a onclick="location.href='/login'" class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors text-center cursor-pointer">
                     로그인
                 </a>
                 <button onclick="location.href='/register'" class="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-md text-sm font-medium transition-colors text-center">
@@ -79,12 +105,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 1. 우선 로컬 스토리지에 있는 기존 정보로 빠르게 화면을 한 번 그립니다. (UI 깜빡임 방지)
+    // 초기 네비게이션 랜더링
     updateNavigation();
 });
 
-// [★핵심 추가] auth.js에서 세션 정보 검증이 완료되었을 때 즉시 UI를 새로 그립니다.
-// 이 리스너가 있어야 사용자가 수동으로 새로고침을 안 해도 화면이 바로 전환됩니다!
+// [★핵심] auth.js에서 세션 정보 검증이 완료되었을 때 즉시 UI를 새로 그립니다.
 window.addEventListener('authVerified', function() {
     updateNavigation();
 });
@@ -121,7 +146,8 @@ function showError(elementId, message) {
     const errorElement = document.getElementById(elementId);
     if (errorElement) {
         errorElement.classList.remove('hidden');
-        errorElement.querySelector('p').textContent = message;
+        const p = errorElement.querySelector('p');
+        if (p) p.textContent = message;
     }
 }
 
@@ -133,15 +159,17 @@ function hideError(elementId) {
     }
 }
 
-// Check login before navigation (for protected links)
+// Check login before navigation (보호된 메뉴 클릭 시 로그인 여부 체크)
 document.addEventListener('DOMContentLoaded', function() {
-    const protectedLinks = document.querySelectorAll('a[href="notice.html"], a[href="calendar.html"], a[href="board.html"]');
+    // ✨ 공지사항, 학사일정, 게시판, 투표 링크만 보호 대상으로 지정
+    const protectedLinks = document.querySelectorAll('a[href="/notice"], a[href="/calendar"], a[href="/board"], a[href="/vote"]');
 
     protectedLinks.forEach(link => {
         link.addEventListener('click', function(e) {
             if (!isLoggedIn()) {
                 e.preventDefault();
-                window.location.href = 'login.html';
+                alert('로그인이 필요한 서비스입니다.');
+                window.location.href = '/login';
             }
         });
     });
