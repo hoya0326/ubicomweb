@@ -31,14 +31,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (closeModal) {
-        closeModal.addEventListener('click', function() {
+        closeModal.addEventListener('click', function () {
             createModal.classList.add('hidden');
             resetNoticeForm();
         });
     }
 
     if (cancelBtn) {
-        cancelBtn.addEventListener('click', function() {
+        cancelBtn.addEventListener('click', function () {
             createModal.classList.add('hidden');
             resetNoticeForm();
         });
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Create notice form
     const createNoticeForm = document.getElementById('create-notice-form');
     if (createNoticeForm) {
-        createNoticeForm.addEventListener('submit', function(e) {
+        createNoticeForm.addEventListener('submit', function (e) {
             e.preventDefault();
             handleCreateNotice();
         });
@@ -334,7 +334,7 @@ function handleCreateNotice() {
             noticeId: noticeId,
             title: `[공지] ${title}`,
             question: pollQuestion,
-            options: validOptions.map((optText, idx) => ({ id: String(idx), text: optText })),
+            options: validOptions.map((optText, idx) => ({id: String(idx), text: optText})),
             isAnonymous: isAnonymous,
             allowMultiple: allowMultiple,
             expiresAt: expiresAt,
