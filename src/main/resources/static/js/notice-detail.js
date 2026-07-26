@@ -49,7 +49,7 @@ function formatDate(iso) {
 
 function isEnded(poll) {
     const endsAt = poll.endsAt || poll.expiresAt;
-    return !!endsAt && new Date(endsAt) < new Date();
+    return !!endsAt && new Date(endsAt) <= new Date();
 }
 
 function getCount(poll, optId) {
@@ -221,9 +221,9 @@ function renderNoticePollCard() {
     const myVote = getMyVote(poll);
     const hasVoted = !!myVote;
 
-    // ─────────────────────────────────────────────────────────────────
-    // 🛠 투표 상태 및 참여 여부 배지 분리 로직
-    // ─────────────────────────────────────────────────────────────────
+    // 관리자 마감 권한 체크 (관리자이면서 마감되지 않은 투표)
+    const canClose = currentUser?.isAdmin && !ended;
+
     let statusBadge = "";
     if (ended) {
         statusBadge += `<span class="badge badge-gray">마감</span>`;
@@ -258,7 +258,7 @@ function renderNoticePollCard() {
 
     container.innerHTML = `
         <div class="poll-card-inner" id="card-${poll.id}">
-          <div class="poll-header" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 20px 24px; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">
+          <div class="poll-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">
             <div class="poll-header-left" style="flex: 1; min-width: 0;">
               <div class="poll-title-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <svg class="icon-bar" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" style="width:20px; height:20px; flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
@@ -266,6 +266,11 @@ function renderNoticePollCard() {
                 ${statusBadge}
               </div>
               <p class="poll-meta" style="margin-top: 6px; margin-bottom: 0;">${metaItems}</p>
+            </div>
+
+            <!-- 관리자 마감 버튼 영역 -->
+            <div class="poll-header-right" style="display: flex; align-items: center; gap: 8px;">
+              ${canClose ? `<button class="btn-close-poll" type="button" onclick="closeNoticePollByAdmin('${poll.id}')" title="투표 종료" style="padding:4px 10px; font-size:12px; border:1px solid #dc2626; color:#dc2626; background:none; border-radius:4px; cursor:pointer; font-weight:600; transition: all 0.2s;">마감</button>` : ""}
             </div>
           </div>
 
@@ -299,6 +304,13 @@ function onSelectNoticeOption(pollId, optId, checked, allowMultiple) {
 
 function submitNoticeVote(pollId) {
     if (!currentPoll) return;
+
+    if (isEnded(currentPoll)) {
+        alert("이미 마감된 투표입니다.");
+        loadAttachedPoll(currentNotice.id);
+        return;
+    }
+
     const errEl = document.getElementById(`vote-error-${pollId}`);
     const sel = [...(selectedNoticeOptions[pollId] || [])];
 
@@ -309,7 +321,7 @@ function submitNoticeVote(pollId) {
     saveNoticeVote(currentPoll, sel);
     delete selectedNoticeOptions[pollId];
 
-    // 헤더 상태 정보(참여 완료 배지 등) 갱신 및 바로 결과 화면 보이기
+    // 헤더 상태 정보 갱신 및 결과 화면 보이기
     loadAttachedPoll(currentNotice.id);
     showNoticeResult(pollId);
 }
@@ -365,6 +377,51 @@ function showVoteError(el, msg) {
     if (!el) return;
     el.textContent = msg;
     el.classList.remove("hidden");
+}
+
+// ── 관리자 투표 마감 처리 ─────────────────────────────────────────────────
+function closeNoticePollByAdmin(pollId) {
+    if (!currentUser || !currentUser.isAdmin) {
+        alert("관리자 권한이 필요합니다.");
+        return;
+    }
+
+    if (confirm("이 투표를 마감 처리하시겠습니까?")) {
+        closeNoticePollInStorage(pollId);
+        loadAttachedPoll(currentNotice.id);
+    }
+}
+
+function closeNoticePollInStorage(pollId) {
+    const nowIso = new Date().toISOString();
+
+    // 1. 메모리 객체 마감 처리
+    if (currentPoll) {
+        currentPoll.endsAt = nowIso;
+    }
+
+    // 2. polls 스토리지 마감 처리
+    const polls = JSON.parse(localStorage.getItem("polls") || "[]");
+    const pollIdx = polls.findIndex(p => p.id === pollId || p.noticeId === currentNotice?.id);
+
+    if (pollIdx !== -1) {
+        polls[pollIdx].endsAt = nowIso;
+        localStorage.setItem("polls", JSON.stringify(polls));
+    }
+
+    // 3. 연동된 공지사항(notices) 스토리지의 마감시간 동기화
+    if (currentNotice) {
+        const notices = JSON.parse(localStorage.getItem("notices") || "[]");
+        const noticeIdx = notices.findIndex(n => n.id === currentNotice.id);
+
+        if (noticeIdx !== -1) {
+            notices[noticeIdx].endsAt = nowIso;
+            notices[noticeIdx].deadline = nowIso;
+            localStorage.setItem("notices", JSON.stringify(notices));
+            currentNotice.endsAt = nowIso;
+            currentNotice.deadline = nowIso;
+        }
+    }
 }
 
 // ── 삭제 관련 ────────────────────────────────────────────────────────────

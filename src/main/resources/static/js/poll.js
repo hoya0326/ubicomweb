@@ -1,680 +1,1359 @@
 /* ==========================================
-   UbiCOM 동아리 투표 시스템 (poll.js)
-   ========================================== */
+
+UbiCOM 동아리 투표 시스템 (poll.js)
+
+========================================== */
+
+
 
 // ── 상태 ──────────────────────────────────────────────────────────────────
+
 let polls = [];
+
 let currentFilter = "all";
+
 let currentUser = null;
+
 const selectedOptions = {}; // pollId → Set
+
 const expandedState = {}; // pollId → boolean (기본값: false / 접힘)
 
+
+
 // ── 유틸 ──────────────────────────────────────────────────────────────────
+
 function getUser() {
+
     try {
+
         const u = localStorage.getItem("currentUser");
+
         return u ? JSON.parse(u) : null;
+
     } catch {
+
         return null;
+
     }
+
 }
+
+
 
 // ID 비교 안심 유틸 (타입 차이 및 접두사 유무로 인한 오류 방지)
+
 function matchId(id1, id2) {
+
     if (id1 === undefined || id2 === undefined || id1 === null || id2 === null) return false;
+
     const s1 = String(id1).replace("poll-", "");
+
     const s2 = String(id2).replace("poll-", "");
+
     return s1 === s2;
+
 }
+
+
 
 function formatDeadline(iso) {
+
     if (!iso) return "";
+
     return new Date(iso).toLocaleString("ko-KR", {
+
         month: "long", day: "numeric", hour: "2-digit", minute: "2-digit"
+
     });
+
 }
+
+
 
 function formatDate(iso) {
+
     if (!iso) return "";
+
     return new Date(iso).toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+
 }
+
+
 
 function isEnded(poll) {
+
     return !!poll.endsAt && new Date(poll.endsAt) <= new Date();
+
 }
+
+
 
 function getCount(poll, optId) {
+
     if (!poll.votes) return 0;
+
     return poll.votes.filter(v => v.optionIds && v.optionIds.includes(optId)).length;
+
 }
+
+
 
 function getVoterCount(poll) {
+
     if (!poll.votes) return 0;
+
     return poll.votes.length;
+
 }
+
+
 
 function getVoters(poll, optId) {
+
     if (poll.isAnonymous || !poll.votes) return null;
+
     const users = JSON.parse(localStorage.getItem("users") || "[]");
+
     return poll.votes
+
         .filter(v => v.optionIds && v.optionIds.includes(optId))
+
         .map(v => {
+
             const found = users.find(u => matchId(u.id, v.userId) || matchId(u.username, v.userId));
+
             return found ? (found.name || found.username) : (v.userName || v.userId || "알 수 없음");
+
         });
+
 }
+
+
 
 function getMyVote(poll) {
+
     if (!currentUser || !poll.votes) return null;
+
     const myId = currentUser.id || currentUser.username;
+
     return poll.votes.slice().reverse().find(v => matchId(v.userId, myId)) || null;
+
 }
+
+
 
 function escHtml(str) {
+
     return String(str || "")
+
         .replace(/&/g, "&amp;")
+
         .replace(/</g, "&lt;")
+
         .replace(/>/g, "&gt;")
+
         .replace(/"/g, "&quot;");
+
 }
+
+
 
 // ── 데이터 로드 & 저장 ────────────────────────────────────────────────────
+
 function loadPolls() {
+
     const standalone = JSON.parse(localStorage.getItem("standalonePolls") || "[]")
+
         .map(p => ({...p, _storageKey: "standalonePolls", votes: p.votes || []}));
 
+
+
     const notices = JSON.parse(localStorage.getItem("notices") || "[]");
+
     const attached = JSON.parse(localStorage.getItem("polls") || "[]")
+
         .map(p => {
+
             const notice = notices.find(n => matchId(n.id, p.noticeId) || matchId(n.pollId, p.id) || matchId(n.id, p.id));
 
-            // 공지사항의 deadline / endsAt을 최우선으로 가져와 투표 마감시간에 반영
+
+
+// 공지사항의 deadline / endsAt을 최우선으로 가져와 투표 마감시간에 반영
+
             const noticeEndsAt = notice?.deadline || notice?.endsAt || p.endsAt || null;
 
+
+
             return {
+
                 ...p,
+
                 title: p.title || `[공지] ${notice?.title || "공지사항"} 투표`,
+
                 createdBy: p.createdBy || notice?.author || "관리자",
+
                 _storageKey: "polls",
+
                 noticeTitle: notice?.title,
+
                 noticeId: p.noticeId || notice?.id,
+
                 endsAt: noticeEndsAt,
+
                 createdAt: p.createdAt || notice?.createdAt || new Date(0).toISOString(),
+
                 votes: p.votes || []
+
             };
+
         });
 
-    // 🌟 최신 생성일자(createdAt) 기준 내림차순 정렬 (최신글이 가장 위에 표시됨)
+
+
+// 🌟 최신 생성일자(createdAt) 기준 내림차순 정렬 (최신글이 가장 위에 표시됨)
+
     polls = [...standalone, ...attached].sort((a, b) => {
+
         const timeA = new Date(a.createdAt || 0).getTime();
+
         const timeB = new Date(b.createdAt || 0).getTime();
+
         return timeB - timeA;
+
     });
+
 }
 
+
+
 function saveVote(poll, optionIds) {
+
     const key = poll._storageKey || "standalonePolls";
+
     const stored = JSON.parse(localStorage.getItem(key) || "[]");
+
     const idx = stored.findIndex(p => matchId(p.id, poll.id));
+
     if (idx === -1) return;
+
+
 
     if (!stored[idx].votes) stored[idx].votes = [];
 
+
+
     const myId = currentUser.id || currentUser.username;
 
+
+
     stored[idx].votes = stored[idx].votes.filter(v => !matchId(v.userId, myId));
+
     stored[idx].votes.push({
+
         userId: myId,
+
         optionIds: optionIds,
+
         votedAt: new Date().toISOString()
+
     });
+
+
 
     localStorage.setItem(key, JSON.stringify(stored));
+
     poll.votes = stored[idx].votes;
+
 }
+
+
 
 function deletePollFromStorage(poll) {
+
     const key = poll._storageKey || "standalonePolls";
+
     const stored = JSON.parse(localStorage.getItem(key) || "[]");
+
     localStorage.setItem(key, JSON.stringify(stored.filter(p => !matchId(p.id, poll.id))));
+
 }
+
+
 
 // 관리자 권한으로 투표 강제 종료 (공지사항 스토리지까지 확실히 동기화)
+
 function closePollInStorage(poll) {
+
     const nowIso = new Date().toISOString();
 
-    // 1. 메모리 데이터 마감 변경
+
+
+// 1. 메모리 데이터 마감 변경
+
     poll.endsAt = nowIso;
 
-    // 2. 투표 스토리지(standalonePolls 또는 polls) 동기화
+
+
+// 2. 투표 스토리지(standalonePolls 또는 polls) 동기화
+
     const key = poll._storageKey || "standalonePolls";
+
     const stored = JSON.parse(localStorage.getItem(key) || "[]");
+
     const idx = stored.findIndex(p => matchId(p.id, poll.id));
 
+
+
     if (idx !== -1) {
+
         stored[idx].endsAt = nowIso;
+
         localStorage.setItem(key, JSON.stringify(stored));
+
     } else if (key === "polls") {
+
         stored.push({ ...poll, endsAt: nowIso });
+
         localStorage.setItem("polls", JSON.stringify(stored));
+
     }
 
-    // 3. 연동된 공지사항(notices) 스토리지도 마감 시간 동기화
+
+
+// 3. 연동된 공지사항(notices) 스토리지도 마감 시간 동기화
+
     const notices = JSON.parse(localStorage.getItem("notices") || "[]");
+
     let noticeUpdated = false;
 
+
+
     notices.forEach(n => {
+
         if (matchId(n.id, poll.noticeId) || matchId(n.pollId, poll.id) || matchId(n.id, poll.id)) {
+
             n.endsAt = nowIso;
+
             n.deadline = nowIso;
+
             noticeUpdated = true;
+
         }
+
     });
+
+
 
     if (noticeUpdated) {
+
         localStorage.setItem("notices", JSON.stringify(notices));
+
     }
+
 }
+
+
 
 // ── 렌더링 ────────────────────────────────────────────────────────────────
+
 function getFiltered() {
+
     const now = new Date();
+
     return polls.filter(p => {
+
         if (currentFilter === "active") return !p.endsAt || new Date(p.endsAt) > now;
+
         if (currentFilter === "ended") return !!p.endsAt && new Date(p.endsAt) <= now;
+
         return true;
+
     });
+
 }
+
+
 
 function renderFilterTabs() {
+
     const now = new Date();
+
     const activeCount = polls.filter(p => !p.endsAt || new Date(p.endsAt) > now).length;
+
     const endedCount = polls.filter(p => !!p.endsAt && new Date(p.endsAt) <= now).length;
 
+
+
     const tabs = [
+
         {key: "all", label: `전체 (${polls.length})`},
+
         {key: "active", label: `진행 중 (${activeCount})`},
+
         {key: "ended", label: `마감 (${endedCount})`},
+
     ];
 
+
+
     return tabs.map(t => `
-        <button
-          class="tab-btn ${currentFilter === t.key ? "tab-active" : "tab-inactive"}"
-          onclick="setFilter('${t.key}')"
-        >${escHtml(t.label)}</button>
-    `).join("");
+
+<button
+
+class="tab-btn ${currentFilter === t.key ? "tab-active" : "tab-inactive"}"
+
+onclick="setFilter('${t.key}')"
+
+>${escHtml(t.label)}</button>
+
+`).join("");
+
 }
+
+
 
 function renderResultBar(poll) {
+
     const myVote = getMyVote(poll);
+
     const totalVoters = getVoterCount(poll);
 
+
+
     return poll.options.map(opt => {
+
         const count = getCount(poll, opt.id);
+
         const pct = totalVoters > 0 ? Math.round((count / totalVoters) * 100) : 0;
+
         const isMyChoice = myVote?.optionIds.includes(opt.id);
+
         const voters = getVoters(poll, opt.id);
 
+
+
         return `
-          <div class="result-item">
-            <div class="result-label">
-              <span class="${isMyChoice ? "result-mine" : ""}">${isMyChoice ? "✓ " : ""}${escHtml(opt.text)}</span>
-              <span class="result-count">${count}표 (${pct}%)</span>
-            </div>
-            <div class="bar-bg">
-              <div class="bar-fill ${isMyChoice ? "bar-blue" : "bar-gray"}" style="width:${pct}%"></div>
-            </div>
-            ${voters && voters.length > 0 ? `<p class="voter-names">${escHtml(voters.join(", "))}</p>` : ""}
-          </div>
-        `;
+
+<div class="result-item">
+
+<div class="result-label">
+
+<span class="${isMyChoice ? "result-mine" : ""}">${isMyChoice ? "✓ " : ""}${escHtml(opt.text)}</span>
+
+<span class="result-count">${count}표 (${pct}%)</span>
+
+</div>
+
+<div class="bar-bg">
+
+<div class="bar-fill ${isMyChoice ? "bar-blue" : "bar-gray"}" style="width:${pct}%"></div>
+
+</div>
+
+${voters && voters.length > 0 ? `<p class="voter-names">${escHtml(voters.join(", "))}</p>` : ""}
+
+</div>
+
+`;
+
     }).join("");
+
 }
+
+
 
 function renderVoteForm(poll) {
+
     const ended = isEnded(poll);
 
+
+
     if (ended) {
+
         return `
-          <div class="vote-hint text-red font-semibold mb-3">🔒 마감된 투표입니다. 더 이상 참여할 수 없습니다.</div>
-          <div class="result-list">${renderResultBar(poll)}</div>
-        `;
+
+<div class="vote-hint text-red font-semibold mb-3">🔒 마감된 투표입니다. 더 이상 참여할 수 없습니다.</div>
+
+<div class="result-list">${renderResultBar(poll)}</div>
+
+`;
+
     }
+
+
 
     if (!currentUser) {
+
         return `
-          <p class="vote-hint">로그인 후 투표할 수 있습니다.</p>
-          <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end;">
-            <button class="btn-see-result" onclick="showResult('${poll.id}')">결과 보기</button>
-          </div>
-        `;
+
+<p class="vote-hint">로그인 후 투표할 수 있습니다.</p>
+
+<div class="vote-actions mt-3" style="display: flex; justify-content: flex-end;">
+
+<button class="btn-see-result" onclick="showResult('${poll.id}')">결과 보기</button>
+
+</div>
+
+`;
+
     }
+
+
 
     const inputType = poll.allowMultiple ? "checkbox" : "radio";
+
     const myVote = getMyVote(poll);
+
+
 
     if (myVote && myVote.optionIds && !selectedOptions[poll.id]) {
+
         selectedOptions[poll.id] = new Set(myVote.optionIds);
+
     }
+
+
 
     const opts = poll.options.map(opt => {
+
         const checked = selectedOptions[poll.id] ? selectedOptions[poll.id].has(opt.id) : (myVote?.optionIds.includes(opt.id));
+
         return `
-        <label class="opt-label ${checked ? "opt-selected" : ""}" id="optlabel-${poll.id}-${opt.id}">
-          <input
-            type="${inputType}"
-            name="poll-${poll.id}"
-            value="${opt.id}"
-            class="opt-input"
-            ${checked ? "checked" : ""}
-            onchange="onSelectOption('${poll.id}', '${opt.id}', this.checked, ${poll.allowMultiple})"
-          />
-          <span class="opt-text">${escHtml(opt.text)}</span>
-        </label>
-        `;
+
+<label class="opt-label ${checked ? "opt-selected" : ""}" id="optlabel-${poll.id}-${opt.id}">
+
+<input
+
+type="${inputType}"
+
+name="poll-${poll.id}"
+
+value="${opt.id}"
+
+class="opt-input"
+
+${checked ? "checked" : ""}
+
+onchange="onSelectOption('${poll.id}', '${opt.id}', this.checked, ${poll.allowMultiple})"
+
+/>
+
+<span class="opt-text">${escHtml(opt.text)}</span>
+
+</label>
+
+`;
+
     }).join("");
 
+
+
     return `
-        <div class="opts-list" id="opts-${poll.id}">${opts}</div>
-        <div id="vote-error-${poll.id}" class="vote-error hidden"></div>
-        <!-- 투표하기 버튼 오른쪽 정렬 -->
-        <div class="vote-actions" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
-          <button class="btn-see-result" onclick="showResult('${poll.id}')">결과 보기</button>
-          <button class="btn-vote" onclick="submitVote('${poll.id}')">투표하기</button>
-        </div>
-    `;
+
+<div class="opts-list" id="opts-${poll.id}">${opts}</div>
+
+<div id="vote-error-${poll.id}" class="vote-error hidden"></div>
+
+<!-- 투표하기 버튼 오른쪽 정렬 -->
+
+<div class="vote-actions" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
+
+<button class="btn-see-result" onclick="showResult('${poll.id}')">결과 보기</button>
+
+<button class="btn-vote" onclick="submitVote('${poll.id}')">투표하기</button>
+
+</div>
+
+`;
+
 }
 
+
+
 function renderPollCard(poll) {
+
     const ended = isEnded(poll);
+
     const myVote = getMyVote(poll);
+
     const hasVoted = !!myVote;
 
+
+
     const isOwner = currentUser && (poll.createdBy === currentUser.name || poll.createdBy === currentUser.username);
+
     const canDelete = currentUser?.isAdmin || isOwner;
+
     const canClose = currentUser?.isAdmin && !ended;
 
-    // ─────────────────────────────────────────────────────────────────
-    // 🛠 투표 상태 및 참여 여부 배지 분리 로직 적용
-    // ─────────────────────────────────────────────────────────────────
+
+
+// ─────────────────────────────────────────────────────────────────
+
+// 🛠 투표 상태 및 참여 여부 배지 분리 로직 적용
+
+// ─────────────────────────────────────────────────────────────────
+
     let statusBadge = "";
+
     if (ended) {
+
         statusBadge += `<span class="badge badge-gray">마감</span>`;
+
     } else {
+
         statusBadge += `<span class="badge badge-blue">진행 중</span>`;
+
     }
 
+
+
     if (hasVoted) {
+
         statusBadge += ` <span class="badge badge-green">참여 완료</span>`;
+
     }
+
+
 
     const voterCount = getVoterCount(poll);
 
+
+
     const metaItems = [
+
         `${escHtml(poll.createdBy)} · ${formatDate(poll.createdAt)}`,
+
         poll.noticeTitle ? `📌 공지: ${escHtml(poll.noticeTitle)}` : "",
+
         poll.isAnonymous ? `🔒 익명` : "",
+
         poll.allowMultiple ? `✅ 중복 선택` : "",
+
         poll.endsAt
+
             ? `<span class="${ended ? "text-red" : "text-orange"}">⏰ ${formatDeadline(poll.endsAt)} ${ended ? "마감됨" : "마감"}</span>`
+
             : "",
+
         `${voterCount}명 참여`,
+
     ].filter(Boolean).join(" · ");
+
+
 
     const isExpanded = expandedState[poll.id] === true;
 
-    // 투표 다시 하기 버튼 빨간색 스타일 적용
+
+
+// 투표 다시 하기 버튼 빨간색 스타일 적용
+
     const initialContent = (hasVoted || ended)
+
         ? `
-            <div class="result-list">${renderResultBar(poll)}</div>
-            <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end; align-items: center;">
-              ${!ended ? `<button class="btn-see-result" style="color: #ef4444;" onclick="showVoteForm('${poll.id}')">투표 다시 하기</button>` : ""}
-            </div>
-          `
+
+<div class="result-list">${renderResultBar(poll)}</div>
+
+<div class="vote-actions mt-3" style="display: flex; justify-content: flex-end; align-items: center;">
+
+${!ended ? `<button class="btn-see-result" style="color: #ef4444;" onclick="showVoteForm('${poll.id}')">투표 다시 하기</button>` : ""}
+
+</div>
+
+`
+
         : renderVoteForm(poll);
 
+
+
     return `
-        <div class="poll-card ${ended ? "poll-ended" : ""}" id="card-${poll.id}">
-          <div class="poll-header" onclick="toggleExpand('${poll.id}')">
-            <div class="poll-header-left">
-              <div class="poll-title-row">
-                <svg class="icon-bar" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" style="width:20px; height:20px; flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                <h3 class="poll-title">${escHtml(poll.title)}</h3>
-                ${statusBadge}
-              </div>
-              <p class="poll-meta">${metaItems}</p>
-            </div>
 
-            <div class="poll-header-right" onclick="event.stopPropagation();">
-              ${canClose
+<div class="poll-card ${ended ? "poll-ended" : ""}" id="card-${poll.id}">
+
+<div class="poll-header" onclick="toggleExpand('${poll.id}')">
+
+<div class="poll-header-left">
+
+<div class="poll-title-row">
+
+<svg class="icon-bar" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" style="width:20px; height:20px; flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+
+<h3 class="poll-title">${escHtml(poll.title)}</h3>
+
+${statusBadge}
+
+</div>
+
+<p class="poll-meta">${metaItems}</p>
+
+</div>
+
+
+
+<div class="poll-header-right" onclick="event.stopPropagation();">
+
+${canClose
+
         ? `<button class="btn-close-poll" type="button" onclick="closePollByAdmin('${poll.id}')" title="투표 종료" style="padding:2px 8px; font-size:12px; border:1px solid #dc2626; color:#dc2626; background:none; border-radius:4px; cursor:pointer; font-weight:600;">마감</button>`
+
         : ""}
-              ${canDelete
+
+${canDelete
+
         ? `<button class="btn-trash" type="button" onclick="confirmDelete('${poll.id}')" title="삭제">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                   </button>`
+
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+
+</button>`
+
         : ""}
-              <button type="button" onclick="toggleExpand('${poll.id}')" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">
-                <svg class="chevron ${isExpanded ? "chevron-open" : ""}" id="chevron-${poll.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-              </button>
-            </div>
-          </div>
 
-          <div class="delete-confirm hidden" id="del-confirm-${poll.id}">
-            <span class="del-confirm-text">정말 삭제할까요?</span>
-            <button class="btn-del-ok" type="button" onclick="execDelete('${poll.id}')">삭제</button>
-            <button class="btn-del-cancel" type="button" onclick="cancelDelete('${poll.id}')">취소</button>
-          </div>
+<button type="button" onclick="toggleExpand('${poll.id}')" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">
 
-          <div class="poll-body ${isExpanded ? "" : "hidden"}" id="body-${poll.id}">
-            <p class="poll-question">${escHtml(poll.question)}</p>
-            <div id="content-${poll.id}">
-              ${initialContent}
-            </div>
-          </div>
-        </div>
-    `;
+<svg class="chevron ${isExpanded ? "chevron-open" : ""}" id="chevron-${poll.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+
+</button>
+
+</div>
+
+</div>
+
+
+
+<div class="delete-confirm hidden" id="del-confirm-${poll.id}">
+
+<span class="del-confirm-text">정말 삭제할까요?</span>
+
+<button class="btn-del-ok" type="button" onclick="execDelete('${poll.id}')">삭제</button>
+
+<button class="btn-del-cancel" type="button" onclick="cancelDelete('${poll.id}')">취소</button>
+
+</div>
+
+
+
+<div class="poll-body ${isExpanded ? "" : "hidden"}" id="body-${poll.id}">
+
+<p class="poll-question">${escHtml(poll.question)}</p>
+
+<div id="content-${poll.id}">
+
+${initialContent}
+
+</div>
+
+</div>
+
+</div>
+
+`;
+
 }
+
+
 
 function renderPollList() {
+
     const container = document.getElementById("pollList");
+
     if (!container) return;
+
+
 
     const filtered = getFiltered();
+
     if (filtered.length === 0) {
+
         const msg = currentFilter === "active" ? "진행 중인 투표가 없습니다."
+
             : currentFilter === "ended" ? "마감된 투표가 없습니다."
+
                 : "아직 투표가 없습니다.";
+
         container.innerHTML = `<div class="empty-state">${msg}</div>`;
+
         return;
+
     }
+
     container.innerHTML = filtered.map(renderPollCard).join("");
+
 }
+
+
 
 function renderAll() {
+
     const filterTabsEl = document.getElementById("filterTabs");
+
     if (filterTabsEl) {
+
         filterTabsEl.innerHTML = renderFilterTabs();
+
     }
+
+
 
     const btnArea = document.getElementById("createBtnArea");
+
     if (btnArea) {
+
         if (currentUser && currentUser.isAdmin) {
+
             btnArea.innerHTML = `<button class="btn-new-poll" onclick="openCreateForm()">+ 새 투표 만들기</button>`;
+
         } else {
+
             btnArea.innerHTML = ``;
+
         }
+
     }
+
     renderPollList();
+
 }
+
+
 
 // ── 인터랙션 ──────────────────────────────────────────────────────────────
+
 function setFilter(key) {
+
     currentFilter = key;
+
     renderAll();
+
 }
+
+
 
 function toggleExpand(pollId) {
+
     expandedState[pollId] = !expandedState[pollId];
+
     const body = document.getElementById(`body-${pollId}`);
+
     const chevron = document.getElementById(`chevron-${pollId}`);
+
     if (!body) return;
 
+
+
     const isExpanded = expandedState[pollId];
+
     body.classList.toggle("hidden", !isExpanded);
+
     if (chevron) {
+
         chevron.classList.toggle("chevron-open", isExpanded);
+
     }
+
 }
+
+
 
 function onSelectOption(pollId, optId, checked, allowMultiple) {
+
     if (!selectedOptions[pollId]) selectedOptions[pollId] = new Set();
+
     if (allowMultiple) {
+
         checked ? selectedOptions[pollId].add(optId) : selectedOptions[pollId].delete(optId);
+
     } else {
+
         selectedOptions[pollId] = new Set([optId]);
+
     }
 
+
+
     const poll = polls.find(p => matchId(p.id, pollId));
+
     if (!poll) return;
+
     poll.options.forEach(opt => {
+
         const label = document.getElementById(`optlabel-${pollId}-${opt.id}`);
+
         if (!label) return;
+
         const sel = selectedOptions[pollId].has(opt.id);
+
         label.classList.toggle("opt-selected", sel);
+
     });
+
 }
+
+
 
 function submitVote(pollId) {
+
     const poll = polls.find(p => matchId(p.id, pollId));
+
     if (!poll) return;
+
+
 
     if (isEnded(poll)) {
+
         alert("이미 마감된 투표입니다.");
+
         renderAll();
+
         return;
+
     }
+
+
 
     const errEl = document.getElementById(`vote-error-${pollId}`);
+
     const sel = [...(selectedOptions[pollId] || [])];
 
+
+
     if (!currentUser) { showVoteError(errEl, "로그인 후 투표할 수 있습니다."); return; }
+
     if (sel.length === 0) { showVoteError(errEl, "선택지를 선택해주세요."); return; }
 
-    // 투표 제출 저장
+
+
+// 투표 제출 저장
+
     saveVote(poll, sel);
+
     delete selectedOptions[pollId];
 
-    // 최신 데이터 갱신 후 화면을 그리고, 사용자가 바로 결과를 보도록 조치
+
+
+// 최신 데이터 갱신 후 화면을 그리고, 사용자가 바로 결과를 보도록 조치
+
     loadPolls();
+
     renderAll();
+
     showResult(pollId);
+
 }
+
+
 
 function showVoteError(el, msg) {
+
     if (!el) return;
+
     el.textContent = msg;
+
     el.classList.remove("hidden");
+
 }
+
+
 
 function showResult(pollId) {
+
     const poll = polls.find(p => matchId(p.id, pollId));
+
     if (!poll) return;
+
     const contentEl = document.getElementById(`content-${pollId}`);
+
     const ended = isEnded(poll);
 
+
+
     if (contentEl) {
+
         contentEl.innerHTML = `
-            <div class="result-list">${renderResultBar(poll)}</div>
-            <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end; align-items: center;">
-              ${!ended ? `<button class="btn-see-result" style="color: #ef4444;" onclick="showVoteForm('${pollId}')">투표 다시 하기</button>` : ""}
-            </div>
-        `;
+
+<div class="result-list">${renderResultBar(poll)}</div>
+
+<div class="vote-actions mt-3" style="display: flex; justify-content: flex-end; align-items: center;">
+
+${!ended ? `<button class="btn-see-result" style="color: #ef4444;" onclick="showVoteForm('${pollId}')">투표 다시 하기</button>` : ""}
+
+</div>
+
+`;
+
     }
+
 }
+
+
 
 function showVoteForm(pollId) {
+
     const poll = polls.find(p => matchId(p.id, pollId));
+
     if (!poll) return;
+
     const contentEl = document.getElementById(`content-${pollId}`);
+
     if (contentEl) {
+
         contentEl.innerHTML = renderVoteForm(poll);
+
     }
+
 }
+
+
 
 function confirmDelete(pollId) {
+
     const el = document.getElementById(`del-confirm-${pollId}`);
+
     if (el) el.classList.remove("hidden");
+
 }
+
+
 
 function cancelDelete(pollId) {
+
     const el = document.getElementById(`del-confirm-${pollId}`);
+
     if (el) el.classList.add("hidden");
+
 }
+
+
 
 function execDelete(pollId) {
+
     const poll = polls.find(p => matchId(p.id, pollId));
+
     if (!poll) return;
+
     deletePollFromStorage(poll);
+
     loadPolls();
+
     renderAll();
+
 }
+
+
 
 // 관리자 권한으로 투표 마감 처리 (동작 보장)
+
 function closePollByAdmin(pollId) {
+
     if (!currentUser || !currentUser.isAdmin) {
+
         alert("관리자 권한이 필요합니다.");
+
         return;
+
     }
+
     if (confirm("이 투표를 마감 처리하시겠습니까?")) {
+
         const poll = polls.find(p => matchId(p.id, pollId));
+
         if (!poll) return;
 
+
+
         closePollInStorage(poll);
+
         loadPolls();
+
         renderAll();
+
     }
+
 }
+
+
 
 // ── 투표 생성 폼 ──────────────────────────────────────────────────────────
+
 let formOptions = ["", ""];
 
+
+
 function openCreateForm() {
+
     if (!currentUser || !currentUser.isAdmin) {
+
         alert("관리자만 투표를 생성할 수 있습니다.");
+
         return;
+
     }
+
+
 
     formOptions = ["", ""];
+
     const modal = document.getElementById("createModal");
+
     if (modal) modal.classList.remove("hidden");
 
+
+
     document.getElementById("fTitle").value = "";
+
     document.getElementById("fQuestion").value = "";
+
     document.getElementById("fAnon").checked = false;
+
     document.getElementById("fMulti").checked = false;
+
     document.getElementById("fDeadlineToggle").checked = false;
+
     document.getElementById("deadlineFields").classList.add("hidden");
+
     document.getElementById("fDate").value = "";
+
     document.getElementById("fTime").value = "23:59";
+
     const fError = document.getElementById("fError");
+
     if (fError) fError.classList.add("hidden");
+
     renderFormOptions();
+
 }
+
+
 
 function closeCreateForm() {
+
     const modal = document.getElementById("createModal");
+
     if (modal) modal.classList.add("hidden");
+
 }
+
+
 
 function renderFormOptions() {
+
     const container = document.getElementById("optionsList");
+
     if (!container) return;
+
     container.innerHTML = formOptions.map((val, i) => `
-        <div class="form-opt-row" id="formopt-${i}">
-          <input
-            type="text"
-            class="form-input"
-            placeholder="선택지 ${i + 1}"
-            value="${escHtml(val)}"
-            oninput="updateFormOption(${i}, this.value)"
-          />
-          ${formOptions.length > 2
+
+<div class="form-opt-row" id="formopt-${i}">
+
+<input
+
+type="text"
+
+class="form-input"
+
+placeholder="선택지 ${i + 1}"
+
+value="${escHtml(val)}"
+
+oninput="updateFormOption(${i}, this.value)"
+
+/>
+
+${formOptions.length > 2
+
         ? `<button class="btn-remove-opt" type="button" onclick="removeFormOption(${i})">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-               </button>`
+
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+
+</button>`
+
         : ""}
-        </div>
-    `).join("");
+
+</div>
+
+`).join("");
+
 }
+
+
 
 function updateFormOption(i, val) {
+
     formOptions[i] = val;
+
 }
+
+
 
 function addFormOption() {
+
     formOptions.push("");
+
     renderFormOptions();
+
 }
+
+
 
 function removeFormOption(i) {
+
     formOptions = formOptions.filter((_, idx) => idx !== i);
+
     renderFormOptions();
+
 }
+
+
 
 function toggleDeadlineFields() {
+
     const on = document.getElementById("fDeadlineToggle").checked;
+
     document.getElementById("deadlineFields").classList.toggle("hidden", !on);
+
 }
+
+
 
 function submitCreatePoll() {
+
     if (!currentUser || !currentUser.isAdmin) {
+
         alert("관리자 권한이 필요합니다.");
+
         return;
+
     }
+
+
 
     const errEl = document.getElementById("fError");
+
     if (errEl) errEl.classList.add("hidden");
 
+
+
     const title = document.getElementById("fTitle").value.trim();
+
     const question = document.getElementById("fQuestion").value.trim();
+
     const isAnonymous = document.getElementById("fAnon").checked;
+
     const allowMultiple = document.getElementById("fMulti").checked;
+
     const useDeadline = document.getElementById("fDeadlineToggle").checked;
+
     const deadlineDate = document.getElementById("fDate").value;
+
     const deadlineTime = document.getElementById("fTime").value || "23:59";
 
+
+
     if (!title) { showFormError("투표 제목을 입력해주세요."); return; }
+
     if (!question) { showFormError("투표 질문을 입력해주세요."); return; }
+
     const validOpts = formOptions.map(o => o.trim()).filter(Boolean);
+
     if (validOpts.length < 2) { showFormError("선택지를 2개 이상 입력해주세요."); return; }
+
     if (useDeadline && !deadlineDate) { showFormError("마감 날짜를 선택해주세요."); return; }
 
+
+
     const stored = JSON.parse(localStorage.getItem("standalonePolls") || "[]");
+
     stored.unshift({
+
         id: Date.now().toString(),
+
         title,
+
         question,
+
         options: validOpts.map((t, i) => ({id: String(i), text: t})),
+
         isAnonymous,
+
         allowMultiple,
+
         endsAt: useDeadline ? new Date(`${deadlineDate}T${deadlineTime}`).toISOString() : null,
+
         createdAt: new Date().toISOString(),
+
         createdBy: currentUser.name || currentUser.username || "관리자",
+
         votes: [],
+
     });
+
     localStorage.setItem("standalonePolls", JSON.stringify(stored));
 
+
+
     closeCreateForm();
+
     loadPolls();
+
     renderAll();
+
 }
+
+
 
 function showFormError(msg) {
+
     const el = document.getElementById("fError");
+
     if (el) {
+
         el.textContent = msg;
+
         el.classList.remove("hidden");
+
     }
+
 }
+
+
 
 // ── 초기화 ────────────────────────────────────────────────────────────────
+
 function init() {
+
     currentUser = getUser();
+
     loadPolls();
+
     renderAll();
 
+
+
     const createModal = document.getElementById("createModal");
+
     if (createModal) {
+
         createModal.addEventListener("click", function(e) {
+
             if (e.target === this) closeCreateForm();
+
         });
+
     }
 
+
+
     const urlParams = new URLSearchParams(window.location.search);
+
     if (urlParams.get("openModal") === "true") {
+
         openCreateForm();
+
         window.history.replaceState({}, document.title, window.location.pathname);
+
     }
+
 }
+
+
 
 document.addEventListener("DOMContentLoaded", init);
