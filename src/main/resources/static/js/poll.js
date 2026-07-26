@@ -19,13 +19,23 @@ function getUser() {
     }
 }
 
+// ID 비교 안심 유틸 (타입 차이 및 접두사 유무로 인한 오류 방지)
+function matchId(id1, id2) {
+    if (id1 === undefined || id2 === undefined || id1 === null || id2 === null) return false;
+    const s1 = String(id1).replace("poll-", "");
+    const s2 = String(id2).replace("poll-", "");
+    return s1 === s2;
+}
+
 function formatDeadline(iso) {
+    if (!iso) return "";
     return new Date(iso).toLocaleString("ko-KR", {
         month: "long", day: "numeric", hour: "2-digit", minute: "2-digit"
     });
 }
 
 function formatDate(iso) {
+    if (!iso) return "";
     return new Date(iso).toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
 }
 
@@ -48,13 +58,16 @@ function getVoters(poll, optId) {
     const users = JSON.parse(localStorage.getItem("users") || "[]");
     return poll.votes
         .filter(v => v.optionIds && v.optionIds.includes(optId))
-        .map(v => users.find(u => String(u.id) === String(v.userId))?.name || v.userId || "알 수 없음");
+        .map(v => {
+            const found = users.find(u => matchId(u.id, v.userId) || matchId(u.username, v.userId));
+            return found ? (found.name || found.username) : (v.userName || v.userId || "알 수 없음");
+        });
 }
 
 function getMyVote(poll) {
     if (!currentUser || !poll.votes) return null;
     const myId = currentUser.id || currentUser.username;
-    return poll.votes.slice().reverse().find(v => String(v.userId) === String(myId)) || null;
+    return poll.votes.slice().reverse().find(v => matchId(v.userId, myId)) || null;
 }
 
 function escHtml(str) {
@@ -63,14 +76,6 @@ function escHtml(str) {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
-}
-
-// ID 비교 안심 유틸 (타입 차이로 인한 오류 방지)
-function matchId(id1, id2) {
-    if (id1 === undefined || id2 === undefined || id1 === null || id2 === null) return false;
-    const s1 = String(id1).replace("poll-", "");
-    const s2 = String(id2).replace("poll-", "");
-    return s1 === s2;
 }
 
 // ── 데이터 로드 & 저장 ────────────────────────────────────────────────────
@@ -83,8 +88,8 @@ function loadPolls() {
         .map(p => {
             const notice = notices.find(n => matchId(n.id, p.noticeId) || matchId(n.pollId, p.id) || matchId(n.id, p.id));
 
-            // 투표 스토리지 자체에 설정된 마감시간(p.endsAt)을 우선 적용
-            const noticeEndsAt = p.endsAt || notice?.endsAt || notice?.deadline || null;
+            // 공지사항의 deadline / endsAt을 최우선으로 가져와 투표 마감시간에 반영
+            const noticeEndsAt = notice?.deadline || notice?.endsAt || p.endsAt || null;
 
             return {
                 ...p,
@@ -94,11 +99,17 @@ function loadPolls() {
                 noticeTitle: notice?.title,
                 noticeId: p.noticeId || notice?.id,
                 endsAt: noticeEndsAt,
+                createdAt: p.createdAt || notice?.createdAt || new Date(0).toISOString(),
                 votes: p.votes || []
             };
         });
 
-    polls = [...standalone, ...attached];
+    // 🌟 최신 생성일자(createdAt) 기준 내림차순 정렬 (최신글이 가장 위에 표시됨)
+    polls = [...standalone, ...attached].sort((a, b) => {
+        const timeA = new Date(a.createdAt || 0).getTime();
+        const timeB = new Date(b.createdAt || 0).getTime();
+        return timeB - timeA;
+    });
 }
 
 function saveVote(poll, optionIds) {
@@ -128,14 +139,14 @@ function deletePollFromStorage(poll) {
     localStorage.setItem(key, JSON.stringify(stored.filter(p => !matchId(p.id, poll.id))));
 }
 
-// 관리자 권한으로 투표 강제 종료 (어떤 상황에서도 확실히 마감되도록 보장)
+// 관리자 권한으로 투표 강제 종료 (공지사항 스토리지까지 확실히 동기화)
 function closePollInStorage(poll) {
     const nowIso = new Date().toISOString();
 
-    // 1. 메모리 데이터 즉시 마감 변경
+    // 1. 메모리 데이터 마감 변경
     poll.endsAt = nowIso;
 
-    // 2. 투표 스토리지(standalonePolls 또는 polls) 처리
+    // 2. 투표 스토리지(standalonePolls 또는 polls) 동기화
     const key = poll._storageKey || "standalonePolls";
     const stored = JSON.parse(localStorage.getItem(key) || "[]");
     const idx = stored.findIndex(p => matchId(p.id, poll.id));
@@ -144,12 +155,11 @@ function closePollInStorage(poll) {
         stored[idx].endsAt = nowIso;
         localStorage.setItem(key, JSON.stringify(stored));
     } else if (key === "polls") {
-        // 혹시 스토리지에 없는 공지 투표일 경우 신규 생성하여 마감 저장
         stored.push({ ...poll, endsAt: nowIso });
         localStorage.setItem("polls", JSON.stringify(stored));
     }
 
-    // 3. 공지사항(notices) 스토리지도 마감 처리 동기화
+    // 3. 연동된 공지사항(notices) 스토리지도 마감 시간 동기화
     const notices = JSON.parse(localStorage.getItem("notices") || "[]");
     let noticeUpdated = false;
 
