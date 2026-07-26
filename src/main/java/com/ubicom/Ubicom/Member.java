@@ -21,5 +21,8 @@ public class Member {
     @Column(name = "EMAIL", length = 100)
     public String email;
 
+    @Column(length = 20)
+    public String phone;
+
     public String role = "USER";
 }
