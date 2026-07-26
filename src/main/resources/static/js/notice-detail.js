@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 });
 
-// ── 유틸리티 (poll.js 동일) ──────────────────────────────────────────────
+// ── 유틸리티 ─────────────────────────────────────────────────────────────
 function getUser() {
     try {
         const u = localStorage.getItem("currentUser");
@@ -49,7 +49,7 @@ function formatDate(iso) {
 
 function isEnded(poll) {
     const endsAt = poll.endsAt || poll.expiresAt;
-    return !!endsAt && new Date(endsAt) < new Date();
+    return !!endsAt && new Date(endsAt) <= new Date();
 }
 
 function getCount(poll, optId) {
@@ -140,7 +140,7 @@ function loadAttachedPoll(noticeId) {
     renderNoticePollCard();
 }
 
-// ── 렌더링 함수 (poll.js 완벽 이식) ─────────────────────────────────────────
+// ── 렌더링 함수 ───────────────────────────────────────────────────────────
 function renderResultBar(poll) {
     const myVote = getMyVote(poll);
     const totalVoters = getVoterCount(poll);
@@ -170,7 +170,7 @@ function renderVoteForm(poll) {
     if (!currentUser) {
         return `
           <p class="vote-hint">로그인 후 투표할 수 있습니다.</p>
-          <div class="vote-actions mt-3">
+          <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end;">
             <button class="btn-see-result" onclick="showNoticeResult('${poll.id}')">결과 보기</button>
           </div>
         `;
@@ -205,9 +205,9 @@ function renderVoteForm(poll) {
     return `
         <div class="opts-list" id="opts-${poll.id}">${opts}</div>
         <div id="vote-error-${poll.id}" class="vote-error hidden"></div>
-        <div class="vote-actions">
-          ${!ended ? `<button class="btn-vote" onclick="submitNoticeVote('${poll.id}')">${myVote ? "투표 수정하기" : "투표하기"}</button>` : ""}
+        <div class="vote-actions" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 12px;">
           <button class="btn-see-result" onclick="showNoticeResult('${poll.id}')">결과 보기</button>
+          ${!ended ? `<button class="btn-vote" onclick="submitNoticeVote('${poll.id}')">투표하기</button>` : ""}
         </div>
     `;
 }
@@ -221,11 +221,19 @@ function renderNoticePollCard() {
     const myVote = getMyVote(poll);
     const hasVoted = !!myVote;
 
-    const statusBadge = ended
-        ? `<span class="badge badge-gray">마감</span>`
-        : hasVoted
-            ? `<span class="badge badge-green">참여 완료</span>`
-            : `<span class="badge badge-blue">진행 중</span>`;
+    // 관리자 마감 권한 체크 (관리자이면서 마감되지 않은 투표)
+    const canClose = currentUser?.isAdmin && !ended;
+
+    let statusBadge = "";
+    if (ended) {
+        statusBadge += `<span class="badge badge-gray">마감</span>`;
+    } else {
+        statusBadge += `<span class="badge badge-blue">진행 중</span>`;
+    }
+
+    if (hasVoted) {
+        statusBadge += ` <span class="badge badge-green">참여 완료</span>`;
+    }
 
     const voterCount = getVoterCount(poll);
     const endsAt = poll.endsAt || poll.expiresAt;
@@ -239,9 +247,18 @@ function renderNoticePollCard() {
         `${voterCount}명 참여`,
     ].filter(Boolean).join(" · ");
 
+    const initialContent = (hasVoted || ended)
+        ? `
+            <div class="result-list">${renderResultBar(poll)}</div>
+            <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end; align-items: center;">
+              ${!ended ? `<button class="btn-see-result" style="color: #ef4444;" onclick="showNoticeVoteForm('${poll.id}')">투표 다시 하기</button>` : ""}
+            </div>
+          `
+        : renderVoteForm(poll);
+
     container.innerHTML = `
         <div class="poll-card-inner" id="card-${poll.id}">
-          <div class="poll-header" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 20px 24px; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">
+          <div class="poll-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">
             <div class="poll-header-left" style="flex: 1; min-width: 0;">
               <div class="poll-title-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <svg class="icon-bar" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" style="width:20px; height:20px; flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
@@ -250,19 +267,24 @@ function renderNoticePollCard() {
               </div>
               <p class="poll-meta" style="margin-top: 6px; margin-bottom: 0;">${metaItems}</p>
             </div>
+
+            <!-- 관리자 마감 버튼 영역 -->
+            <div class="poll-header-right" style="display: flex; align-items: center; gap: 8px;">
+              ${canClose ? `<button class="btn-close-poll" type="button" onclick="closeNoticePollByAdmin('${poll.id}')" title="투표 종료" style="padding:4px 10px; font-size:12px; border:1px solid #dc2626; color:#dc2626; background:none; border-radius:4px; cursor:pointer; font-weight:600; transition: all 0.2s;">마감</button>` : ""}
+            </div>
           </div>
 
           <div class="poll-body" id="body-${poll.id}">
             <p class="poll-question">${escHtml(poll.question)}</p>
             <div id="content-${poll.id}">
-              ${renderVoteForm(poll)}
+              ${initialContent}
             </div>
           </div>
         </div>
     `;
 }
 
-// ── 인터랙션 동작 (poll.js 동일) ──────────────────────────────────────────
+// ── 인터랙션 동작 ──────────────────────────────────────────────────────────
 function onSelectNoticeOption(pollId, optId, checked, allowMultiple) {
     if (!selectedNoticeOptions[pollId]) selectedNoticeOptions[pollId] = new Set();
     if (allowMultiple) {
@@ -282,16 +304,26 @@ function onSelectNoticeOption(pollId, optId, checked, allowMultiple) {
 
 function submitNoticeVote(pollId) {
     if (!currentPoll) return;
+
+    if (isEnded(currentPoll)) {
+        alert("이미 마감된 투표입니다.");
+        loadAttachedPoll(currentNotice.id);
+        return;
+    }
+
     const errEl = document.getElementById(`vote-error-${pollId}`);
     const sel = [...(selectedNoticeOptions[pollId] || [])];
 
     if (!currentUser) { showVoteError(errEl, "로그인 후 투표할 수 있습니다."); return; }
     if (sel.length === 0) { showVoteError(errEl, "선택지를 선택해주세요."); return; }
 
+    // 투표 저장
     saveNoticeVote(currentPoll, sel);
     delete selectedNoticeOptions[pollId];
 
+    // 헤더 상태 정보 갱신 및 결과 화면 보이기
     loadAttachedPoll(currentNotice.id);
+    showNoticeResult(pollId);
 }
 
 function saveNoticeVote(poll, optionIds) {
@@ -326,8 +358,8 @@ function showNoticeResult(pollId) {
     if (contentEl) {
         contentEl.innerHTML = `
             <div class="result-list">${renderResultBar(currentPoll)}</div>
-            <div class="vote-actions mt-3">
-              ${!ended ? `<button class="btn-go-vote" onclick="showNoticeVoteForm('${pollId}')">투표하러 가기</button>` : ""}
+            <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end; align-items: center;">
+              ${!ended ? `<button class="btn-see-result" style="color: #ef4444;" onclick="showNoticeVoteForm('${pollId}')">투표 다시 하기</button>` : ""}
             </div>
         `;
     }
@@ -345,6 +377,51 @@ function showVoteError(el, msg) {
     if (!el) return;
     el.textContent = msg;
     el.classList.remove("hidden");
+}
+
+// ── 관리자 투표 마감 처리 ─────────────────────────────────────────────────
+function closeNoticePollByAdmin(pollId) {
+    if (!currentUser || !currentUser.isAdmin) {
+        alert("관리자 권한이 필요합니다.");
+        return;
+    }
+
+    if (confirm("이 투표를 마감 처리하시겠습니까?")) {
+        closeNoticePollInStorage(pollId);
+        loadAttachedPoll(currentNotice.id);
+    }
+}
+
+function closeNoticePollInStorage(pollId) {
+    const nowIso = new Date().toISOString();
+
+    // 1. 메모리 객체 마감 처리
+    if (currentPoll) {
+        currentPoll.endsAt = nowIso;
+    }
+
+    // 2. polls 스토리지 마감 처리
+    const polls = JSON.parse(localStorage.getItem("polls") || "[]");
+    const pollIdx = polls.findIndex(p => p.id === pollId || p.noticeId === currentNotice?.id);
+
+    if (pollIdx !== -1) {
+        polls[pollIdx].endsAt = nowIso;
+        localStorage.setItem("polls", JSON.stringify(polls));
+    }
+
+    // 3. 연동된 공지사항(notices) 스토리지의 마감시간 동기화
+    if (currentNotice) {
+        const notices = JSON.parse(localStorage.getItem("notices") || "[]");
+        const noticeIdx = notices.findIndex(n => n.id === currentNotice.id);
+
+        if (noticeIdx !== -1) {
+            notices[noticeIdx].endsAt = nowIso;
+            notices[noticeIdx].deadline = nowIso;
+            localStorage.setItem("notices", JSON.stringify(notices));
+            currentNotice.endsAt = nowIso;
+            currentNotice.deadline = nowIso;
+        }
+    }
 }
 
 // ── 삭제 관련 ────────────────────────────────────────────────────────────
