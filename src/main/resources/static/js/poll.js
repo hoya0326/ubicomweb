@@ -293,11 +293,19 @@ function renderPollCard(poll) {
     const canDelete = currentUser?.isAdmin || isOwner;
     const canClose = currentUser?.isAdmin && !ended;
 
-    const statusBadge = ended
-        ? `<span class="badge badge-gray">마감</span>`
-        : hasVoted
-            ? `<span class="badge badge-green">참여 완료</span>`
-            : `<span class="badge badge-blue">진행 중</span>`;
+    // ─────────────────────────────────────────────────────────────────
+    // 🛠 투표 상태 및 참여 여부 배지 분리 로직 적용
+    // ─────────────────────────────────────────────────────────────────
+    let statusBadge = "";
+    if (ended) {
+        statusBadge += `<span class="badge badge-gray">마감</span>`;
+    } else {
+        statusBadge += `<span class="badge badge-blue">진행 중</span>`;
+    }
+
+    if (hasVoted) {
+        statusBadge += ` <span class="badge badge-green">참여 완료</span>`;
+    }
 
     const voterCount = getVoterCount(poll);
 

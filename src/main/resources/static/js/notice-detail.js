@@ -205,7 +205,6 @@ function renderVoteForm(poll) {
     return `
         <div class="opts-list" id="opts-${poll.id}">${opts}</div>
         <div id="vote-error-${poll.id}" class="vote-error hidden"></div>
-        <!-- 1. 버튼 구역 오른쪽 정렬 및 버튼 배치 -->
         <div class="vote-actions" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 12px;">
           <button class="btn-see-result" onclick="showNoticeResult('${poll.id}')">결과 보기</button>
           ${!ended ? `<button class="btn-vote" onclick="submitNoticeVote('${poll.id}')">투표하기</button>` : ""}
@@ -222,11 +221,19 @@ function renderNoticePollCard() {
     const myVote = getMyVote(poll);
     const hasVoted = !!myVote;
 
-    const statusBadge = ended
-        ? `<span class="badge badge-gray">마감</span>`
-        : hasVoted
-            ? `<span class="badge badge-green">참여 완료</span>`
-            : `<span class="badge badge-blue">진행 중</span>`;
+    // ─────────────────────────────────────────────────────────────────
+    // 🛠 투표 상태 및 참여 여부 배지 분리 로직
+    // ─────────────────────────────────────────────────────────────────
+    let statusBadge = "";
+    if (ended) {
+        statusBadge += `<span class="badge badge-gray">마감</span>`;
+    } else {
+        statusBadge += `<span class="badge badge-blue">진행 중</span>`;
+    }
+
+    if (hasVoted) {
+        statusBadge += ` <span class="badge badge-green">참여 완료</span>`;
+    }
 
     const voterCount = getVoterCount(poll);
     const endsAt = poll.endsAt || poll.expiresAt;
@@ -240,7 +247,6 @@ function renderNoticePollCard() {
         `${voterCount}명 참여`,
     ].filter(Boolean).join(" · ");
 
-    // 2. 이미 투표했거나 마감된 경우 처음에 결과 화면으로 렌더링 ("투표 다시 하기" 빨간색 적용)
     const initialContent = (hasVoted || ended)
         ? `
             <div class="result-list">${renderResultBar(poll)}</div>
@@ -338,7 +344,6 @@ function showNoticeResult(pollId) {
     const ended = isEnded(currentPoll);
 
     if (contentEl) {
-        // 2. 결과 화면에서 "투표 다시 하기" 버튼 빨간색 적용
         contentEl.innerHTML = `
             <div class="result-list">${renderResultBar(currentPoll)}</div>
             <div class="vote-actions mt-3" style="display: flex; justify-content: flex-end; align-items: center;">
