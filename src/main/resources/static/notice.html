@@ -6,6 +6,15 @@
     <title>공지사항 - UbiCOM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; background: #f9fafb; color: #111827; }
+        .deadline-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+        .deadline-toggle input { width: 16px; height: 16px; accent-color: #f97316; }
+        .deadline-fields { display: flex; gap: 8px; margin-top: 8px; padding-left: 24px; }
+        .deadline-fields input { flex: 1; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; outline: none; }
+        .deadline-fields input:focus { border-color: #2563eb; }
+    </style>
 </head>
 <body class="min-h-screen flex flex-col bg-gray-50">
 <!-- Header -->
@@ -20,7 +29,24 @@
                 <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors">투표</a>
                 <div id="nav-buttons"></div>
             </nav>
+            <!-- Mobile Menu Button -->
+            <button class="md:hidden p-2" id="mobile-menu-btn">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
         </div>
+        <!-- Mobile Navigation -->
+        <nav id="mobile-menu" class="hidden md:hidden py-4 border-t border-blue-500">
+            <div class="flex flex-col gap-3">
+                <div id="mobile-main-nav" class="flex flex-col gap-3"></div>
+                <div id="mobile-nav-buttons" class="flex flex-col gap-2 pt-2 border-t border-blue-500">
+                    <!-- Will be populated by JavaScript -->
+
+                </div>
+            </div>
+        </nav>
+
     </div>
 </header>
 
@@ -131,14 +157,16 @@
                         <button type="button" onclick="addPollOptionField()" class="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium">+ 선택지 추가</button>
                     </div>
 
-                    <!-- ⏰ 마감기한 설정 -->
+                    <!-- 마감 시간 -->
                     <div>
-                        <label for="poll-expires-at" class="block text-xs font-medium text-gray-600 mb-1">마감기한 설정 (선택사항)</label>
-                        <input
-                                type="datetime-local"
-                                id="poll-expires-at"
-                                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        >
+                        <label class="deadline-toggle">
+                            <input type="checkbox" id="fDeadlineToggle" onchange="toggleDeadlineFields()" />
+                            <span>⏰ 마감 시간 설정</span>
+                        </label>
+                        <div class="deadline-fields hidden" id="deadlineFields">
+                            <input type="date" id="fDate" />
+                            <input type="time" id="fTime" value="23:59" style="max-width:120px;" />
+                        </div>
                     </div>
 
                     <div class="flex items-center gap-4 text-xs text-gray-700 pt-2 border-t border-gray-200">
@@ -191,9 +219,10 @@
         </div>
     </div>
 </div>
-
+<script src="js/migration.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/main.js"></script>
 <script src="js/notice.js"></script>
+<script src="js/poll.js"></script>
 </body>
 </html>

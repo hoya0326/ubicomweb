@@ -1,217 +1,211 @@
-// Board page functionality
+"use strict";
 
-let searchQuery = '';
+let allPosts = [];
 
-document.addEventListener('DOMContentLoaded', function() {
-    if (!requireLogin()) return;
-
+document.addEventListener("DOMContentLoaded", () => {
     loadPosts();
-
-    // Search functionality
-    const searchInput = document.getElementById('search-input');
-    searchInput.addEventListener('input', function(e) {
-        searchQuery = e.target.value.toLowerCase();
-        loadPosts();
-    });
-
-    // Create post button
-    const createPostBtn = document.getElementById('create-post-btn');
-    const createModal = document.getElementById('create-modal');
-    const closeModal = document.getElementById('close-modal');
-    const cancelBtn = document.getElementById('cancel-btn');
-
-    createPostBtn.addEventListener('click', function() {
-        createModal.classList.remove('hidden');
-    });
-
-    closeModal.addEventListener('click', function() {
-        createModal.classList.add('hidden');
-        document.getElementById('create-post-form').reset();
-        hideError('modal-error');
-    });
-
-    cancelBtn.addEventListener('click', function() {
-        createModal.classList.add('hidden');
-        document.getElementById('create-post-form').reset();
-        hideError('modal-error');
-    });
-
-    // Create post form
-    const createPostForm = document.getElementById('create-post-form');
-    createPostForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        handleCreatePost();
-    });
+    initBoardEvents();
 });
 
-// ✨ 날짜 포맷 헬퍼 함수 (안전한 파싱)
-function formatDate(dateString) {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
+// ── 1. 백엔드 DB에서 게시글 목록 가져오기 ───────────────────────────
+async function loadPosts() {
+    const postListContainer = document.getElementById("posts-list");
+    if (!postListContainer) return;
 
-    return date.toLocaleString('ko-KR', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
+    try {
+        const response = await fetch('/api/posts');
+        if (!response.ok) {
+            throw new Error('서버 응답 오류: ' + response.status);
+        }
+
+        allPosts = await response.json();
+        renderPosts(allPosts);
+
+    } catch (error) {
+        console.error('게시글 목록 불러오기 실패:', error);
+        postListContainer.innerHTML = '<p class="text-center text-red-500 py-8">게시글을 불러오는 데 실패했습니다.</p>';
+    }
+}
+
+// ── 2. 게시글 목록 화면 렌더링 ────────────────────────────────────
+function renderPosts(posts) {
+    const postListContainer = document.getElementById("posts-list");
+    if (!postListContainer) return;
+
+    postListContainer.innerHTML = '';
+
+    if (!posts || posts.length === 0) {
+        postListContainer.innerHTML = '<p class="text-center text-gray-500 py-12 bg-white rounded-lg border border-gray-200">등록된 게시글이 없습니다.</p>';
+        return;
+    }
+
+    posts.forEach(post => {
+        const postCard = document.createElement('div');
+        postCard.className = 'bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer';
+
+        // ★ 익명글 처리 및 작성자 이름 판단
+        let displayAuthor = "익명";
+        if (post.isAnonymous) {
+            displayAuthor = "익명";
+        } else if (post.authorName && post.authorName !== "알 수 없음") {
+            displayAuthor = post.authorName;
+        } else if (post.author && post.author.name) {
+            displayAuthor = post.author.name;
+        }
+
+        const formattedDate = post.createdAt ? new Date(post.createdAt).toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }) : '';
+
+        // ★ 하단 정보 영역에 작성자 이름 추가 (조회수 왼쪽)
+        postCard.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors">${escapeHtml(post.title)}</h3>
+            </div>
+            <p class="text-gray-600 text-sm mb-4 line-clamp-2">${escapeHtml(post.content)}</p>
+            <div class="flex justify-between items-center text-xs text-gray-400 pt-3 border-t border-gray-100">
+                <div class="flex items-center gap-3">
+                    <span class="font-medium text-gray-600">${escapeHtml(displayAuthor)}</span>
+                    <span>·</span>
+                    <span>조회수 ${post.views || 0}</span>
+                </div>
+                <span>${formattedDate}</span>
+            </div>
+        `;
+
+        // 카드 클릭 시 상세 페이지로 이동 (id 전달)
+        postCard.onclick = () => {
+            window.location.href = `/board_detail?id=${post.id}`;
+        };
+
+        postListContainer.appendChild(postCard);
     });
 }
 
-function loadPosts() {
-    const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-    const user = getCurrentUser();
-    const userIsAdmin = isAdmin();
+// ── 3. 새 게시글 저장 (POST /api/posts) ───────────────────────────
+async function handleCreatePost(event) {
+    event.preventDefault();
 
-    // Sort by date (newest first)
-    posts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const titleInput = document.getElementById("post-title");
+    const contentInput = document.getElementById("post-content");
+    const anonymousCheckbox = document.getElementById("anonymous-checkbox");
 
-    // Filter by search query
-    const filteredPosts = posts.filter(post => {
-        const searchText = searchQuery.toLowerCase();
-        return post.title.toLowerCase().includes(searchText) ||
-            post.content.toLowerCase().includes(searchText) ||
-            post.author.toLowerCase().includes(searchText);
-    });
+    if (!titleInput || !contentInput) return;
 
-    const postsList = document.getElementById('posts-list');
+    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    const userId = currentUser.userId || currentUser.id || currentUser.studentId || 20260001;
 
-    if (filteredPosts.length === 0) {
-        postsList.innerHTML = `
-            <div class="bg-white rounded-lg shadow p-12 text-center text-gray-500">
-                ${searchQuery ? '검색 결과가 없습니다.' : '아직 작성된 게시글이 없습니다.'}
-            </div>
-        `;
-        return;
-    }
-
-    postsList.innerHTML = filteredPosts.map(post => {
-        const displayAuthor = getDisplayAuthor(post, userIsAdmin);
-
-        // ✨ 수정 여부 판별 (createdAt과 updatedAt을 비교)
-        const createdTime = new Date(post.createdAt).getTime();
-        const updatedTime = post.updatedAt ? new Date(post.updatedAt).getTime() : createdTime;
-        const isEdited = post.updatedAt && (updatedTime - createdTime > 1000);
-
-        // ✨ 수정된 경우 (수정됨) 문구 추가
-        let timeDisplay = formatDate(post.createdAt);
-        if (isEdited) {
-            timeDisplay += ` <span class="text-xs text-gray-400">(수정됨)</span>`;
-        }
-
-        return `
-            <div class="bg-white rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer p-6" onclick="viewPost('${post.id}')">
-                <div class="flex items-start justify-between gap-4 mb-4">
-                    <div class="flex-1 min-w-0">
-                        <h3 class="text-xl font-bold mb-2 truncate">${escapeHtml(post.title)}</h3>
-                        <p class="text-gray-600 line-clamp-2">${escapeHtml(post.content)}</p>
-                    </div>
-                    ${post.views > 10 ? '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full flex-shrink-0">인기</span>' : ''}
-                </div>
-                <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                    <div class="flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                        </svg>
-                        <span>${displayAuthor}</span>
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <!-- ✨ 작성일 + (수정됨) 표시 -->
-                        <span>${timeDisplay}</span>
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                        </svg>
-                        <span>${post.views || 0}</span>
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                        </svg>
-                        <span>${post.comments || 0}</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function getDisplayAuthor(post, userIsAdmin) {
-    if (post.isAnonymous) {
-        if (userIsAdmin) {
-            return `익명 (${escapeHtml(post.author)})`;
-        }
-        return "익명";
-    }
-    return escapeHtml(post.author);
-}
-
-function handleCreatePost() {
-    hideError('modal-error');
-
-    const title = document.getElementById('post-title').value.trim();
-    const content = document.getElementById('post-content').value.trim();
-    const isAnonymous = document.getElementById('anonymous-checkbox').checked;
-
-    if (!title || !content) {
-        showError('modal-error', '제목과 내용을 모두 입력해주세요.');
-        return;
-    }
-
-    const user = getCurrentUser();
-    if (!user) {
-        showError('modal-error', '로그인이 필요합니다.');
-        return;
-    }
-
-    const newPost = {
-        id: Date.now().toString(),
-        title: title,
-        content: content,
-        author: user.username,
-        authorId: user.id || user.studentId || user.username,
-        createdAt: new Date().toISOString(),
-        updatedAt: null, // ✨ 게시글 생성 초기에는 updatedAt을 null로 설정
-        views: 0,
-        comments: 0,
-        isAnonymous: isAnonymous
+    const postData = {
+        title: titleInput.value.trim(),
+        content: contentInput.value.trim(),
+        userId: parseInt(userId, 10),
+        isAnonymous: anonymousCheckbox ? anonymousCheckbox.checked : false
     };
 
-    const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-    posts.push(newPost);
-    localStorage.setItem('posts', JSON.stringify(posts));
-
-    // Close modal and reset form
-    document.getElementById('create-modal').classList.add('hidden');
-    document.getElementById('create-post-form').reset();
-
-    // Reload posts
-    loadPosts();
-}
-
-function viewPost(postId) {
-    // Increment view count
-    const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-    const postIndex = posts.findIndex(p => String(p.id) === String(postId));
-
-    if (postIndex !== -1) {
-        posts[postIndex].views = (posts[postIndex].views || 0) + 1;
-        localStorage.setItem('posts', JSON.stringify(posts));
+    if (!postData.title || !postData.content) {
+        showModalError("제목과 내용을 모두 입력해 주세요.");
+        return;
     }
 
-    window.location.href = `/board_detail?id=${postId}`;
+    try {
+        const response = await fetch('/api/posts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(postData)
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(errText || "게시글 등록 실패");
+        }
+
+        titleInput.value = '';
+        contentInput.value = '';
+        if (anonymousCheckbox) anonymousCheckbox.checked = false;
+        closeModal();
+
+        loadPosts();
+
+    } catch (error) {
+        console.error('게시글 작성 오류:', error);
+        showModalError(error.message || '게시글 등록 중 오류가 발생했습니다.');
+    }
+}
+
+// ── 4. 모달 및 검색 이벤트 핸들러 초기화 ─────────────────────────────
+function initBoardEvents() {
+    const modal = document.getElementById("create-modal");
+    const openBtn = document.getElementById("create-post-btn");
+    const closeBtn = document.getElementById("close-modal");
+    const cancelBtn = document.getElementById("cancel-btn");
+    const createForm = document.getElementById("create-post-form");
+    const searchInput = document.getElementById("search-input");
+
+    if (openBtn && modal) {
+        openBtn.addEventListener("click", () => {
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        });
+    }
+
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+    if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+
+    if (modal) {
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) closeModal();
+        });
+    }
+
+    if (createForm) {
+        createForm.addEventListener("submit", handleCreatePost);
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+            const keyword = e.target.value.toLowerCase().trim();
+            if (!keyword) {
+                renderPosts(allPosts);
+                return;
+            }
+            const filtered = allPosts.filter(post =>
+                (post.title && post.title.toLowerCase().includes(keyword)) ||
+                (post.content && post.content.toLowerCase().includes(keyword)) ||
+                (post.authorName && post.authorName.toLowerCase().includes(keyword))
+            );
+            renderPosts(filtered);
+        });
+    }
+}
+
+function closeModal() {
+    const modal = document.getElementById("create-modal");
+    const errorBox = document.getElementById("modal-error");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+    }
+    if (errorBox) errorBox.classList.add("hidden");
+}
+
+function showModalError(message) {
+    const errorBox = document.getElementById("modal-error");
+    if (errorBox) {
+        errorBox.querySelector("p").textContent = message;
+        errorBox.classList.remove("hidden");
+    } else {
+        alert(message);
+    }
 }
 
 function escapeHtml(text) {
     if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }

@@ -1,5 +1,5 @@
 // Notice page functionality
-
+// notice.js
 let allNotices = []; // 전체 공지사항 목록 저장용
 let searchQuery = ''; // 검색어 저장용
 let noticePollOptions = ['', '']; // 투표 동적 선택지 상태 관리
@@ -120,14 +120,23 @@ function removePollOptionInput(idx) {
     renderPollOptionInputs();
 }
 
-// 공지사항 불러오기
-function loadNotices() {
-    allNotices = JSON.parse(localStorage.getItem('notices') || '[]');
+// 공지사항 불러오기 (REST API 연동)
+async function loadNotices() {
+    try {
+        const response = await fetch('/api/notices');
+        if (!response.ok) throw new Error('공지사항 목록 조회 실패');
 
-    // Sort by date (newest first)
-    allNotices.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        allNotices = await response.json();
 
-    renderNotices();
+        // 최신순 정렬
+        allNotices.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        renderNotices();
+    } catch (error) {
+        console.error('공지사항 조회 오류:', error);
+        allNotices = [];
+        renderNotices();
+    }
 }
 
 // 검색어 입력 시 호출되는 함수
@@ -159,7 +168,11 @@ function renderNotices() {
 
     const adminUser = typeof isAdmin === 'function' ? isAdmin() : false;
 
-    noticesList.innerHTML = filteredNotices.map(notice => `
+    noticesList.innerHTML = filteredNotices.map(notice => {
+        // 작성자 정보 파싱 (백엔드 객체 대응)
+        const authorName = notice.author ? (notice.author.name || notice.author.username || '관리자') : (notice.authorName || '관리자');
+
+        return `
         <div class="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6 relative group">
             <div class="flex items-start justify-between gap-4 mb-2">
                 <div class="flex items-center gap-2 flex-1 cursor-pointer" onclick="goToNoticeDetail('${notice.id}')">
@@ -187,24 +200,18 @@ function renderNotices() {
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                     </svg>
-                    <span>${escapeHtml(notice.author)}</span>
+                    <span>${escapeHtml(authorName)}</span>
                 </div>
                 <div class="flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
-                    <span>${typeof formatDate === 'function' ? formatDate(notice.createdAt) : notice.createdAt.split('T')[0]}</span>
-                </div>
-                <div class="flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                    </svg>
-                    <span>조회 ${notice.views || 0}</span>
+                    <span>${typeof formatDate === 'function' ? formatDate(notice.createdAt) : (notice.createdAt ? notice.createdAt.split('T')[0] : '')}</span>
                 </div>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // 커스텀 삭제 모달 열기
@@ -228,47 +235,36 @@ function closeDeleteModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-// 공지사항 삭제 최종 실행
-function executeDeleteNotice() {
+// 공지사항 삭제 최종 실행 (REST API 연동)
+async function executeDeleteNotice() {
     if (!targetNoticeIdToDelete) return;
 
-    const noticeId = targetNoticeIdToDelete;
+    try {
+        const response = await fetch(`/api/notices/${targetNoticeIdToDelete}`, {
+            method: 'DELETE'
+        });
 
-    // 1. 공지사항 목록에서 삭제 (String으로 안전 비교)
-    let notices = JSON.parse(localStorage.getItem('notices') || '[]');
-    notices = notices.filter(n => String(n.id) !== String(noticeId));
-    localStorage.setItem('notices', JSON.stringify(notices));
+        if (!response.ok) throw new Error('공지사항 삭제 실패');
 
-    // 2. 관련 첨부 투표 삭제 (String으로 안전 비교)
-    let polls = JSON.parse(localStorage.getItem('polls') || '[]');
-    polls = polls.filter(p => String(p.noticeId) !== String(noticeId));
-    localStorage.setItem('polls', JSON.stringify(polls));
-
-    closeDeleteModal();
-    loadNotices();
+        closeDeleteModal();
+        loadNotices();
+    } catch (error) {
+        console.error('공지 삭제 오류:', error);
+        alert('삭제 처리 중 오류가 발생했습니다.');
+    }
 }
 
-// 상세 페이지 이동 함수 (.html 확장자 제거)
+// 상세 페이지 이동 함수
 function goToNoticeDetail(noticeId) {
-    // 조회수 증가
-    const notices = JSON.parse(localStorage.getItem('notices') || '[]');
-    const noticeIndex = notices.findIndex(n => String(n.id) === String(noticeId));
-    if (noticeIndex !== -1) {
-        notices[noticeIndex].views = (notices[noticeIndex].views || 0) + 1;
-        localStorage.setItem('notices', JSON.stringify(notices));
-    }
-
-    // .html 확장자 제거하여 이동
     window.location.href = `/notice_detail?id=${noticeId}`;
 }
 
-// 공지사항 및 투표 생성 처리
-function handleCreateNotice() {
+// 공지사항 생성 처리 (REST API 연동)
+async function handleCreateNotice() {
     if (typeof hideError === 'function') hideError('modal-error');
 
     const title = document.getElementById('notice-title').value.trim();
     const content = document.getElementById('notice-content').value.trim();
-    const isAttachPoll = document.getElementById('attach-poll-check')?.checked || false;
 
     if (!title || !content) {
         if (typeof showError === 'function') showError('modal-error', '제목과 내용을 모두 입력해주세요.');
@@ -276,83 +272,37 @@ function handleCreateNotice() {
     }
 
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    if (!user || !user.isAdmin) {
-        if (typeof showError === 'function') showError('modal-error', '관리자만 공지사항을 작성할 수 있습니다.');
+    if (!user) {
+        if (typeof showError === 'function') showError('modal-error', '로그인이 필요합니다.');
         return;
     }
 
-    // 투표 첨부 시 유효성 검사
-    let validOptions = [];
-    let pollQuestion = title;
-    let isAnonymous = false;
-    let allowMultiple = false;
-    let expiresAt = null;
-
-    if (isAttachPoll) {
-        const questionInput = document.getElementById('poll-question')?.value.trim();
-        if (questionInput) pollQuestion = questionInput;
-
-        validOptions = noticePollOptions.map(opt => opt.trim()).filter(Boolean);
-        if (validOptions.length < 2) {
-            if (typeof showError === 'function') showError('modal-error', '투표 첨부 시 선택지는 최소 2개 이상 입력해야 합니다.');
-            return;
-        }
-
-        isAnonymous = document.getElementById('poll-anonymous')?.checked || false;
-        allowMultiple = document.getElementById('poll-multiple')?.checked || false;
-
-        const expiresInputValue = document.getElementById('poll-expires-at')?.value;
-        if (expiresInputValue) {
-            expiresAt = new Date(expiresInputValue).toISOString();
-        }
-    }
-
-    const noticeId = Date.now().toString();
-
-    // 1. 새 공지사항 객체 생성
-    const newNotice = {
-        id: noticeId,
+    const postPayload = {
         title: title,
         content: content,
-        author: user.username,
-        authorId: user.id,
-        createdAt: new Date().toISOString(),
-        views: 0,
-        hasPoll: isAttachPoll
+        authorId: user.id
     };
 
-    // 공지사항 저장
-    const notices = JSON.parse(localStorage.getItem('notices') || '[]');
-    notices.push(newNotice);
-    localStorage.setItem('notices', JSON.stringify(notices));
+    try {
+        const response = await fetch('/api/notices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(postPayload)
+        });
 
-    // 2. 투표가 첨부된 경우 투표 데이터 저장
-    if (isAttachPoll) {
-        const polls = JSON.parse(localStorage.getItem('polls') || '[]');
-        const newPoll = {
-            id: 'poll-' + noticeId,
-            noticeId: noticeId,
-            title: `[공지] ${title}`,
-            question: pollQuestion,
-            options: validOptions.map((optText, idx) => ({id: String(idx), text: optText})),
-            isAnonymous: isAnonymous,
-            allowMultiple: allowMultiple,
-            expiresAt: expiresAt,
-            createdBy: user.username,
-            createdAt: new Date().toISOString(),
-            votes: []
-        };
-        polls.unshift(newPoll);
-        localStorage.setItem('polls', JSON.stringify(polls));
+        if (!response.ok) throw new Error('공지사항 등록 실패');
+
+        // 모달 닫기 및 초기화
+        const createModal = document.getElementById('create-modal');
+        if (createModal) createModal.classList.add('hidden');
+        resetNoticeForm();
+
+        // 목록 다시 불러오기
+        loadNotices();
+    } catch (error) {
+        console.error('공지 작성 오류:', error);
+        if (typeof showError === 'function') showError('modal-error', '작성 중 오류가 발생했습니다.');
     }
-
-    // 모달 닫기 및 초기화
-    const createModal = document.getElementById('create-modal');
-    if (createModal) createModal.classList.add('hidden');
-    resetNoticeForm();
-
-    // 목록 다시 불러오기
-    loadNotices();
 }
 
 function escapeHtml(text) {

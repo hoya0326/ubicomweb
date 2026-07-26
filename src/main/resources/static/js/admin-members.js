@@ -91,12 +91,27 @@ function renderStats() {
 /* ── render list (동아리원 목록 랜더링) ─────────────────────────────── */
 function renderMembers(filter) {
     const q = (filter || document.getElementById("searchInput").value || "").toLowerCase();
-    const filtered = members.filter(
+
+    // 1. 검색어 필터링
+    let filtered = members.filter(
         (m) =>
             m.name.toLowerCase().includes(q) ||
             m.studentId.includes(q) ||
             (m.department || "").toLowerCase().includes(q)
     );
+
+    // 2. ⭐️ [관리자 최상단 정렬 추가]
+    // - 관리자(isAdmin=true)가 최상단에 위치
+    // - 관리자끼리/일반회원끼리는 가입일(joinedAt) 오름차순 또는 ID 순 정렬
+    filtered.sort((a, b) => {
+        if (a.isAdmin !== b.isAdmin) {
+            return a.isAdmin ? -1 : 1; // 관리자를 목록 위쪽으로 배치
+        }
+        // 둘 다 관리자이거나 둘 다 일반 회원일 경우 가입일 기준 순서 유지
+        const dateA = a.joinedAt ? new Date(a.joinedAt).getTime() : 0;
+        const dateB = b.joinedAt ? new Date(b.joinedAt).getTime() : 0;
+        return dateA - dateB;
+    });
 
     const tbody = document.getElementById("membersList");
     const empty = document.getElementById("emptyState");
@@ -173,7 +188,7 @@ function escHtml(s) {
     return String(s)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
+        .replace(/ >/g, "&gt;")
         .replace(/"/g, "&quot;");
 }
 
@@ -238,7 +253,7 @@ async function toggleAdminPermission(id) {
 
             saveMembers();
             renderStats();
-            renderMembers();
+            renderMembers(); // 변경된 권한 기준으로 상단 정렬 재렌더링
             alert("권한 설정이 정상적으로 반영되었습니다.");
         } else {
             alert(result.message || "권한 변경에 실패했습니다.");
