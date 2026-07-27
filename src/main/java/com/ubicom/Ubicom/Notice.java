@@ -28,14 +28,24 @@ public class Notice {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    // DB의 view_count 컬럼과 매핑 및 기본값 0 설정
     @Column(name = "view_count", nullable = false)
     private Integer views = 0;
 
+    // ✨ 이 메서드가 반드시 존재해야 합니다!
     public void incrementViews() {
         if (this.views == null) {
             this.views = 0;
         }
         this.views++;
+    }
+
+    @PrePersist
+    public void prePersist() {
+        if (this.views == null) {
+            this.views = 0;
+        }
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
     }
 }

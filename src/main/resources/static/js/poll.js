@@ -2,30 +2,29 @@
 UbiCOM 동아리 투표 시스템 (DB 연동 버전 - poll.js)
 ========================================== */
 
-// ── 상태 ──────────────────────────────────────────────────────────────────
 let polls = [];
 let currentFilter = "all";
 let currentUser = null;
-const selectedOptions = {}; // pollId → Set
-const expandedState = {}; // pollId → boolean (기본값: false / 접힘)
+const selectedOptions = {};
+const expandedState = {};
 
-// 백엔드 API 기본 주소
 const API_BASE_URL = "/api";
 
-// ── 유틸 및 API 통신 ──────────────────────────────────────────────────────
 async function fetchCurrentUser() {
     try {
         const res = await fetch(`${API_BASE_URL}/auth/me`, {
             credentials: "include"
         });
-        if (!res.ok) return null;
-        return await res.json();
+        if (res.ok) {
+            return await res.json();
+        }
     } catch {
-        return null;
     }
+
+    const localUser = localStorage.getItem("currentUser");
+    return localUser ? JSON.parse(localUser) : null;
 }
 
-// ID 비교 안심 유틸 (타입 차이 및 접두사 유무로 인한 오류 방지)
 function matchId(id1, id2) {
     if (id1 === undefined || id2 === undefined || id1 === null || id2 === null) return false;
     const s1 = String(id1).replace("poll-", "");
@@ -33,14 +32,14 @@ function matchId(id1, id2) {
     return s1 === s2;
 }
 
-function formatDeadline(iso) {
+function formatPollDeadline(iso) {
     if (!iso) return "";
     return new Date(iso).toLocaleString("ko-KR", {
         month: "long", day: "numeric", hour: "2-digit", minute: "2-digit"
     });
 }
 
-function formatDate(iso) {
+function formatPollDate(iso) {
     if (!iso) return "";
     return new Date(iso).toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
 }
@@ -51,7 +50,6 @@ function isEnded(poll) {
 
 function getCount(poll, optId) {
     if (!poll.votes) return 0;
-    // optId와 vote 안의 optionIds를 문자열로 변환하여 비교 (타입 불일치 방지)
     return poll.votes.filter(v => {
         if (!v.optionIds) return false;
         return v.optionIds.some(id => String(id) === String(optId));
@@ -64,7 +62,12 @@ function getVoterCount(poll) {
 }
 
 function getVoters(poll, optId) {
-    if (poll.isAnonymous || !poll.votes) return null;
+    const isAnon = poll.isAnonymous || poll.anonymous || poll.is_anonymous;
+    const isAdmin = currentUser && currentUser.isAdmin === true;
+
+    // 관리자가 아니면서 익명 투표인 경우에만 투표자 이름 숨김 (관리자는 익명이어도 표시)
+    if ((isAnon && !isAdmin) || !poll.votes) return null;
+
     return poll.votes
         .filter(v => {
             if (!v.optionIds) return false;
@@ -75,9 +78,10 @@ function getVoters(poll, optId) {
 
 function getMyVote(poll) {
     if (!currentUser || !poll.votes) return null;
-    const myId = String(currentUser.id || currentUser.username);
+    const myId = String(currentUser.id || currentUser.username || currentUser.name);
     return poll.votes.slice().reverse().find(v => v.userId && String(v.userId) === myId) || null;
 }
+
 function escHtml(str) {
     return String(str || "")
         .replace(/&/g, "&amp;")
@@ -86,14 +90,19 @@ function escHtml(str) {
         .replace(/"/g, "&quot;");
 }
 
-// ── 데이터 로드 & 서버 연동 ────────────────────────────────────────────────
 async function loadPolls() {
     try {
-        const res = await fetch(`${API_BASE_URL}/polls`);
+        const isAdmin = currentUser && currentUser.isAdmin === true;
+        const myId = currentUser ? (currentUser.id || currentUser.username || currentUser.name) : "";
+
+        let url = `${API_BASE_URL}/polls?`;
+        if (isAdmin) url += `isAdmin=true&`;
+        if (myId) url += `currentUserId=${encodeURIComponent(myId)}`;
+
+        const res = await fetch(url);
         if (!res.ok) throw new Error("투표 데이터를 불러오지 못했습니다.");
         const data = await res.json();
 
-        // 최신 생성일자(createdAt) 기준 내림차순 정렬
         polls = data.sort((a, b) => {
             const timeA = new Date(a.createdAt || 0).getTime();
             const timeB = new Date(b.createdAt || 0).getTime();
@@ -107,15 +116,11 @@ async function loadPolls() {
 
 async function saveVote(poll, optionIds) {
     try {
-        // 서버의 NullPointerException 방지를 위해 확실한 유저 식별값 추출 (없을 경우 임시 기본값 부여)
         const myId = currentUser ? (currentUser.id || currentUser.username || currentUser.name) : "anonymous_user";
         const myName = currentUser ? (currentUser.name || currentUser.username || "익명") : "익명";
 
-        // 서버 DTO가 어떤 필드명을 요구하든 모두 수용할 수 있도록 페이로드 구성
         const payload = {
             userId: myId,
-            username: myId,
-            memberId: myId,
             userName: myName,
             optionIds: optionIds
         };
@@ -133,14 +138,11 @@ async function saveVote(poll, optionIds) {
             } catch {
                 errData = { message: await res.text() };
             }
-            console.error("서버 에러 상세:", errData);
             alert(errData.message || "투표 저장에 실패했습니다.");
             return false;
         }
 
         const updatedPoll = await res.json();
-
-        // 메모리 상의 해당 투표 데이터 갱신
         const idx = polls.findIndex(p => matchId(p.id, poll.id));
         if (idx !== -1) {
             polls[idx] = updatedPoll;
@@ -169,7 +171,6 @@ async function deletePollFromStorage(poll) {
     }
 }
 
-// 관리자 권한으로 투표 강제 종료
 async function closePollInStorage(poll) {
     try {
         const res = await fetch(`${API_BASE_URL}/polls/${poll.id}/close`, {
@@ -186,7 +187,6 @@ async function closePollInStorage(poll) {
     }
 }
 
-// ── 렌더링 ────────────────────────────────────────────────────────────────
 function getFiltered() {
     const now = new Date();
     return polls.filter(p => {
@@ -208,10 +208,7 @@ function renderFilterTabs() {
     ];
 
     return tabs.map(t => `
-<button
-class="tab-btn ${currentFilter === t.key ? "tab-active" : "tab-inactive"}"
-onclick="setFilter('${t.key}')"
->${escHtml(t.label)}</button>
+<button class="tab-btn ${currentFilter === t.key ? "tab-active" : "tab-inactive"}" onclick="setFilter('${t.key}')">${escHtml(t.label)}</button>
 `).join("");
 }
 
@@ -263,11 +260,11 @@ function renderVoteForm(poll) {
     const myVote = getMyVote(poll);
 
     if (myVote && myVote.optionIds && !selectedOptions[poll.id]) {
-        selectedOptions[poll.id] = new Set(myVote.optionIds);
+        selectedOptions[poll.id] = new Set(myVote.optionIds.map(String));
     }
 
     const opts = poll.options.map(opt => {
-        const checked = selectedOptions[poll.id] ? selectedOptions[poll.id].has(opt.id) : (myVote?.optionIds.includes(opt.id));
+        const checked = selectedOptions[poll.id] ? selectedOptions[poll.id].has(String(opt.id)) : (myVote?.optionIds?.some(id => String(id) === String(opt.id)));
         return `
 <label class="opt-label ${checked ? "opt-selected" : ""}" id="optlabel-${poll.id}-${opt.id}">
 <input
@@ -314,14 +311,14 @@ function renderPollCard(poll) {
     }
 
     const voterCount = getVoterCount(poll);
+    const isAnon = poll.isAnonymous || poll.anonymous;
 
     const metaItems = [
-        `${escHtml(poll.createdBy)} · ${formatDate(poll.createdAt)}`,
-        poll.noticeTitle ? `📌 공지: ${escHtml(poll.noticeTitle)}` : "",
-        poll.isAnonymous ? `🔒 익명` : "",
+        `${escHtml(poll.createdBy || '관리자')} · ${formatPollDate(poll.createdAt)}`,
+        isAnon ? `🔒 익명` : "",
         poll.allowMultiple ? `✅ 중복 선택` : "",
         poll.endsAt
-            ? `<span class="${ended ? "text-red" : "text-orange"}">⏰ ${formatDeadline(poll.endsAt)} ${ended ? "마감됨" : "마감"}</span>`
+            ? `<span class="${ended ? "text-red" : "text-orange"}">⏰ ${formatPollDeadline(poll.endsAt)} ${ended ? "마감됨" : "마감"}</span>`
             : "",
         `${voterCount}명 참여`,
     ].filter(Boolean).join(" · ");
@@ -350,17 +347,9 @@ ${statusBadge}
 </div>
 
 <div class="poll-header-right" onclick="event.stopPropagation();">
-${canClose
-        ? `<button class="btn-close-poll" type="button" onclick="closePollByAdmin('${poll.id}')" title="투표 종료" style="padding:2px 8px; font-size:12px; border:1px solid #dc2626; color:#dc2626; background:none; border-radius:4px; cursor:pointer; font-weight:600;">마감</button>`
-        : ""}
-${canDelete
-        ? `<button class="btn-trash" type="button" onclick="confirmDelete('${poll.id}')" title="삭제">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-</button>`
-        : ""}
-<button type="button" onclick="toggleExpand('${poll.id}')" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;">
-<svg class="chevron ${isExpanded ? "chevron-open" : ""}" id="chevron-${poll.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-</button>
+${canClose ? `<button class="btn-close-poll" type="button" onclick="closePollByAdmin('${poll.id}')" title="투표 종료" style="padding:2px 8px; font-size:12px; border:1px solid #dc2626; color:#dc2626; background:none; border-radius:4px; cursor:pointer; font-weight:600;">마감</button>` : ""}
+${canDelete ? `<button class="btn-trash" type="button" onclick="confirmDelete('${poll.id}')" title="삭제"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : ""}
+<button type="button" onclick="toggleExpand('${poll.id}')" style="background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center;"><svg class="chevron ${isExpanded ? "chevron-open" : ""}" id="chevron-${poll.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></button>
 </div>
 </div>
 
@@ -397,9 +386,7 @@ function renderPollList() {
 
 function renderAll() {
     const filterTabsEl = document.getElementById("filterTabs");
-    if (filterTabsEl) {
-        filterTabsEl.innerHTML = renderFilterTabs();
-    }
+    if (filterTabsEl) filterTabsEl.innerHTML = renderFilterTabs();
 
     const btnArea = document.getElementById("createBtnArea");
     if (btnArea) {
@@ -412,7 +399,6 @@ function renderAll() {
     renderPollList();
 }
 
-// ── 인터랙션 ──────────────────────────────────────────────────────────────
 function setFilter(key) {
     currentFilter = key;
     renderAll();
@@ -426,17 +412,16 @@ function toggleExpand(pollId) {
 
     const isExpanded = expandedState[pollId];
     body.classList.toggle("hidden", !isExpanded);
-    if (chevron) {
-        chevron.classList.toggle("chevron-open", isExpanded);
-    }
+    if (chevron) chevron.classList.toggle("chevron-open", isExpanded);
 }
 
 function onSelectOption(pollId, optId, checked, allowMultiple) {
     if (!selectedOptions[pollId]) selectedOptions[pollId] = new Set();
+    const strOptId = String(optId);
     if (allowMultiple) {
-        checked ? selectedOptions[pollId].add(optId) : selectedOptions[pollId].delete(optId);
+        checked ? selectedOptions[pollId].add(strOptId) : selectedOptions[pollId].delete(strOptId);
     } else {
-        selectedOptions[pollId] = new Set([optId]);
+        selectedOptions[pollId] = new Set([strOptId]);
     }
 
     const poll = polls.find(p => matchId(p.id, pollId));
@@ -444,7 +429,7 @@ function onSelectOption(pollId, optId, checked, allowMultiple) {
     poll.options.forEach(opt => {
         const label = document.getElementById(`optlabel-${pollId}-${opt.id}`);
         if (!label) return;
-        const sel = selectedOptions[pollId].has(opt.id);
+        const sel = selectedOptions[pollId].has(String(opt.id));
         label.classList.toggle("opt-selected", sel);
     });
 }
@@ -460,7 +445,7 @@ async function submitVote(pollId) {
     }
 
     const errEl = document.getElementById(`vote-error-${pollId}`);
-    const sel = [...(selectedOptions[pollId] || [])];
+    const sel = [...(selectedOptions[pollId] || [])].map(Number);
 
     if (!currentUser) { showVoteError(errEl, "로그인 후 투표할 수 있습니다."); return; }
     if (sel.length === 0) { showVoteError(errEl, "선택지를 선택해주세요."); return; }
@@ -542,7 +527,6 @@ async function closePollByAdmin(pollId) {
     }
 }
 
-// ── 투표 생성 폼 ──────────────────────────────────────────────────────────
 let formOptions = ["", ""];
 
 function openCreateForm() {
@@ -578,18 +562,8 @@ function renderFormOptions() {
     if (!container) return;
     container.innerHTML = formOptions.map((val, i) => `
 <div class="form-opt-row" id="formopt-${i}">
-<input
-type="text"
-class="form-input"
-placeholder="선택지 ${i + 1}"
-value="${escHtml(val)}"
-oninput="updateFormOption(${i}, this.value)"
-/>
-${formOptions.length > 2
-        ? `<button class="btn-remove-opt" type="button" onclick="removeFormOption(${i})">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-</button>`
-        : ""}
+<input type="text" class="form-input" placeholder="선택지 ${i + 1}" value="${escHtml(val)}" oninput="updateFormOption(${i}, this.value)" />
+${formOptions.length > 2 ? `<button class="btn-remove-opt" type="button" onclick="removeFormOption(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>` : ""}
 </div>
 `).join("");
 }
@@ -639,10 +613,10 @@ async function submitCreatePoll() {
     const newPollData = {
         title,
         question,
-        options: validOpts.map((t, i) => ({id: String(i), text: t})),
+        options: validOpts.map(t => ({ text: t })),
         isAnonymous,
         allowMultiple,
-        endsAt: useDeadline ? new Date(`${deadlineDate}T${deadlineTime}`).toISOString() : null,
+        endsAt: useDeadline ? `${deadlineDate}T${deadlineTime}:00` : null,
     };
 
     try {
@@ -675,11 +649,25 @@ function showFormError(msg) {
     }
 }
 
-// ── 초기화 ────────────────────────────────────────────────────────────────
 async function init() {
-    currentUser = await fetchCurrentUser();
+    if (typeof getCurrentUser === "function") {
+        currentUser = getCurrentUser();
+    }
+
+    if (!currentUser) {
+        try {
+            currentUser = await fetchCurrentUser();
+        } catch (e) {
+            currentUser = null;
+        }
+    }
+
     await loadPolls();
     renderAll();
+
+    if (typeof updateNavigation === "function") {
+        updateNavigation();
+    }
 
     const createModal = document.getElementById("createModal");
     if (createModal) {
