@@ -1,11 +1,10 @@
 package com.ubicom.Ubicom;
 
-import com.ubicom.Ubicom.Member;
-import com.ubicom.Ubicom.MemberRepository;
+import com.ubicom.Ubicom.Repository.MemberRepository;
+import com.ubicom.Ubicom.Entity.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 

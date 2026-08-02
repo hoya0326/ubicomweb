@@ -20,7 +20,9 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf((csrf) -> csrf.disable());
         http.authorizeHttpRequests((authorize) ->
-                authorize.requestMatchers("/**").permitAll()
+                authorize
+                        .requestMatchers("/admin-members.html", "/admin_members", "/api/admin/**").authenticated()
+                        .requestMatchers("/**").permitAll()
         );
 
         // 폼 로그인 규격 및 성공/실패 처리 설정

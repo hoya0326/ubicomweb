@@ -40,11 +40,11 @@ async function loadData() {
         } else {
             // 초기 백업 데이터 (Seed)
             members = [
-                { id: "u1", name: "관리자", studentId: "00000000", department: "컴퓨터공학과", isAdmin: true, joinedAt: "2024-03-01", isWebUser: true },
-                { id: "u2", name: "김민준", studentId: "20210001", department: "소프트웨어학과", isAdmin: false, joinedAt: "2024-03-05", isWebUser: true },
-                { id: "u3", name: "이서윤", studentId: "20210002", department: "컴퓨터공학과", isAdmin: false, joinedAt: "2024-03-07", isWebUser: false },
-                { id: "u4", name: "박지훈", studentId: "20220001", department: "정보통신학과", isAdmin: false, joinedAt: "2024-09-01", isWebUser: true },
-                { id: "u5", name: "최유나", studentId: "20230001", department: "소프트웨어학과", isAdmin: false, joinedAt: "2025-03-02", isWebUser: false },
+                { id: "u1", name: "관리자", studentId: "00000000", department: "컴퓨터공학과", isAdmin: true, joined_at: "2024-03-01", isWebUser: true },
+                { id: "u2", name: "김민준", studentId: "20210001", department: "소프트웨어학과", isAdmin: false, joined_at: "2024-03-05", isWebUser: true },
+                { id: "u3", name: "이서윤", studentId: "20210002", department: "컴퓨터공학과", isAdmin: false, joined_at: "2024-03-07", isWebUser: false },
+                { id: "u4", name: "박지훈", studentId: "20220001", department: "정보통신학과", isAdmin: false, joined_at: "2024-09-01", isWebUser: true },
+                { id: "u5", name: "최유나", studentId: "20230001", department: "소프트웨어학과", isAdmin: false, joined_at: "2025-03-02", isWebUser: false },
             ];
             saveMembers();
         }
@@ -77,8 +77,10 @@ function renderStats() {
     const regular = total - admins;
     const now = new Date();
     const thisMonth = members.filter((m) => {
-        if (!m.joinedAt) return false;
-        const d = new Date(m.joinedAt);
+        // DB 테이블 컬럼명 joined_at 반영 (없을 시 기존 joinedAt 매핑 fallback)
+        const joinedDateStr = m.joined_at || m.joinedAt;
+        if (!joinedDateStr) return false;
+        const d = new Date(joinedDateStr);
         return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
     }).length;
 
@@ -102,14 +104,16 @@ function renderMembers(filter) {
 
     // 2. ⭐️ [관리자 최상단 정렬 추가]
     // - 관리자(isAdmin=true)가 최상단에 위치
-    // - 관리자끼리/일반회원끼리는 가입일(joinedAt) 오름차순 또는 ID 순 정렬
+    // - 관리자끼리/일반회원끼리는 joined_at(가입일) 오름차순 또는 ID 순 정렬
     filtered.sort((a, b) => {
         if (a.isAdmin !== b.isAdmin) {
             return a.isAdmin ? -1 : 1; // 관리자를 목록 위쪽으로 배치
         }
-        // 둘 다 관리자이거나 둘 다 일반 회원일 경우 가입일 기준 순서 유지
-        const dateA = a.joinedAt ? new Date(a.joinedAt).getTime() : 0;
-        const dateB = b.joinedAt ? new Date(b.joinedAt).getTime() : 0;
+        // 둘 다 관리자이거나 둘 다 일반 회원일 경우 joined_at 가입일 기준 순서 유지
+        const joinedA = a.joined_at || a.joinedAt;
+        const joinedB = b.joined_at || b.joinedAt;
+        const dateA = joinedA ? new Date(joinedA).getTime() : 0;
+        const dateB = joinedB ? new Date(joinedB).getTime() : 0;
         return dateA - dateB;
     });
 
@@ -133,6 +137,10 @@ function renderMembers(filter) {
             if (m.gender === "M" || m.gender === "m") genderText = "남자";
             if (m.gender === "F" || m.gender === "f") genderText = "여자";
 
+            // DB joined_at 프로퍼티 매핑 및 YYYY-MM-DD 포맷팅
+            const joinedDateStr = m.joined_at || m.joinedAt;
+            const formattedJoinedAt = joinedDateStr ? String(joinedDateStr).slice(0, 10) : "-";
+
             // 💥 권한 상태에 따른 토글 버튼 디자인 조건부 분기 적용
             const toggleBtnText = m.isAdmin ? "관리자 해제" : "관리자 위임";
             const toggleBtnClass = m.isAdmin ? "btn-role-admin" : "btn-role-user";
@@ -148,7 +156,7 @@ function renderMembers(filter) {
         </div>
         <div class="col-sid">${escHtml(m.studentId)}</div>
         <div class="col-dept">${escHtml(m.department || "-")}</div>
-        <div class="col-joined">${escHtml(m.joinedAt ? m.joinedAt.slice(0, 10) : "-")}</div>
+        <div class="col-joined">${escHtml(formattedJoinedAt)}</div>
         <div class="col-action">
           <svg class="chevron" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
         </div>
@@ -161,7 +169,7 @@ function renderMembers(filter) {
             <div class="detail-cell"><label>학번</label><p>${escHtml(m.studentId)}</p></div>
             <div class="detail-cell"><label>학과</label><p>${escHtml(m.department || "-")}</p></div>
             <div class="detail-cell"><label>전화번호</label><p>${escHtml(m.phone || "-")}</p></div>
-            <div class="detail-cell"><label>가입일</label><p>${escHtml(m.joinedAt ? m.joinedAt.slice(0, 10) : "-")}</p></div>
+            <div class="detail-cell"><label>가입일</label><p>${escHtml(formattedJoinedAt)}</p></div>
             <div class="detail-cell"><label>역할</label><p>${m.isAdmin ? "관리자" : "일반 부원"}</p></div>
           </div>
           <div class="detail-actions" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;">
