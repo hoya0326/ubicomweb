@@ -10,6 +10,7 @@ import java.util.List;
 @Getter
 @Setter
 public class PollRequestDto {
+    private Long noticeId;
     private String title;
     private String question;
 

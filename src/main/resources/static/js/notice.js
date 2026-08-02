@@ -277,11 +277,56 @@ async function handleCreateNotice() {
         return;
     }
 
+    const authorName = user.name || user.username || user.id || '관리자';
+
+    // 기본 페이로드 구성
     const postPayload = {
         title: title,
         content: content,
-        authorId: user.id
+        author: authorName,
+        hasPoll: false
     };
+
+    // 💡 투표 첨부 체크박스가 켜져 있는 경우 투표 데이터 수집
+    const attachPollCheck = document.getElementById('attach-poll-check');
+    if (attachPollCheck && attachPollCheck.checked) {
+        const questionInput = document.getElementById('poll-question').value.trim();
+        const question = questionInput !== '' ? questionInput : title;
+
+        // 유효한 선택지 필터링 (빈 값 제외)
+        const validOptions = noticePollOptions
+            .map(opt => opt.trim())
+            .filter(opt => opt !== '');
+
+        if (validOptions.length < 2) {
+            if (typeof showError === 'function') showError('modal-error', '투표 선택지는 최소 2개 이상 입력해야 합니다.');
+            return;
+        }
+
+        // 마감 시간 처리
+        let endsAt = null;
+        const deadlineToggle = document.getElementById('fDeadlineToggle');
+        if (deadlineToggle && deadlineToggle.checked) {
+            const fDate = document.getElementById('fDate').value;
+            const fTime = document.getElementById('fTime').value || '23:59';
+            if (fDate) {
+                endsAt = `${fDate}T${fTime}:00`;
+            }
+        }
+
+        const isAnonymous = document.getElementById('poll-anonymous').checked;
+        const allowMultiple = document.getElementById('poll-multiple').checked;
+
+        postPayload.hasPoll = true;
+        postPayload.poll = {
+            title: title,
+            question: question,
+            isAnonymous: isAnonymous,
+            allowMultiple: allowMultiple,
+            endsAt: endsAt,
+            options: validOptions.map(text => ({ text: text }))
+        };
+    }
 
     try {
         const response = await fetch('/api/notices', {

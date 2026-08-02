@@ -28,11 +28,15 @@ public class Poll {
     private LocalDateTime endsAt;
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    private Long noticeId;
+
     @OneToMany(mappedBy = "poll", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<PollOption> options = new ArrayList<>();
 
     @OneToMany(mappedBy = "poll", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Vote> votes = new ArrayList<>();
+
+
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -65,4 +69,7 @@ public class Poll {
 
     public List<Vote> getVotes() { return votes; }
     public void setVotes(List<Vote> votes) { this.votes = votes; }
+
+    public Long getNoticeId() { return noticeId; }
+    public void setNoticeId(Long noticeId) { this.noticeId = noticeId; }
 }
