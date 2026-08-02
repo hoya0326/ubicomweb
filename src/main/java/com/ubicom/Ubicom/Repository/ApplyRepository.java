@@ -2,11 +2,14 @@ package com.ubicom.Ubicom.Repository;
 
 import com.ubicom.Ubicom.Entity.Apply;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
 import java.util.List;
 import java.util.Optional;
 
 public interface ApplyRepository extends JpaRepository<Apply, Long> {
-
+    // ⭕ 올바른 예시 (파라미터 바인딩)
+    @Query("SELECT m FROM Member m WHERE m.userId = :userId")
     // 학번으로 지원서 존재 여부 확인 (중복 지원 체크용)
     Optional<Apply> findByStudentId(String studentId);
 

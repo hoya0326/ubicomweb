@@ -20,24 +20,25 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // 1. CSRF 비활성화
+        // 1. CSRF 비활성화 (프론트엔드 연동 유지)
         http.csrf((csrf) -> csrf.disable());
 
         // 2. 경로별 접근 권한 설정
         http.authorizeHttpRequests((authorize) ->
                 authorize
-                        .requestMatchers("/admin-members.html", "/admin_members", "/api/admin/**").authenticated()
+                        .requestMatchers("/admin-members.html", "/admin_members", "/api/admin/**").hasAnyAuthority("ADMIN", "ROLE_ADMIN")
                         .requestMatchers("/**").permitAll()
         );
 
-        // 3. 폼 로그인 규격 및 성공/실패 처리 설정
+        // 3. 폼 로그인 설정
         http.formLogin((form) -> form
                 .loginPage("/login")
                 .loginProcessingUrl("/login")
-                .usernameParameter("userid")   // HTML의 name="userid"와 일치
+                .usernameParameter("userid")
                 .passwordParameter("password")
                 .defaultSuccessUrl("/", true)
                 .failureUrl("/login?error=true")
+                .permitAll()
         );
 
         // 4. 로그아웃 설정
@@ -45,33 +46,34 @@ public class SecurityConfig {
                 .logoutUrl("/logout")
                 .logoutSuccessUrl("/")
                 .deleteCookies("JSESSIONID")
+                .permitAll()
         );
 
-        // 5. [추가] 예외 처리 (미인증 401 및 권한 부족 403 처리)
+        // 5. 🛡️ [추가] 세션 관리 강화 (중복 로그인 제어 및 세션 고정 공격 방어)
+        http.sessionManagement((session) -> session
+                .maximumSessions(1) // 동일 계정으로 동시 로그인 가능한 세션 수 1개로 제한 (크래킹/공유 방지)
+                .maxSessionsPreventsLogin(false) // false인 경우 기존 사용자의 세션을 만료시키고 새 로그인 허용 (true면 새 로그인 차단)
+        );
+
+        // 6. 예외 처리 (미인증 401 및 권한 부족 403 처리)
         http.exceptionHandling((exception) -> exception
-                // 5-1. 미인증 유저(로그인 안 한 사용자) 처리
                 .authenticationEntryPoint((request, response, authException) -> {
                     String requestUri = request.getRequestURI();
                     if (requestUri.startsWith("/api/")) {
-                        // API 요청인 경우 JSON 401 응답
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.setContentType("application/json;charset=UTF-8");
                         response.getWriter().write("{\"success\":false, \"message\":\"로그인이 필요합니다.\"}");
                     } else {
-                        // 일반 페이지 요청인 경우 로그인 페이지로 이동
                         response.sendRedirect("/login");
                     }
                 })
-                // 5-2. 권한 부족 유저 처리
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     String requestUri = request.getRequestURI();
                     if (requestUri.startsWith("/api/")) {
-                        // API 요청인 경우 JSON 403 응답
                         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                         response.setContentType("application/json;charset=UTF-8");
                         response.getWriter().write("{\"success\":false, \"message\":\"접근 권한이 없습니다.\"}");
                     } else {
-                        // 일반 페이지 요청인 경우 메인 페이지로 이동
                         response.sendRedirect("/");
                     }
                 })

@@ -3,15 +3,17 @@ package com.ubicom.Ubicom.Controller;
 import com.ubicom.Ubicom.Repository.ApplyRepository;
 import com.ubicom.Ubicom.Repository.MemberRepository;
 import com.ubicom.Ubicom.Repository.UsersRepository;
-import com.ubicom.Ubicom.Entity.Apply; // 프로젝트 패키지 구조(Table 또는 Entity)에 맞게 확인
+import com.ubicom.Ubicom.Entity.Apply;
 import com.ubicom.Ubicom.Entity.Member;
 import com.ubicom.Ubicom.Entity.Users;
 import jakarta.servlet.http.HttpServletResponse;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.userdetails.User;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -29,26 +31,49 @@ public class UserApiController {
     private final ApplyRepository applyRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // 관리자 권한 확인 헬퍼 메소드
+    // 관리자 권한 확인 헬퍼 메소드 (디버깅 로그 포함)
     private boolean checkAdmin(User principal) {
-        if (principal == null) return false;
+        if (principal == null) {
+            System.out.println("🚨 [checkAdmin] principal이 null입니다. (로그인되지 않음)");
+            return false;
+        }
         try {
+            System.out.println("🔍 [checkAdmin] 현재 로그인한 사용자 username(학번): " + principal.getUsername());
             Integer userId = Integer.parseInt(principal.getUsername());
+
             var memberOpt = memberRepository.findByUserId(userId);
-            return memberOpt.isPresent() && "ADMIN".equalsIgnoreCase(memberOpt.get().getRole());
+            if (memberOpt.isEmpty()) {
+                System.out.println("🚨 [checkAdmin] memberRepository에서 해당 학번(" + userId + ")의 회원 정보를 찾지 못했습니다.");
+                return false;
+            }
+
+            Member member = memberOpt.get();
+            String role = member.getRole();
+            System.out.println("🔍 [checkAdmin] DB에서 조회된 회원 이름: " + member.getName() + ", Role 값: " + role);
+
+            boolean isAdmin = role != null && (
+                    "ADMIN".equalsIgnoreCase(role) ||
+                            "ROLE_ADMIN".equalsIgnoreCase(role)
+            );
+
+            if (!isAdmin) {
+                System.out.println("🚨 [checkAdmin] 권한 불일치: 현재 Role(" + role + ")은 관리자(ADMIN)가 아닙니다.");
+            }
+
+            return isAdmin;
+
         } catch (NumberFormatException e) {
+            System.out.println("🚨 [checkAdmin] 학번 숫자로 변환 실패: " + principal.getUsername());
             return false;
         }
     }
 
     // ==========================================
-    // 기존 유저 / 인증 관련 API
+    // 유저 / 인증 관련 API
     // ==========================================
 
     @PostMapping("/api/admin/users/add")
-    public Map<String, Object> addApprovedUser(
-            @RequestBody Users user
-    ) {
+    public Map<String, Object> addApprovedUser(@RequestBody Users user) {
         Map<String, Object> responseData = new HashMap<>();
 
         if (usersRepository.findByUserId(user.getUserId() != null ? user.getUserId() : user.userId).isPresent()) {
@@ -57,7 +82,6 @@ public class UserApiController {
             return responseData;
         }
 
-        // ⭕ [수정] 관리자가 직접 승인 명단에 등록 시 가입일이 없으면 현재 시각 저장
         if (user.getJoinedAt() == null) {
             user.setJoinedAt(LocalDateTime.now());
         }
@@ -131,21 +155,9 @@ public class UserApiController {
         department = department.trim();
         phone = phone.trim();
 
-        if (name.isEmpty()) {
+        if (name.isEmpty() || department.isEmpty() || phone.isEmpty()) {
             responseData.put("success", false);
-            responseData.put("message", "이름을 입력해주세요.");
-            return responseData;
-        }
-
-        if (department.isEmpty()) {
-            responseData.put("success", false);
-            responseData.put("message", "학과를 입력해주세요.");
-            return responseData;
-        }
-
-        if (phone.isEmpty()) {
-            responseData.put("success", false);
-            responseData.put("message", "전화번호를 입력해주세요.");
+            responseData.put("message", "모든 정보를 입력해주세요.");
             return responseData;
         }
 
@@ -188,9 +200,7 @@ public class UserApiController {
             return responseData;
         }
 
-        if (currentPassword.isEmpty()
-                || newPassword.isEmpty()
-                || confirmPassword.isEmpty()) {
+        if (currentPassword.isEmpty() || newPassword.isEmpty() || confirmPassword.isEmpty()) {
             responseData.put("success", false);
             responseData.put("message", "비밀번호 항목을 모두 입력해주세요.");
             return responseData;
@@ -219,27 +229,19 @@ public class UserApiController {
 
         Member member = memberOpt.get();
 
-        if (!passwordEncoder.matches(
-                currentPassword,
-                member.getPassword()
-        )) {
+        if (!passwordEncoder.matches(currentPassword, member.getPassword())) {
             responseData.put("success", false);
             responseData.put("message", "현재 비밀번호가 일치하지 않습니다.");
             return responseData;
         }
 
-        if (passwordEncoder.matches(
-                newPassword,
-                member.getPassword()
-        )) {
+        if (passwordEncoder.matches(newPassword, member.getPassword())) {
             responseData.put("success", false);
             responseData.put("message", "현재 비밀번호와 다른 비밀번호를 입력해주세요.");
             return responseData;
         }
 
-        String encodedPassword = passwordEncoder.encode(newPassword);
-
-        member.setPassword(encodedPassword);
+        member.setPassword(passwordEncoder.encode(newPassword));
         memberRepository.save(member);
 
         responseData.put("success", true);
@@ -252,9 +254,8 @@ public class UserApiController {
     // 지원서(Apply) 관련 API
     // ==========================================
 
-    // 1. 지원서 제출 (일반 사용자)
     @PostMapping("/api/applies")
-    public Map<String, Object> submitApply(@RequestBody Apply apply) {
+    public Map<String, Object> submitApply(@RequestBody @Validated Apply apply) {
         Map<String, Object> responseData = new HashMap<>();
 
         if (apply.getName() == null || apply.getName().trim().isEmpty() ||
@@ -277,7 +278,6 @@ public class UserApiController {
         return responseData;
     }
 
-    // 2. 관리자 전용: 지원서 목록 조회
     @GetMapping("/api/admin/applies")
     public ResponseEntity<?> getAdminApplies(
             @AuthenticationPrincipal User principal,
@@ -297,7 +297,6 @@ public class UserApiController {
         return ResponseEntity.ok(list);
     }
 
-    // 3. 관리자 전용: 지원서 상태 변경 (승인 / 거절)
     @PostMapping("/api/admin/applies/{id}/status")
     public Map<String, Object> updateApplyStatus(
             @AuthenticationPrincipal User principal,
@@ -323,7 +322,6 @@ public class UserApiController {
         apply.setStatus(status);
         applyRepository.save(apply);
 
-        // ⭕ [핵심 수정] 지원서 승인 시점에 Users 레코드 생성 및 승인시각(joinedAt) 저장
         if ("approved".equalsIgnoreCase(status) || "ACCEPTED".equalsIgnoreCase(status)) {
             try {
                 Integer studentIdInt = Integer.parseInt(apply.getStudentId().trim());
@@ -333,17 +331,14 @@ public class UserApiController {
                     Users approvedUser = new Users();
                     approvedUser.setUserId(studentIdInt);
                     approvedUser.setName(apply.getName());
-                    approvedUser.setMajor(apply.getDepartment() != null ? apply.getDepartment() : apply.getDepartment());
+                    approvedUser.setMajor(apply.getDepartment());
                     approvedUser.setGender(apply.getGender() != null ? apply.getGender() : "m");
                     approvedUser.setPhone(apply.getPhone());
                     approvedUser.setEmail(apply.getEmail());
-
-                    // 💡 [승인 시점 가입일 기록]
                     approvedUser.setJoinedAt(LocalDateTime.now());
 
                     usersRepository.save(approvedUser);
                 } else {
-                    // 이미 Users에 존재하지만 가입일이 비어있는 경우 승인 시각으로 채워줌
                     Users existingUser = existingUserOpt.get();
                     if (existingUser.getJoinedAt() == null) {
                         existingUser.setJoinedAt(LocalDateTime.now());
@@ -359,13 +354,12 @@ public class UserApiController {
         responseData.put("message", "지원서 상태가 변경되었습니다.");
         return responseData;
     }
-    // 3-1. 관리자 전용: 지원서 승인 단축 API (/accept)
+
     @PostMapping("/api/admin/applies/{id}/accept")
     public Map<String, Object> acceptApply(
             @AuthenticationPrincipal User principal,
             @PathVariable Long id
     ) {
-        // 기존 updateApplyStatus 메서드를 "approved" 상태로 호출
         return updateApplyStatus(principal, id, "approved");
     }
 }
