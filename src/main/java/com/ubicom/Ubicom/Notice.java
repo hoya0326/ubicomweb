@@ -25,6 +25,8 @@ public class Notice {
 
     private String author;
 
+    private boolean hasPoll; // 👈 투표 첨부 여부 필드
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

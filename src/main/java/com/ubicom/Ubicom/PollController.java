@@ -94,6 +94,7 @@ public class PollController {
     @PostMapping
     public ResponseEntity<?> createPoll(@RequestBody PollRequestDto pollRequest, HttpSession session) {
         Poll poll = new Poll();
+        poll.setNoticeId(pollRequest.getNoticeId());
         poll.setTitle(pollRequest.getTitle());
         poll.setQuestion(pollRequest.getQuestion());
         poll.setAnonymous(pollRequest.isAnonymous());
