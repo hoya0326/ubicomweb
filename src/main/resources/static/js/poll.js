@@ -650,25 +650,41 @@ function showFormError(msg) {
 }
 
 async function init() {
+    // 1. [우선 처리] 사용자 정보 및 네비게이션 즉시 렌더링 (비동기 대기 전 실행)
     if (typeof getCurrentUser === "function") {
         currentUser = getCurrentUser();
     }
 
+    // 네비게이션바 및 헤더 버튼 우선 복원
+    updateNavigation();
+
+    // 2. [추가/강제] 모바일 메뉴 토글 버튼 안전 바인딩
+    const mobileMenuBtn = document.getElementById("mobile-menu-btn");
+    const mobileMenu = document.getElementById("mobile-menu");
+    if (mobileMenuBtn && mobileMenu) {
+        // 기존 리스너 중복 방지를 위해 onclick으로 직접 할당
+        mobileMenuBtn.onclick = function(e) {
+            e.stopPropagation();
+            mobileMenu.classList.toggle("hidden");
+        };
+    }
+
+    // 3. 사용자 정보 세션 재확인 (필요 시)
     if (!currentUser) {
         try {
             currentUser = await fetchCurrentUser();
+            // 사용자 정보를 새로 받아왔다면 네비게이션 재갱신
+            updateNavigation();
         } catch (e) {
             currentUser = null;
         }
     }
 
+    // 4. 비동기 투표 데이터 로드 및 카드 렌더링
     await loadPolls();
     renderAll();
 
-    if (typeof updateNavigation === "function") {
-        updateNavigation();
-    }
-
+    // 모달 외곽 클릭 이벤트
     const createModal = document.getElementById("createModal");
     if (createModal) {
         createModal.addEventListener("click", function(e) {
@@ -676,6 +692,7 @@ async function init() {
         });
     }
 
+    // URL 파라미터 처리
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("openModal") === "true") {
         openCreateForm();

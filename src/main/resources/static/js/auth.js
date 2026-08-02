@@ -162,6 +162,7 @@ function requireLogin() {
         path.includes('login.html') ||
         path.includes('register.html')
 
+
     ) {
         return true;
     }

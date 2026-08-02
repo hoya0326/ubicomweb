@@ -57,12 +57,6 @@ public class HomeController {
         return "forward:/notice-detail.html";
     }
 
-    @GetMapping("/test2")
-    String test2() {
-        var encoder = new BCryptPasswordEncoder();
-        System.out.println(encoder.encode("qwer1234"));
-        return "redirect:/list";
-    }
 
 }
 
