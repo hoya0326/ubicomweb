@@ -27,10 +27,10 @@ public class AdminMemberController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // TODO: 추후 application.yml 또는 DB 관리로 분리 권장
-    private final List<Integer> adminIds = List.of(20233244);
+    // 💡 하드코딩된 최고 관리자 리스트를 비워두거나 DB 권한(role) 기준으로 판단하도록 변경
+    private final List<Integer> adminIds = List.of();
 
-    // 💡 날짜 포맷터 선언 (yyyy-MM-DD HH:mm:ss)
+    // 💡 날짜 포맷터 선언 (yyyy-MM-dd HH:mm:ss)
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
@@ -60,21 +60,19 @@ public class AdminMemberController {
             map.put("gender", user.getGender());
             map.put("phone", user.getPhone());
 
-            // ⭕ [수정] 오늘 날짜 하드코딩 대신 DB의 user.getJoinedAt()을 읽어오도록 변경
             String joinedAtStr = (user.getJoinedAt() != null)
                     ? user.getJoinedAt().format(DATE_FORMATTER)
                     : LocalDateTime.now().format(DATE_FORMATTER);
 
             map.put("joinedAt", joinedAtStr);
-            map.put("joined_at", joinedAtStr); // 프론트엔드 키 호환성 보장
+            map.put("joined_at", joinedAtStr);
 
             boolean isWeb = webMemberMap.containsKey(user.getUserId());
             map.put("isWebUser", isWeb);
 
+            // ⭕ [수정] DB의 Member role이 "ADMIN"인지 여부로만 관리자 판단
             boolean isAdmin = false;
-            if (user.getUserId() != null && adminIds.contains(user.getUserId())) {
-                isAdmin = true;
-            } else if (isWeb) {
+            if (isWeb) {
                 Member webInfo = webMemberMap.get(user.getUserId());
                 if (webInfo.getRole() != null && "ADMIN".equalsIgnoreCase(webInfo.getRole())) {
                     isAdmin = true;
@@ -130,8 +128,6 @@ public class AdminMemberController {
             String finalGender = (gender != null && !gender.trim().isEmpty()) ? gender.trim().toLowerCase() : "m";
             newUser.setGender(finalGender);
             newUser.setPhone(phone != null ? phone.trim() : "");
-
-            // ⭕ [수정] 새로 직접 등록하는 회원의 가입일을 현재 시각으로 저장
             newUser.setJoinedAt(LocalDateTime.now());
 
             userRepository.save(newUser);
@@ -146,11 +142,8 @@ public class AdminMemberController {
             }
             newWebMember.setPassword(passwordEncoder.encode(password));
 
-            if (adminIds.contains(studentId)) {
-                newWebMember.setRole("ADMIN");
-            } else {
-                newWebMember.setRole("USER");
-            }
+            // ⭕ [수정] 신규 등록 시 기본 권한은 USER로 부여
+            newWebMember.setRole("USER");
             memberRepository.save(newWebMember);
 
             response.put("success", true);
@@ -244,11 +237,7 @@ public class AdminMemberController {
                 return ResponseEntity.status(400).body(response);
             }
 
-            if (adminIds.contains(studentId)) {
-                response.put("success", false);
-                response.put("message", "시스템으로 지정된 최고 관리자 계정은 권한을 해제할 수 없습니다.");
-                return ResponseEntity.status(400).body(response);
-            }
+            // ⭕ [핵심 수정] 20233244학번을 포함해 어떤 학번이든 관리자 권한 토글이 가능하도록 예외 처리 제거
 
             Optional<Member> memberOpt = memberRepository.findByUserId(studentId);
 
@@ -279,6 +268,7 @@ public class AdminMemberController {
             return ResponseEntity.status(500).body(response);
         }
     }
+
     /**
      * 5. 동아리원 가입 신청 수락 API
      */
@@ -297,11 +287,7 @@ public class AdminMemberController {
             }
 
             Users user = userOpt.get();
-
-            // ⭕ [핵심] 가입 승인 수락 시점에 현재 시각을 가입일로 기록
             user.setJoinedAt(LocalDateTime.now());
-
-            // (선택 사항) 별도의 가입 상태 컬럼이 있다면 함께 업데이트 ex) user.setStatus("APPROVED");
             userRepository.save(user);
 
             response.put("success", true);

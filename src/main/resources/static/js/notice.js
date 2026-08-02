@@ -8,6 +8,24 @@ let targetNoticeIdToDelete = null; // 삭제할 공지 ID 저장용
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof requireLogin === 'function' && !requireLogin()) return;
 
+    // 📱 모바일 메뉴 토글 이벤트 등록
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    if (mobileMenuBtn && mobileMenu) {
+        mobileMenuBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // 모바일 메뉴 바깥 영역 클릭 시 메뉴 닫기
+        document.addEventListener('click', function(e) {
+            if (!mobileMenu.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+                mobileMenu.classList.add('hidden');
+            }
+        });
+    }
+
     // Show admin controls if user is admin
     if (typeof isAdmin === 'function' && isAdmin()) {
         const adminControls = document.getElementById('admin-controls');
@@ -74,6 +92,11 @@ function resetNoticeForm() {
     const expiresInput = document.getElementById('poll-expires-at');
     if (expiresInput) expiresInput.value = '';
 
+    // 마감시간 영역 초기화
+    const deadlineToggle = document.getElementById('fDeadlineToggle');
+    if (deadlineToggle) deadlineToggle.checked = false;
+    toggleDeadlineFields();
+
     togglePollForm(false);
     noticePollOptions = ['', ''];
     renderPollOptionInputs();
@@ -84,6 +107,15 @@ function togglePollForm(show) {
     const area = document.getElementById('poll-form-area');
     if (area) {
         area.classList.toggle('hidden', !show);
+    }
+}
+
+// ⏰ 투표 마감시간 입력창 토글
+function toggleDeadlineFields() {
+    const toggle = document.getElementById('fDeadlineToggle');
+    const fields = document.getElementById('deadlineFields');
+    if (toggle && fields) {
+        fields.classList.toggle('hidden', !toggle.checked);
     }
 }
 
