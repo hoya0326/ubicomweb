@@ -10,6 +10,9 @@
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;background:#f9fafb;color:#111827}
 
+        /* PAGE */
+        .page{width:100%;max-width:1152px;margin:0 auto;padding:36px 16px 60px}
+
         /* 캘린더 그리드 스타일 추가 */
         .calendar-grid {
             display: grid;
@@ -37,18 +40,17 @@
 <body class="min-h-screen flex flex-col">
 <!-- Header -->
 <header class="bg-blue-600 text-white shadow-lg w-full">
-    <!-- container 대신 w-full과 px-6(좌우 여백) 사용 -->
     <div class="w-full px-6 flex items-center justify-between h-16">
-        <button onclick="location.href='/'" class="text-2xl font-bold hover:text-blue-100 transition-colors">UbiCOM</button>
+        <button onclick="location.href='/'" class="text-2xl font-bold hover:text-blue-100 transition-colors cursor-pointer">UbiCOM</button>
         <nav class="hidden md:flex items-center gap-6">
-            <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors ">공지사항</a>
-            <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors font-semibold">학사일정</a>
-            <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors">게시판</a>
-            <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors ">투표</a>
+            <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors cursor-pointer">공지사항</a>
+            <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors font-semibold cursor-pointer">학사일정</a>
+            <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors cursor-pointer">게시판</a>
+            <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors cursor-pointer">투표</a>
             <div id="nav-buttons"></div>
         </nav>
         <!-- Mobile Menu Button -->
-        <button class="md:hidden p-2" id="mobile-menu-btn">
+        <button class="md:hidden p-2 cursor-pointer" id="mobile-menu-btn">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
@@ -60,16 +62,15 @@
             <div id="mobile-main-nav" class="flex flex-col gap-3"></div>
             <div id="mobile-nav-buttons" class="flex flex-col gap-2 pt-2 border-t border-blue-500">
                 <!-- Will be populated by JavaScript -->
-
             </div>
         </div>
     </nav>
 </header>
 
 <!-- Main Content -->
-<main class="flex-1 py-8 px-4 bg-gray-50">
-    <div class="container mx-auto max-w-6xl">
-        <!-- 상단 헤더 및 버튼 영역 (모바일 대응 반응형 수정) -->
+<main class="flex-1">
+    <div class="page">
+        <!-- 상단 헤더 및 버튼 영역 -->
         <div class="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
                 <h1 class="text-3xl sm:text-4xl font-bold mb-1">학사일정</h1>
@@ -78,12 +79,10 @@
 
             <!-- Add Event Button (Admin only) -->
             <div id="admin-controls" class="hidden flex items-center gap-2 self-start sm:self-auto">
-                <!-- 새로 추가된 버튼 -->
-                <button id="btn-toggle-all" class="whitespace-nowrap bg-gray-500 hover:bg-gray-600 text-white px-3.5 py-2 text-sm rounded-lg font-medium transition-colors">
+                <button id="btn-toggle-all" class="whitespace-nowrap bg-gray-500 hover:bg-gray-600 text-white px-3.5 py-2 text-sm rounded-lg font-medium transition-colors cursor-pointer">
                     모든 일정 보기
                 </button>
-                <!-- 기존 일정 추가 버튼 -->
-                <button id="add-event-btn" class="whitespace-nowrap bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm rounded-lg font-medium transition-colors">
+                <button id="add-event-btn" class="whitespace-nowrap bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm rounded-lg font-medium transition-colors cursor-pointer">
                     + 일정 추가
                 </button>
             </div>
@@ -92,11 +91,11 @@
         <!-- 캘린더와 사이드바를 나란히 배치하는 그리드 컨테이너 -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-stretch mb-6">
             <!-- 캘린더 영역 (4칸 중 3칸 차지) -->
-            <div class="md:col-span-3 bg-white rounded-lg shadow p-6 flex flex-col justify-between">
+            <div class="md:col-span-3 bg-white rounded-lg shadow p-6 flex flex-col justify-between border border-gray-100">
                 <div>
                     <!-- Calendar Navigation -->
                     <div class="flex items-center justify-between mb-6">
-                        <button id="prev-month" class="p-2 hover:bg-gray-100 rounded-md transition-colors">
+                        <button id="prev-month" class="p-2 hover:bg-gray-100 rounded-md transition-colors cursor-pointer">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                             </svg>
@@ -104,7 +103,7 @@
 
                         <h2 id="current-month" class="text-2xl font-bold"></h2>
 
-                        <button id="next-month" class="p-2 hover:bg-gray-100 rounded-md transition-colors">
+                        <button id="next-month" class="p-2 hover:bg-gray-100 rounded-md transition-colors cursor-pointer">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                             </svg>
@@ -143,7 +142,7 @@
         </div>
 
         <!-- Events List -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow p-6 border border-gray-100">
             <h2 class="text-xl font-bold mb-4">이번 달 일정</h2>
             <div id="events-list" class="space-y-3">
                 <!-- Will be populated by JavaScript -->
@@ -154,10 +153,10 @@
 
 <!-- Add Event Modal -->
 <div id="event-modal" class="modal-overlay hidden">
-    <div class="modal-content">
+    <div class="modal-content bg-white p-6 rounded-lg shadow-xl">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-2xl font-bold">일정 추가</h2>
-            <button id="close-event-modal" class="text-gray-500 hover:text-gray-700">
+            <button id="close-event-modal" class="text-gray-500 hover:text-gray-700 cursor-pointer">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -263,17 +262,17 @@
             </div>
 
             <div class="flex justify-end gap-2 pt-2">
-                <button type="button" id="submit-event-btn" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors">추가하기</button>
+                <button type="submit" id="submit-event-btn" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer">추가하기</button>
             </div>
         </form>
     </div>
 </div>
 
 <div id="view-event-modal" class="modal-overlay hidden">
-    <div class="modal-content">
+    <div class="modal-content bg-white p-6 rounded-lg shadow-xl">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-2xl font-bold" id="view-event-title">일정 상세</h2>
-            <button onclick="document.getElementById('view-event-modal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">
+            <button onclick="document.getElementById('view-event-modal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700 cursor-pointer">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -282,7 +281,7 @@
         <div class="space-y-4">
             <div id="view-event-desc" class="text-gray-600"></div>
             <div class="flex justify-end mt-6">
-                <button id="view-event-delete-btn" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md transition-colors">
+                <button id="view-event-delete-btn" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md transition-colors cursor-pointer">
                     삭제하기
                 </button>
             </div>
@@ -292,15 +291,13 @@
 
 <!-- Footer -->
 <footer class="bg-gray-800 text-white py-8 mt-auto">
-    <div class="container mx-auto px-4">
-        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <p class="text-xl font-bold">UbiCOM</p>
-                <p class="text-sm text-gray-400 mt-1">Ubiquitous Computing Club</p>
-            </div>
-            <div class="text-sm text-gray-400 text-center md:text-right">
-                <p>&copy; 2026 UbiCOM. All rights reserved.</p>
-            </div>
+    <div class="w-full px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+            <p class="text-xl font-bold">UbiCOM</p>
+            <p class="text-sm text-gray-400 mt-1">Ubiquitous Computing Club</p>
+        </div>
+        <div class="text-sm text-gray-400 text-center md:text-right">
+            <p>&copy; 2026 UbiCOM. All rights reserved.</p>
         </div>
     </div>
 </footer>

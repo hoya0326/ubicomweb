@@ -6,22 +6,28 @@
     <title>게시글 - UbiCOM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;background:#f9fafb;color:#111827}
+
+        /* PAGE - 대시보드와 동일한 최대 너비 및 패딩 기준 적용 */
+        .page{width:100%;max-width:1152px;margin:0 auto;padding:36px 16px 60px}
+    </style>
 </head>
 <body class="min-h-screen flex flex-col">
 <!-- Header -->
 <header class="bg-blue-600 text-white shadow-lg w-full">
-    <!-- container 대신 w-full과 px-6(좌우 여백) 사용 -->
     <div class="w-full px-6 flex items-center justify-between h-16">
-        <button onclick="location.href='/'" class="text-2xl font-bold hover:text-blue-100 transition-colors">UbiCOM</button>
+        <button onclick="location.href='/'" class="text-2xl font-bold hover:text-blue-100 transition-colors cursor-pointer">UbiCOM</button>
         <nav class="hidden md:flex items-center gap-6">
-            <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors ">공지사항</a>
-            <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors">학사일정</a>
-            <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors font-semibold">게시판</a>
-            <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors ">투표</a>
+            <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors cursor-pointer">공지사항</a>
+            <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors cursor-pointer">학사일정</a>
+            <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors font-semibold cursor-pointer">게시판</a>
+            <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors cursor-pointer">투표</a>
             <div id="nav-buttons"></div>
         </nav>
         <!-- Mobile Menu Button -->
-        <button class="md:hidden p-2" id="mobile-menu-btn">
+        <button class="md:hidden p-2 cursor-pointer" id="mobile-menu-btn">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
@@ -33,51 +39,49 @@
             <div id="mobile-main-nav" class="flex flex-col gap-3"></div>
             <div id="mobile-nav-buttons" class="flex flex-col gap-2 pt-2 border-t border-blue-500">
                 <!-- Will be populated by JavaScript -->
-
             </div>
         </div>
     </nav>
-
-    </div>
 </header>
 
-    <!-- Main Content -->
-    <main class="flex-1 py-8 px-4 bg-gray-50">
-        <div class="container mx-auto max-w-4xl">
-            <button onclick="window.location.href='/board'" class="mb-4 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors">
+<!-- Main Content -->
+<main class="flex-1">
+    <div class="page">
+        <!-- 기존 max-w-4xl 제한을 제거하여 대시보드(.page의 max-w-[1152px])와 너비 기준 통일 -->
+        <div class="w-full">
+            <button onclick="window.location.href='/board'" class="mb-4 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors cursor-pointer flex items-center gap-1 font-medium">
                 ← 게시판으로 돌아가기
             </button>
 
             <!-- Post Content -->
-            <div id="post-content" class="bg-white rounded-lg shadow mb-6">
+            <div id="post-content" class="bg-white rounded-lg shadow mb-6 border border-gray-100 overflow-hidden">
                 <!-- Will be populated by JavaScript -->
             </div>
 
             <!-- Comments Section -->
-            <div id="comments-section" class="mt-8 bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div id="comments-section" class="mt-8 bg-white rounded-lg border border-gray-200 shadow-sm p-6">
                 <!-- board-detail.js의 loadComments() 함수가 이 안에 댓글 작성 폼과 댓글 목록을 자동으로 삽입합니다 -->
             </div>
         </div>
-    </main>
+    </div>
+</main>
 
-    <!-- Footer -->
-    <footer class="bg-gray-800 text-white py-8 mt-auto">
-        <div class="container mx-auto px-4">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div>
-                    <p class="text-xl font-bold">UbiCOM</p>
-                    <p class="text-sm text-gray-400 mt-1">Ubiquitous Computing Club</p>
-                </div>
-                <div class="text-sm text-gray-400 text-center md:text-right">
-                    <p>&copy; 2026 UbiCOM. All rights reserved.</p>
-                </div>
-            </div>
+<!-- Footer -->
+<footer class="bg-gray-800 text-white py-8 mt-auto">
+    <div class="w-full px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+            <p class="text-xl font-bold">UbiCOM</p>
+            <p class="text-sm text-gray-400 mt-1">Ubiquitous Computing Club</p>
         </div>
-    </footer>
+        <div class="text-sm text-gray-400 text-center md:text-right">
+            <p>&copy; 2026 UbiCOM. All rights reserved.</p>
+        </div>
+    </div>
+</footer>
 
-    <script src="js/auth.js"></script>
-    <script src="js/main.js"></script>
-    <script src="js/board-detail.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/main.js"></script>
+<script src="js/board-detail.js"></script>
 
 </body>
 </html>

@@ -33,6 +33,18 @@ public class Notice {
     @Column(name = "view_count", nullable = false)
     private Integer views = 0;
 
+    // 📌 게시물 상단 고정 여부 필드 추가
+    private Boolean isPinned = false;
+
+    // Getter & Setter
+    public Boolean getIsPinned() {
+        return isPinned != null ? isPinned : false;
+    }
+
+    public void setIsPinned(Boolean pinned) {
+        isPinned = pinned;
+    }
+
     // ✨ 이 메서드가 반드시 존재해야 합니다!
     public void incrementViews() {
         if (this.views == null) {
