@@ -1,11 +1,9 @@
 package com.ubicom.Ubicom.Controller;
 
+import com.ubicom.Ubicom.Entity.*;
 import com.ubicom.Ubicom.Repository.NoticeRepository;
 import com.ubicom.Ubicom.Repository.PollRepository;
-import com.ubicom.Ubicom.Entity.Notice;
-import com.ubicom.Ubicom.Entity.Poll;
-import com.ubicom.Ubicom.Entity.PollOption;
-import com.ubicom.Ubicom.Entity.Vote;
+import com.ubicom.Ubicom.Repository.MemberRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +23,7 @@ public class NoticeApiController {
 
     private final NoticeRepository noticeRepository;
     private final PollRepository pollRepository;
+    private final MemberRepository memberRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -106,13 +105,9 @@ public class NoticeApiController {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            // 1. 제목(title)
             String title = requestDto.get("title") != null ? String.valueOf(requestDto.get("title")) : "제목 없음";
-
-            // 2. 내용(content)
             String content = requestDto.get("content") != null ? String.valueOf(requestDto.get("content")) : "";
 
-            // 3. 작성자(author)
             String author = "관리자";
             if (requestDto.get("author") != null) {
                 Object authorObj = requestDto.get("author");
@@ -128,18 +123,16 @@ public class NoticeApiController {
                 }
             }
 
-            // 4. 공지사항 엔티티 생성 및 저장
             Notice notice = new Notice();
             notice.setTitle(title);
             notice.setContent(content);
             notice.setAuthor(author);
             notice.setCreatedAt(LocalDateTime.now());
             notice.setViews(0);
-            notice.setHasPoll(false); // 초기값 설정
+            notice.setHasPoll(false);
 
             Notice savedNotice = noticeRepository.save(notice);
 
-            // 5. 💡 투표(Poll) 데이터가 함께 전송된 경우 파싱하여 저장
             Object hasPollObj = requestDto.get("hasPoll");
             boolean hasPoll = hasPollObj instanceof Boolean ? (Boolean) hasPollObj : false;
 
@@ -149,7 +142,7 @@ public class NoticeApiController {
                     Map<?, ?> pollMap = (Map<?, ?>) pollObj;
 
                     Poll poll = new Poll();
-                    poll.setNoticeId(savedNotice.getId()); // 공지사항 ID 매핑
+                    poll.setNoticeId(savedNotice.getId());
                     poll.setTitle(pollMap.get("title") != null ? String.valueOf(pollMap.get("title")) : title);
                     poll.setQuestion(pollMap.get("question") != null ? String.valueOf(pollMap.get("question")) : title);
 
@@ -162,7 +155,6 @@ public class NoticeApiController {
                         poll.setAllowMultiple(multi instanceof Boolean ? (Boolean) multi : Boolean.parseBoolean(String.valueOf(multi)));
                     }
 
-                    // 마감 기한 설정 (전송된 경우)
                     if (pollMap.get("endsAt") != null && !String.valueOf(pollMap.get("endsAt")).isEmpty()) {
                         try {
                             poll.setEndsAt(LocalDateTime.parse(String.valueOf(pollMap.get("endsAt"))));
@@ -172,7 +164,6 @@ public class NoticeApiController {
                     poll.setCreatedAt(LocalDateTime.now());
                     poll.setCreatedBy(author);
 
-                    // 선택지(options) 처리
                     if (pollMap.get("options") instanceof List) {
                         List<?> rawOptions = (List<?>) pollMap.get("options");
                         for (Object optItem : rawOptions) {
@@ -198,7 +189,6 @@ public class NoticeApiController {
 
                     pollRepository.save(poll);
 
-                    // 💡 투표가 성공적으로 연결되었으므로 공지사항의 hasPoll 상태를 true로 업데이트
                     savedNotice.setHasPoll(true);
                     noticeRepository.save(savedNotice);
                 }
@@ -230,10 +220,46 @@ public class NoticeApiController {
             return ResponseEntity.notFound().build();
         }
 
-        // 연결된 투표가 있다면 함께 삭제
         pollRepository.findByNoticeId(id).ifPresent(pollRepository::delete);
 
         noticeRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * 4-1. 공지사항 상단 고정(핀) 상태 변경
+     */
+    @PatchMapping("/{id}/pin")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> togglePinNotice(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> requestDto) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            Notice notice = noticeRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("해당 공지사항이 존재하지 않습니다. id=" + id));
+
+            Object isPinnedObj = requestDto.get("isPinned");
+            boolean isPinned = isPinnedObj instanceof Boolean ? (Boolean) isPinnedObj : false;
+
+            notice.setIsPinned(isPinned);
+            noticeRepository.save(notice);
+
+            response.put("success", true);
+            response.put("message", isPinned ? "게시물이 상단에 고정되었습니다." : "고정이 해제되었습니다.");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            System.err.println("❌ [NoticeApiController] 공지 고정 상태 변경 에러:");
+            e.printStackTrace();
+
+            response.put("success", false);
+            response.put("message", "고정 상태 변경 실패: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+
 }

@@ -16,6 +16,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// HTML 특수문자 안전하게 변환하는 헬퍼 함수
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 function showLandingPage(container) {
     container.innerHTML = `
         <section class="bg-gradient-to-br from-blue-600 to-blue-800 text-white py-20">
@@ -49,11 +57,30 @@ function showLandingPage(container) {
     `;
 }
 
-function showDashboard(container, user) {
+async function showDashboard(container, user) {
     if (!container) return;
-    const recentNotices = JSON.parse(localStorage.getItem('notices') || '[]').slice(0, 5);
+
+    let allNotices = [];
+    try {
+        const response = await fetch('/api/notices');
+        if (response.ok) {
+            allNotices = await response.json();
+        }
+    } catch (e) {
+        console.error('대시보드 공지사항 조회 오류:', e);
+    }
+
     const recentPosts = JSON.parse(localStorage.getItem('posts') || '[]').slice(0, 5);
     const isAdmin = user && (user.isAdmin === true || user.role === 'ADMIN' || user.role === 'admin');
+
+    const userId = user ? (user.id || user.username || user.userId || 'guest') : 'guest';
+    const storageKey = `readNotices_${userId}`;
+    const readMap = JSON.parse(localStorage.getItem(storageKey) || '{}');
+
+    const unreadNotices = allNotices.filter(notice => {
+        if (!notice || !notice.id) return false;
+        return readMap[String(notice.id)] !== notice.createdAt;
+    }).slice(0, 5);
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -69,22 +96,30 @@ function showDashboard(container, user) {
                     <p class="text-gray-600">UbiCOM 커뮤니티에서 활발히 활동해보세요</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-600 mb-1">공지사항</p><p class="text-2xl font-bold">${recentNotices.length}</p></div><div class="bg-blue-100 rounded-full p-3"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg></div></div></div>
+                    <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-600 mb-1">미확인 공지사항</p><p class="text-2xl font-bold">${unreadNotices.length}</p></div><div class="bg-blue-100 rounded-full p-3"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg></div></div></div>
                     <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-600 mb-1">전체 게시글</p><p class="text-2xl font-bold">${recentPosts.length}</p></div><div class="bg-green-100 rounded-full p-3"><svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg></div></div></div>
                     <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-600 mb-1">학과</p><p class="text-xl font-bold text-gray-900">${user.department || user.major || '미지정'}</p></div><div class="bg-purple-100 rounded-full p-3"><svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div></div></div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-white rounded-lg shadow p-6"><h2 class="text-xl font-bold mb-4 text-gray-800">바로가기</h2><div class="space-y-3"><a href="notice.html" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"><span class="font-medium text-gray-700">공지사항</span><svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></a><a href="board.html" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"><span class="font-medium text-gray-700">게시판</span><svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></a><a href="calendar.html" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"><span class="font-medium text-gray-700">학사일정</span><svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></a></div></div>
-                    <div class="bg-white rounded-lg shadow p-6"><h2 class="text-xl font-bold mb-4 text-gray-800">최근 공지사항</h2><div class="space-y-3">${recentNotices.length > 0 ? recentNotices.map(notice => `<a href="notice.html" class="block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"><p class="font-medium text-gray-800 truncate">${notice.title}</p><p class="text-xs text-gray-400 mt-1">${formatDate(notice.createdAt || notice.date)}</p></a>`).join('') : '<p class="text-gray-500 text-center py-8">등록된 공지사항이 없습니다.</p>'}</div></div>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-xl font-bold mb-4 text-gray-800">확인하지 않은 공지사항</h2>
+                        <div class="space-y-3">
+                            ${unreadNotices.length > 0 ? unreadNotices.map(notice => `
+                                <a href="notice_detail?id=${notice.id}" class="block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                                    <p class="font-medium text-gray-800 truncate">${escapeHtml(notice.title)}</p>
+                                    <p class="text-xs text-gray-400 mt-1">${formatDate(notice.createdAt || notice.date)}</p>
+                                </a>
+                            `).join('') : '<p class="text-gray-500 text-center py-8">모든 공지사항을 확인했습니다.</p>'}
+                        </div>
+                    </div>
                 </div>
                 
-                <!-- 관리자 신청 현황이 들어갈 자리 -->
                 <div id="admin-application-section" class="mt-8"></div>
             </div>
         </div>
     `;
 
-    // 관리자일 경우 apply.js의 함수 실행 (로직 분리)
     if (isAdmin && typeof renderApplicationList === 'function') {
         renderApplicationList(document.getElementById('admin-application-section'));
     }

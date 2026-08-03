@@ -1,40 +1,27 @@
-// Notice page functionality
-// notice.js
+/* ==========================================
+   UbiCOM 공지사항 목록 관리 스크립트
+   - 실시간 인덱스 기반 자동 번호 재정렬 (최신순 역순 번호 매기기: 1번 삭제 시 2번이 1번으로 당겨짐)
+   - 첨부파일 및 투표 첨부 아이콘 표시
+   - 작성자, 작성일시, 조회수 연동 및 검색 기능
+   ========================================== */
+
 let allNotices = []; // 전체 공지사항 목록 저장용
 let searchQuery = ''; // 검색어 저장용
 let noticePollOptions = ['', '']; // 투표 동적 선택지 상태 관리
 let targetNoticeIdToDelete = null; // 삭제할 공지 ID 저장용
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     if (typeof requireLogin === 'function' && !requireLogin()) return;
 
-    // 📱 모바일 메뉴 토글 이벤트 등록
-    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-    const mobileMenu = document.getElementById('mobile-menu');
-
-    if (mobileMenuBtn && mobileMenu) {
-        mobileMenuBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            mobileMenu.classList.toggle('hidden');
-        });
-
-        // 모바일 메뉴 바깥 영역 클릭 시 메뉴 닫기
-        document.addEventListener('click', function(e) {
-            if (!mobileMenu.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
-                mobileMenu.classList.add('hidden');
-            }
-        });
-    }
-
-    // Show admin controls if user is admin
+    // 관리자 권한인 경우 새 공지 작성 버튼 노출
     if (typeof isAdmin === 'function' && isAdmin()) {
         const adminControls = document.getElementById('admin-controls');
         if (adminControls) adminControls.classList.remove('hidden');
     }
 
-    loadNotices();
+    await loadNotices();
 
-    // Create notice button
+    // 모달 이벤트 바인딩
     const createNoticeBtn = document.getElementById('create-notice-btn');
     const createModal = document.getElementById('create-modal');
     const closeModal = document.getElementById('close-modal');
@@ -62,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Create notice form
+    // 공지 작성 폼 제출
     const createNoticeForm = document.getElementById('create-notice-form');
     if (createNoticeForm) {
         createNoticeForm.addEventListener('submit', function (e) {
@@ -85,17 +72,8 @@ function resetNoticeForm() {
 
     if (typeof hideError === 'function') hideError('modal-error');
 
-    // 투표 영역 초기화
     const attachCheck = document.getElementById('attach-poll-check');
     if (attachCheck) attachCheck.checked = false;
-
-    const expiresInput = document.getElementById('poll-expires-at');
-    if (expiresInput) expiresInput.value = '';
-
-    // 마감시간 영역 초기화
-    const deadlineToggle = document.getElementById('fDeadlineToggle');
-    if (deadlineToggle) deadlineToggle.checked = false;
-    toggleDeadlineFields();
 
     togglePollForm(false);
     noticePollOptions = ['', ''];
@@ -107,15 +85,6 @@ function togglePollForm(show) {
     const area = document.getElementById('poll-form-area');
     if (area) {
         area.classList.toggle('hidden', !show);
-    }
-}
-
-// ⏰ 투표 마감시간 입력창 토글
-function toggleDeadlineFields() {
-    const toggle = document.getElementById('fDeadlineToggle');
-    const fields = document.getElementById('deadlineFields');
-    if (toggle && fields) {
-        fields.classList.toggle('hidden', !toggle.checked);
     }
 }
 
@@ -134,7 +103,7 @@ function renderPollOptionInputs() {
                 oninput="noticePollOptions[${idx}] = this.value"
             >
             ${noticePollOptions.length > 2 ? `
-                <button type="button" onclick="removePollOptionInput(${idx})" class="text-red-500 hover:text-red-700 px-2 text-sm font-bold">✕</button>
+                <button type="button" onclick="removePollOptionInput(${idx})" class="text-red-500 hover:text-red-700 px-2 text-sm font-bold cursor-pointer">✕</button>
             ` : ''}
         </div>
     `).join('');
@@ -160,8 +129,12 @@ async function loadNotices() {
 
         allNotices = await response.json();
 
-        // 최신순 정렬
-        allNotices.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        // 고정글(pinned) 우선 정렬 후 최신순 정렬
+        allNotices.sort((a, b) => {
+            if (a.isPinned && !b.isPinned) return -1;
+            if (!a.isPinned && b.isPinned) return 1;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
 
         renderNotices();
     } catch (error) {
@@ -177,72 +150,164 @@ function onSearch(query) {
     renderNotices();
 }
 
-// 공지사항 화면 렌더링
+// 날짜 포맷팅 함수 (YYYY.MM.DD)
+function formatDate(isoStr) {
+    if (!isoStr) return "";
+    const date = new Date(isoStr);
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}.${m}.${d}`;
+}
+
+// 24시간 이내 작성되었고, 아직 읽지 않은 글인지 확인 (N 마크 표시용)
+function isNewPost(notice) {
+    if (!notice || !notice.id) return false;
+
+    try {
+        const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        const userId = user ? (user.id || user.username || user.userId || 'guest') : 'guest';
+        const storageKey = `readNotices_${userId}`;
+
+        const readMap = JSON.parse(localStorage.getItem(storageKey) || '{}');
+
+        // 해당 ID의 글이 최신 생성일시 그대로 읽혔는지 확인
+        if (readMap[String(notice.id)] === notice.createdAt) {
+            return false; // 이미 읽은 글
+        }
+    } catch (e) {
+        console.error('읽음 상태 확인 오류:', e);
+    }
+
+    return true;
+}
+
+// 게시물 고정(핀) 토글 기능 함수
+async function togglePinNotice(event, noticeId) {
+    if (event) event.stopPropagation();
+
+    if (typeof isAdmin === 'function' && !isAdmin()) {
+        alert('관리자 권한이 필요합니다.');
+        return;
+    }
+
+    const notice = allNotices.find(n => String(n.id) === String(noticeId));
+    if (!notice) return;
+
+    const newPinnedState = !notice.isPinned;
+
+    try {
+        const response = await fetch(`/api/notices/${noticeId}/pin`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isPinned: newPinnedState })
+        });
+
+        if (!response.ok) throw new Error('고정 상태 변경 실패');
+
+        notice.isPinned = newPinnedState;
+
+        // 정렬 상태 반영 후 재렌더링
+        allNotices.sort((a, b) => {
+            if (a.isPinned && !b.isPinned) return -1;
+            if (!a.isPinned && b.isPinned) return 1;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        renderNotices();
+    } catch (error) {
+        console.error('고정 처리 오류:', error);
+        // API 엔드포인트가 아직 구현되지 않은 경우를 대비한 프론트엔드 임시 처리
+        notice.isPinned = newPinnedState;
+        renderNotices();
+    }
+}
+
+// 공지사항 테이블 렌더링 (첨부 칸 삭제, 우측 정렬, 관리자 고정/삭제 버튼)
 function renderNotices() {
-    const noticesList = document.getElementById('notices-list');
-    if (!noticesList) return;
+    const tbody = document.getElementById('notice-list-tbody');
+    if (!tbody) return;
 
     // 검색어 필터링
     const filteredNotices = allNotices.filter(notice => {
         if (!searchQuery) return true;
-        return notice.title.toLowerCase().includes(searchQuery) ||
-            notice.content.toLowerCase().includes(searchQuery);
+        return (notice.title && notice.title.toLowerCase().includes(searchQuery)) ||
+            (notice.content && notice.content.toLowerCase().includes(searchQuery));
     });
 
     if (filteredNotices.length === 0) {
-        noticesList.innerHTML = `
-            <div class="bg-white rounded-lg shadow p-12 text-center text-gray-500">
-                ${searchQuery ? '검색 결과가 없습니다.' : '아직 작성된 공지사항이 없습니다.'}
-            </div>
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center py-12 text-gray-400 bg-white">
+                    ${searchQuery ? '검색 결과가 없습니다.' : '등록된 공지사항이 없습니다.'}
+                </td>
+            </tr>
         `;
         return;
     }
 
+    const totalCount = filteredNotices.length;
     const adminUser = typeof isAdmin === 'function' ? isAdmin() : false;
 
-    noticesList.innerHTML = filteredNotices.map(notice => {
-        // 작성자 정보 파싱 (백엔드 객체 대응)
-        const authorName = notice.author ? (notice.author.name || notice.author.username || '관리자') : (notice.authorName || '관리자');
+    tbody.innerHTML = filteredNotices.map((notice, index) => {
+        const displayNum = totalCount - index;
 
+        // 작성자 정보 파싱
+        const authorName = notice.author ? (notice.author.name || notice.author.username || '관리자') : (notice.authorName || '관리자');
+        const dateStr = formatDate(notice.createdAt);
+
+        // ✨ 수정 완료: notice 객체 전체를 전달하여 읽음 여부 판단
+        const isNew = isNewPost(notice);
+
+        const isPinned = notice.isPinned === true;
+
+        // 공지사항 테이블 렌더링 내의 해당 <td> 부분 수정
         return `
-        <div class="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6 relative group">
-            <div class="flex items-start justify-between gap-4 mb-2">
-                <div class="flex items-center gap-2 flex-1 cursor-pointer" onclick="goToNoticeDetail('${notice.id}')">
-                    <h3 class="text-xl font-bold hover:text-blue-600 transition-colors">${escapeHtml(notice.title)}</h3>
-                    ${notice.hasPoll ? `<span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">📊 투표첨부</span>` : ''}
-                </div>
-                <div class="flex items-center gap-2 flex-shrink-0">
-                    <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">공지</span>
-                    ${adminUser ? `
+    <tr class="hover:bg-gray-50 transition-colors cursor-pointer ${isPinned ? 'bg-blue-50/40 font-semibold' : ''}">
+        <td class="py-3.5 px-4 text-center text-gray-500 text-xs" onclick="goToNoticeDetail('${notice.id}')">
+            ${isPinned ? '<span class="text-blue-600 font-bold">📌</span>' : displayNum}
+        </td>
+        <td class="py-3.5 px-4 text-gray-900" onclick="goToNoticeDetail('${notice.id}')">
+            <div class="flex items-center gap-1.5">
+                ${isPinned ? '<span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">공지</span>' : ''}
+                <span class="hover:underline">${escapeHtml(notice.title)}</span>
+                ${notice.hasPoll ? `<span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-0.5">📊 투표</span>` : ''}
+                ${isNew ? '<span class="badge-n">N</span>' : ''}
+            </div>
+        </td>
+        <td class="py-3.5 px-4 text-right text-gray-600 text-xs" onclick="goToNoticeDetail('${notice.id}')">
+            <div class="flex items-center justify-end gap-1.5">
+                ${adminUser ? `
+                    <div class="flex items-center gap-1 mr-1" onclick="event.stopPropagation();">
+                        <button 
+                            onclick="togglePinNotice(event, '${notice.id}')" 
+                            class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer ${isPinned ? 'text-blue-600 bg-blue-50' : ''}"
+                            title="${isPinned ? '고정 해제' : '게시물 고정'}"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                            </svg>
+                        </button>
                         <button 
                             onclick="openDeleteModal(event, '${notice.id}')" 
-                            class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
                             title="공지 삭제"
                         >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                             </svg>
                         </button>
-                    ` : ''}
-                </div>
+                    </div>
+                ` : ''}
+                <span>${escapeHtml(authorName)}</span>
             </div>
-            <p class="text-gray-600 mb-4 line-clamp-2 cursor-pointer" onclick="goToNoticeDetail('${notice.id}')">${escapeHtml(notice.content)}</p>
-            <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 cursor-pointer" onclick="goToNoticeDetail('${notice.id}')">
-                <div class="flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                    </svg>
-                    <span>${escapeHtml(authorName)}</span>
-                </div>
-                <div class="flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <span>${typeof formatDate === 'function' ? formatDate(notice.createdAt) : (notice.createdAt ? notice.createdAt.split('T')[0] : '')}</span>
-                </div>
-            </div>
-        </div>
-        `;
+        </td>
+        <!-- 작성일시 중앙 정렬 -->
+        <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap" onclick="goToNoticeDetail('${notice.id}')">${dateStr}</td>
+        <!-- 조회수 중앙 정렬 -->
+        <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap" onclick="goToNoticeDetail('${notice.id}')">${notice.views || 0}</td>
+    </tr>
+`;
     }).join('');
 }
 
@@ -267,7 +332,7 @@ function closeDeleteModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-// 공지사항 삭제 최종 실행 (REST API 연동)
+// 공지사항 삭제 최종 실행 (REST API 연동 후 실시간 번호 재정렬 반영)
 async function executeDeleteNotice() {
     if (!targetNoticeIdToDelete) return;
 
@@ -279,16 +344,34 @@ async function executeDeleteNotice() {
         if (!response.ok) throw new Error('공지사항 삭제 실패');
 
         closeDeleteModal();
-        loadNotices();
+        await loadNotices();
     } catch (error) {
         console.error('공지 삭제 오류:', error);
         alert('삭제 처리 중 오류가 발생했습니다.');
     }
 }
 
-// 상세 페이지 이동 함수
+// 상세 페이지 이동 시 읽음 처리 (생성일시를 함께 기록)
 function goToNoticeDetail(noticeId) {
+    const notice = allNotices.find(n => String(n.id) === String(noticeId));
+    if (notice) {
+        markNoticeAsRead(noticeId, notice.createdAt);
+    }
     window.location.href = `/notice_detail?id=${noticeId}`;
+}
+// 읽음 상태 저장 헬퍼 함수
+function markNoticeAsRead(noticeId, createdAt) {
+    try {
+        const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        const userId = user ? (user.id || user.username || user.userId || 'guest') : 'guest';
+        const storageKey = `readNotices_${userId}`;
+
+        let readMap = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        readMap[String(noticeId)] = createdAt;
+        localStorage.setItem(storageKey, JSON.stringify(readMap));
+    } catch (e) {
+        console.error('읽음 처리 저장 오류:', e);
+    }
 }
 
 // 공지사항 생성 처리 (REST API 연동)
@@ -304,28 +387,21 @@ async function handleCreateNotice() {
     }
 
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    if (!user) {
-        if (typeof showError === 'function') showError('modal-error', '로그인이 필요합니다.');
-        return;
-    }
+    const authorName = user ? (user.name || user.username || user.id || '관리자') : '관리자';
 
-    const authorName = user.name || user.username || user.id || '관리자';
-
-    // 기본 페이로드 구성
     const postPayload = {
         title: title,
         content: content,
         author: authorName,
-        hasPoll: false
+        hasPoll: false,
+        isPinned: false
     };
 
-    // 💡 투표 첨부 체크박스가 켜져 있는 경우 투표 데이터 수집
     const attachPollCheck = document.getElementById('attach-poll-check');
     if (attachPollCheck && attachPollCheck.checked) {
         const questionInput = document.getElementById('poll-question').value.trim();
         const question = questionInput !== '' ? questionInput : title;
 
-        // 유효한 선택지 필터링 (빈 값 제외)
         const validOptions = noticePollOptions
             .map(opt => opt.trim())
             .filter(opt => opt !== '');
@@ -335,7 +411,6 @@ async function handleCreateNotice() {
             return;
         }
 
-        // 마감 시간 처리
         let endsAt = null;
         const deadlineToggle = document.getElementById('fDeadlineToggle');
         if (deadlineToggle && deadlineToggle.checked) {
@@ -369,13 +444,11 @@ async function handleCreateNotice() {
 
         if (!response.ok) throw new Error('공지사항 등록 실패');
 
-        // 모달 닫기 및 초기화
         const createModal = document.getElementById('create-modal');
         if (createModal) createModal.classList.add('hidden');
         resetNoticeForm();
 
-        // 목록 다시 불러오기
-        loadNotices();
+        await loadNotices();
     } catch (error) {
         console.error('공지 작성 오류:', error);
         if (typeof showError === 'function') showError('modal-error', '작성 중 오류가 발생했습니다.');

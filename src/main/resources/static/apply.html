@@ -7,6 +7,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/css/styles.css">
     <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;background:#f9fafb;color:#111827}
+
+        /* PAGE - 대시보드와 동일한 최대 너비 및 패딩 기준 적용 */
+        .page{width:100%;max-width:1152px;margin:0 auto;padding:36px 16px 60px}
+
         /* 연락처 개별 입력란 통일감 및 에러/포커스 상태 커스텀 스타일 */
         .phone-box {
             height: 46px; /* Tailwind py-3와 일치 */
@@ -26,12 +32,15 @@
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
+<!-- Header -->
 <header class="bg-blue-600 text-white shadow-lg w-full">
-    <!-- container 대신 w-full과 px-6(좌우 여백) 사용 -->
     <div class="w-full px-6 flex items-center justify-between h-16">
         <button onclick="location.href='/'" class="text-2xl font-bold hover:text-blue-100 transition-colors">UbiCOM</button>
         <nav class="hidden md:flex items-center gap-6">
-
+            <a onclick="location.href='/notice'" class="hover:text-blue-100 transition-colors">공지사항</a>
+            <a onclick="location.href='/calendar'" class="hover:text-blue-100 transition-colors">학사일정</a>
+            <a onclick="location.href='/board'" class="hover:text-blue-100 transition-colors">게시판</a>
+            <a onclick="location.href='/vote'" class="hover:text-blue-100 transition-colors">투표</a>
             <div id="nav-buttons"></div>
         </nav>
         <!-- Mobile Menu Button -->
@@ -44,323 +53,322 @@
     <!-- Mobile Navigation -->
     <nav id="mobile-menu" class="hidden md:hidden py-4 border-t border-blue-500 px-6">
         <div class="flex flex-col gap-3">
-
+            <div id="mobile-main-nav" class="flex flex-col gap-3"></div>
             <div id="mobile-nav-buttons" class="flex flex-col gap-2 pt-2 border-t border-blue-500">
                 <!-- Will be populated by JavaScript -->
             </div>
         </div>
     </nav>
-    </div>
 </header>
 
 <!-- Main Content -->
-<main class="flex-1 py-12">
-    <div class="container mx-auto px-4 max-w-2xl">
+<main class="flex-1">
+    <div class="page">
+        <div class="max-w-2xl mx-auto">
 
-        <!-- Page Header -->
-        <div class="text-center mb-10">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">2학기 신규회원 가입 신청</h1>
-            <p class="text-gray-600">UbiCOM 동아리에 관심 가져주셔서 감사합니다.<br>아래 설문을 작성해주시면 검토 후 연락드리겠습니다.</p>
-        </div>
-
-        <!-- Form Card -->
-        <div class="bg-white rounded-2xl shadow-lg p-8">
-            <div id="form-container">
-                <form id="apply-form" class="space-y-6" novalidate>
-
-                    <!-- 이름 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1" for="name">
-                            이름 <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                                type="text"
-                                id="name"
-                                name="name"
-                                placeholder="홍길동"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                required
-                        />
-                    </div>
-
-                    <!-- 학번 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1" for="studentId">
-                            학번 <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                                type="text"
-                                id="studentId"
-                                name="studentId"
-                                placeholder="예: 20240001"
-                                maxlength="8"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                required
-                        />
-                    </div>
-
-                    <!-- 학과 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1" for="department">
-                            학과 <span class="text-red-500">*</span>
-                        </label>
-                        <select
-                                id="department"
-                                name="major"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                required
-                        >
-                            <option value="">선택해주세요</option>
-                            <option value="정보통신">정보통신</option>
-                            <option value="정보보안">정보보안</option>
-                            <option value="전자공학">전자공학</option>
-                            <option value="컴퓨터공학">컴퓨터공학</option>
-                            <option value="인공지능">인공지능</option>
-                            <option value="모빌리티">모빌리티</option>
-                        </select>
-                    </div>
-
-                    <!-- 학년 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1" for="grade">
-                            학년 <span class="text-red-500">*</span>
-                        </label>
-                        <select
-                                id="grade"
-                                name="grade"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white"
-                                required
-                        >
-                            <option value="">선택해주세요</option>
-                            <option value="1">1학년</option>
-                            <option value="2">2학년</option>
-                            <option value="3">3학년</option>
-                            <option value="4">4학년</option>
-                        </select>
-                    </div>
-
-                    <!-- 성별 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            성별 <span class="text-red-500">*</span>
-                        </label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="gender" value="m" class="text-blue-600" required />
-                                <span class="text-sm">남성</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="gender" value="f" class="text-blue-600" />
-                                <span class="text-sm">여성</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- 연락처 (모바일 깨짐 방지: min-w-0 및 shrink-0 추가) -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">
-                            연락처 <span class="text-red-500">*</span>
-                        </label>
-                        <div class="flex items-center gap-2 w-full min-w-0" id="applyPhoneWrap">
-                            <input data-phone type="text" inputmode="numeric" maxlength="3" aria-label="연락처 식별번호" class="phone-box text-center flex-1 min-w-0" required />
-                            <span class="phone-sep text-gray-400 font-medium shrink-0">-</span>
-                            <input data-phone type="text" inputmode="numeric" maxlength="4" aria-label="연락처 중간자리" class="phone-box text-center flex-1 min-w-0" required />
-                            <span class="phone-sep text-gray-400 font-medium shrink-0">-</span>
-                            <input data-phone type="text" inputmode="numeric" maxlength="4" aria-label="연락처 뒷자리" class="phone-box text-center flex-1 min-w-0" required />
-                        </div>
-                    </div>
-
-                    <!-- 이메일 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1" for="email">
-                            이메일 <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                                type="email"
-                                id="email"
-                                name="email"
-                                placeholder="example@university.ac.kr"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                required
-                        />
-                    </div>
-
-                    <!-- 프로그래밍 경험 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            프로그래밍 경험 수준 <span class="text-red-500">*</span>
-                        </label>
-                        <div class="space-y-2">
-                            <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="experience" value="none" class="text-blue-600" required />
-                                <span>없음 (완전 처음이에요)</span>
-                            </label>
-                            <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="experience" value="beginner" class="text-blue-600" />
-                                <span>초급 (기본 문법 정도는 알아요)</span>
-                            </label>
-                            <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="experience" value="intermediate" class="text-blue-600" />
-                                <span>중급 (간단한 프로그램을 만들 수 있어요)</span>
-                            </label>
-                            <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="experience" value="advanced" class="text-blue-600" />
-                                <span>고급 (프로젝트 경험이 있어요)</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- 이전 가입 여부 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            이전에 유비컴에 가입하셨었나요? <span class="text-red-500">*</span>
-                        </label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="previousMember" value="yes" class="text-blue-600" required />
-                                <span class="text-sm">네</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="previousMember" value="no" class="text-blue-600" />
-                                <span class="text-sm">아니오</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- 학생회 가입 여부 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            학생회에 가입되어있거나 가입할 예정인가요? <span class="text-red-500">*</span>
-                        </label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="studentCouncil" value="yes" class="text-blue-600" required />
-                                <span class="text-sm">네</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="studentCouncil" value="no" class="text-blue-600" />
-                                <span class="text-sm">아니오</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- 다른 IT대학 과동아리 가입 여부 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            다른 IT대학 과동아리 가입되어있거나 가입 예정인가요? <span class="text-red-500">*</span>
-                        </label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="otherClub" value="yes" class="text-blue-600" required />
-                                <span class="text-sm">네</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                <input type="radio" name="otherClub" value="no" class="text-blue-600" />
-                                <span class="text-sm">아니오</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- 추천인 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1" for="referrer">
-                            추천인 <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                                type="text"
-                                id="referrer"
-                                name="referrer"
-                                placeholder="추천인이 없으면 '없음'이라고 입력해주세요"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                required
-                        />
-                    </div>
-
-                    <!-- 지원 동기 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1" for="motivation">
-                            지원 동기 <span class="text-red-500">*</span>
-                        </label>
-                        <textarea
-                                id="motivation"
-                                name="motivation"
-                                rows="4"
-                                placeholder="UbiCOM에 지원하게 된 동기와 동아리에서 이루고 싶은 목표를 자유롭게 작성해주세요."
-                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
-                                required
-                        ></textarea>
-                        <p class="text-xs text-gray-400 mt-1 text-right"><span id="motivation-count">0</span> / 500자</p>
-                    </div>
-
-                    <!-- 추가 하고 싶은 말 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1" for="extra">
-                            추가로 하고 싶은 말 <span class="text-gray-400 font-normal">(선택)</span>
-                        </label>
-                        <textarea
-                                id="extra"
-                                name="extra"
-                                rows="3"
-                                placeholder="궁금한 점이나 추가로 전달하고 싶은 내용을 자유롭게 작성해주세요."
-                                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
-                        ></textarea>
-                    </div>
-
-                    <!-- Error Message -->
-                    <div id="error-message" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                        <div class="flex items-center gap-3">
-                            <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <p class="text-sm text-red-600 font-medium"></p>
-                        </div>
-                    </div>
-
-                    <!-- Submit Button -->
-                    <button
-                            type="submit"
-                            id="submit-btn"
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold py-4 rounded-lg transition-colors"
-                    >
-                        신청서 제출하기
-                    </button>
-
-                    <p class="text-center text-xs text-gray-400">
-                        제출 후 검토까지 2~3일이 소요될 수 있습니다.
-                    </p>
-                </form>
+            <!-- Page Header -->
+            <div class="text-center mb-10">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">2학기 신규회원 가입 신청</h1>
+                <p class="text-gray-600">UbiCOM 동아리에 관심 가져주셔서 감사합니다.<br>아래 설문을 작성해주시면 검토 후 연락드리겠습니다.</p>
             </div>
 
-            <!-- Success State -->
-            <div id="success-container" class="hidden text-center py-8">
-                <div class="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
-                    <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
+            <!-- Form Card -->
+            <div class="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
+                <div id="form-container">
+                    <form id="apply-form" class="space-y-6" novalidate>
+
+                        <!-- 이름 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="name">
+                                이름 <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                    type="text"
+                                    id="name"
+                                    name="name"
+                                    placeholder="홍길동"
+                                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                    required
+                            />
+                        </div>
+
+                        <!-- 학번 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="studentId">
+                                학번 <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                    type="text"
+                                    id="studentId"
+                                    name="studentId"
+                                    placeholder="예: 20240001"
+                                    maxlength="8"
+                                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                    required
+                            />
+                        </div>
+
+                        <!-- 학과 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="department">
+                                학과 <span class="text-red-500">*</span>
+                            </label>
+                            <select
+                                    id="department"
+                                    name="major"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                    required
+                            >
+                                <option value="">선택해주세요</option>
+                                <option value="정보통신">정보통신</option>
+                                <option value="정보보안">정보보안</option>
+                                <option value="전자공학">전자공학</option>
+                                <option value="컴퓨터공학">컴퓨터공학</option>
+                                <option value="인공지능">인공지능</option>
+                                <option value="모빌리티">모빌리티</option>
+                            </select>
+                        </div>
+
+                        <!-- 학년 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="grade">
+                                학년 <span class="text-red-500">*</span>
+                            </label>
+                            <select
+                                    id="grade"
+                                    name="grade"
+                                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white"
+                                    required
+                            >
+                                <option value="">선택해주세요</option>
+                                <option value="1">1학년</option>
+                                <option value="2">2학년</option>
+                                <option value="3">3학년</option>
+                                <option value="4">4학년</option>
+                            </select>
+                        </div>
+
+                        <!-- 성별 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                성별 <span class="text-red-500">*</span>
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="gender" value="m" class="text-blue-600" required />
+                                    <span class="text-sm">남성</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="gender" value="f" class="text-blue-600" />
+                                    <span class="text-sm">여성</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 연락처 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">
+                                연락처 <span class="text-red-500">*</span>
+                            </label>
+                            <div class="flex items-center gap-2 w-full min-w-0" id="applyPhoneWrap">
+                                <input data-phone type="text" inputmode="numeric" maxlength="3" aria-label="연락처 식별번호" class="phone-box text-center flex-1 min-w-0" required />
+                                <span class="phone-sep text-gray-400 font-medium shrink-0">-</span>
+                                <input data-phone type="text" inputmode="numeric" maxlength="4" aria-label="연락처 중간자리" class="phone-box text-center flex-1 min-w-0" required />
+                                <span class="phone-sep text-gray-400 font-medium shrink-0">-</span>
+                                <input data-phone type="text" inputmode="numeric" maxlength="4" aria-label="연락처 뒷자리" class="phone-box text-center flex-1 min-w-0" required />
+                            </div>
+                        </div>
+
+                        <!-- 이메일 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="email">
+                                이메일 <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                    type="email"
+                                    id="email"
+                                    name="email"
+                                    placeholder="example@university.ac.kr"
+                                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                    required
+                            />
+                        </div>
+
+                        <!-- 프로그래밍 경험 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                프로그래밍 경험 수준 <span class="text-red-500">*</span>
+                            </label>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="experience" value="none" class="text-blue-600" required />
+                                    <span>없음 (완전 처음이에요)</span>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="experience" value="beginner" class="text-blue-600" />
+                                    <span>초급 (기본 문법 정도는 알아요)</span>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="experience" value="intermediate" class="text-blue-600" />
+                                    <span>중급 (간단한 프로그램을 만들 수 있어요)</span>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="experience" value="advanced" class="text-blue-600" />
+                                    <span>고급 (프로젝트 경험이 있어요)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 이전 가입 여부 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                이전에 유비컴에 가입하셨었나요? <span class="text-red-500">*</span>
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="previousMember" value="yes" class="text-blue-600" required />
+                                    <span class="text-sm">네</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="previousMember" value="no" class="text-blue-600" />
+                                    <span class="text-sm">아니오</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 학생회 가입 여부 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                학생회에 가입되어있거나 가입할 예정인가요? <span class="text-red-500">*</span>
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="studentCouncil" value="yes" class="text-blue-600" required />
+                                    <span class="text-sm">네</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="studentCouncil" value="no" class="text-blue-600" />
+                                    <span class="text-sm">아니오</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 다른 IT대학 과동아리 가입 여부 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                다른 IT대학 과동아리 가입되어있거나 가입 예정인가요? <span class="text-red-500">*</span>
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="otherClub" value="yes" class="text-blue-600" required />
+                                    <span class="text-sm">네</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="radio" name="otherClub" value="no" class="text-blue-600" />
+                                    <span class="text-sm">아니오</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 추천인 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="referrer">
+                                추천인 <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                    type="text"
+                                    id="referrer"
+                                    name="referrer"
+                                    placeholder="추천인이 없으면 '없음'이라고 입력해주세요"
+                                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                    required
+                            />
+                        </div>
+
+                        <!-- 지원 동기 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="motivation">
+                                지원 동기 <span class="text-red-500">*</span>
+                            </label>
+                            <textarea
+                                    id="motivation"
+                                    name="motivation"
+                                    rows="4"
+                                    placeholder="UbiCOM에 지원하게 된 동기와 동아리에서 이루고 싶은 목표를 자유롭게 작성해주세요."
+                                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
+                                    required
+                            ></textarea>
+                            <p class="text-xs text-gray-400 mt-1 text-right"><span id="motivation-count">0</span> / 500자</p>
+                        </div>
+
+                        <!-- 추가 하고 싶은 말 -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1" for="extra">
+                                추가로 하고 싶은 말 <span class="text-gray-400 font-normal">(선택)</span>
+                            </label>
+                            <textarea
+                                    id="extra"
+                                    name="extra"
+                                    rows="3"
+                                    placeholder="궁금한 점이나 추가로 전달하고 싶은 내용을 자유롭게 작성해주세요."
+                                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
+                            ></textarea>
+                        </div>
+
+                        <!-- Error Message -->
+                        <div id="error-message" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <p class="text-sm text-red-600 font-medium"></p>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button
+                                type="submit"
+                                id="submit-btn"
+                                class="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold py-4 rounded-lg transition-colors cursor-pointer"
+                        >
+                            신청서 제출하기
+                        </button>
+
+                        <p class="text-center text-xs text-gray-400">
+                            제출 후 검토까지 2~3일이 소요될 수 있습니다.
+                        </p>
+                    </form>
                 </div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-3">신청이 완료되었습니다!</h2>
-                <p class="text-gray-600 mb-2">소중한 관심 감사합니다.</p>
-                <p class="text-gray-600 mb-8">검토 후 입력하신 연락처로 결과를 안내드리겠습니다.</p>
-                <a onclick="location.href='/'" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors">
-                    홈으로 돌아가기
-                </a>
-            </div>
-        </div>
 
+                <!-- Success State -->
+                <div id="success-container" class="hidden text-center py-8">
+                    <div class="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
+                        <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-3">신청이 완료되었습니다!</h2>
+                    <p class="text-gray-600 mb-2">소중한 관심 감사합니다.</p>
+                    <p class="text-gray-600 mb-8">검토 후 입력하신 연락처로 결과를 안내드리겠습니다.</p>
+                    <a onclick="location.href='/'" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors cursor-pointer">
+                        홈으로 돌아가기
+                    </a>
+                </div>
+            </div>
+
+        </div>
     </div>
 </main>
 
 <!-- Footer -->
 <footer class="bg-gray-800 text-white py-8 mt-auto">
-    <div class="container mx-auto px-4">
-        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <p class="text-xl font-bold">UbiCOM</p>
-                <p class="text-sm text-gray-400 mt-1">Ubiquitous Computing Club</p>
-            </div>
-            <div class="text-sm text-gray-400 text-center md:text-right">
-                <p>&copy; 2026 UbiCOM. All rights reserved.</p>
-            </div>
+    <div class="w-full px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+            <p class="text-xl font-bold">UbiCOM</p>
+            <p class="text-sm text-gray-400 mt-1">Ubiquitous Computing Club</p>
+        </div>
+        <div class="text-sm text-gray-400 text-center md:text-right">
+            <p>&copy; 2026 UbiCOM. All rights reserved.</p>
         </div>
     </div>
 </footer>

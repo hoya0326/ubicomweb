@@ -21,11 +21,28 @@ document.addEventListener("DOMContentLoaded", async function() {
 
     await loadNoticeDetail(noticeId);
 
+    // 상세 페이지 진입 시 읽음 처리 실행 (대시보드 [N] 표시 제거용)
+    if (currentNotice) {
+        markNoticeAsRead(currentNotice);
+    }
+
     const confirmDeleteBtn = document.getElementById("confirm-delete-btn");
     if (confirmDeleteBtn) {
         confirmDeleteBtn.addEventListener("click", executeDeleteNotice);
     }
 });
+
+// ── 읽음 처리 함수 ─────────────────────────────────────────────────────────────
+function markNoticeAsRead(notice) {
+    if (!notice || !notice.id) return;
+    const userId = currentUser ? (currentUser.id || currentUser.username || currentUser.userId || 'guest') : 'guest';
+    const storageKey = `readNotices_${userId}`;
+    const readMap = JSON.parse(localStorage.getItem(storageKey) || '{}');
+
+    // 현재 공지의 id와 생성일시(createdAt)를 기록하여 읽음 상태로 만듦
+    readMap[String(notice.id)] = notice.createdAt;
+    localStorage.setItem(storageKey, JSON.stringify(readMap));
+}
 
 // ── 유틸리티 및 인증 ─────────────────────────────────────────────────────────────
 async function fetchCurrentUser() {
@@ -37,7 +54,6 @@ async function fetchCurrentUser() {
         return null;
     }
 }
-
 function formatDeadline(iso) {
     if (!iso) return "";
     return new Date(iso).toLocaleString("ko-KR", {
@@ -72,12 +88,7 @@ function getVoterCount(poll) {
 }
 
 function getVoters(poll, optId) {
-    const isAnon = poll.isAnonymous || poll.anonymous || poll.is_anonymous;
-    const isAdmin = currentUser && currentUser.isAdmin === true;
-
-    // 관리자가 아니면서 익명 투표인 경우에만 투표자 이름 숨김
-    if ((isAnon && !isAdmin) || !poll.votes) return null;
-
+    if (poll.isAnonymous || !poll.votes) return null;
     return poll.votes
         .filter(v => v.optionIds && v.optionIds.map(String).includes(String(optId)))
         .map(v => v.userName || v.username || v.userId || "알 수 없음");
@@ -85,8 +96,8 @@ function getVoters(poll, optId) {
 
 function getMyVote(poll) {
     if (!currentUser || !poll.votes) return null;
-    const myId = String(currentUser.id || currentUser.username || currentUser.name);
-    return poll.votes.slice().reverse().find(v => v.userId && String(v.userId) === myId) || null;
+    const myId = String(currentUser.id || currentUser.username);
+    return poll.votes.slice().reverse().find(v => String(v.userId) === myId) || null;
 }
 
 function escHtml(str) {
@@ -132,7 +143,7 @@ async function loadNoticeDetail(noticeId) {
         document.getElementById("notice-date").textContent = `작성일: ${formatDate(currentNotice.createdAt)}`;
         document.getElementById("notice-views").textContent = `조회수: ${currentNotice.views || 0}`;
 
-        // 연결된 투표 불러오기 (현재 유저 ID 전달)
+        // 연결된 투표 불러오기
         await loadAttachedPoll(noticeId);
     } catch (error) {
         console.error("공지사항 로딩 실패:", error);
@@ -143,15 +154,7 @@ async function loadNoticeDetail(noticeId) {
 
 async function loadAttachedPoll(noticeId) {
     try {
-        const isAdmin = currentUser && currentUser.isAdmin === true;
-        const myId = currentUser ? (currentUser.id || currentUser.username || currentUser.name) : "";
-
-        // 💡 백엔드 컨트롤러에 현재 유저 정보와 관리자 여부 전달
-        let url = `/api/notices/${noticeId}/poll?`;
-        if (isAdmin) url += `isAdmin=true&`;
-        if (myId) url += `currentUserId=${encodeURIComponent(myId)}`;
-
-        const response = await fetch(url);
+        const response = await fetch(`/api/notices/${noticeId}/poll`);
         if (response.status === 404) {
             currentPoll = null;
             return;
@@ -174,7 +177,7 @@ function renderResultBar(poll) {
     return poll.options.map(opt => {
         const count = getCount(poll, opt.id);
         const pct = totalVoters > 0 ? Math.round((count / totalVoters) * 100) : 0;
-        const isMyChoice = myVote?.optionIds && myVote.optionIds.map(String).includes(String(opt.id));
+        const isMyChoice = myVote?.optionIds.map(String).includes(String(opt.id));
         const voters = getVoters(poll, opt.id);
 
         return `
@@ -214,7 +217,7 @@ function renderVoteForm(poll) {
         const optIdStr = String(opt.id);
         const checked = selectedNoticeOptions[poll.id]
             ? selectedNoticeOptions[poll.id].has(optIdStr)
-            : (myVote?.optionIds && myVote.optionIds.map(String).includes(optIdStr));
+            : (myVote?.optionIds.map(String).includes(optIdStr));
         return `
         <label class="opt-label ${checked ? "opt-selected" : ""}" id="optlabel-${poll.id}-${opt.id}">
           <input
@@ -341,37 +344,23 @@ async function submitNoticeVote(pollId) {
     }
 
     const errEl = document.getElementById(`vote-error-${pollId}`);
-    const sel = [...(selectedNoticeOptions[pollId] || [])].map(Number);
+    const sel = [...(selectedNoticeOptions[pollId] || [])];
 
     if (!currentUser) { showVoteError(errEl, "로그인 후 투표할 수 있습니다."); return; }
     if (sel.length === 0) { showVoteError(errEl, "선택지를 선택해주세요."); return; }
-
-    // 💡 유저 식별 정보(userId, userName)를 페이로드에 포함하여 백엔드로 전송
-    const myId = currentUser.id || currentUser.username || currentUser.name;
-    const myName = currentUser.name || currentUser.username || "익명";
-
-    const payload = {
-        userId: String(myId),
-        userName: myName,
-        optionIds: sel
-    };
 
     try {
         const response = await fetch(`/api/polls/${pollId}/vote`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                optionIds: sel
+            })
         });
 
         if (!response.ok) {
-            let errorMsg = "투표 저장에 실패했습니다.";
-            try {
-                const errData = await response.json();
-                errorMsg = errData.message || errorMsg;
-            } catch {
-                errorMsg = await response.text() || errorMsg;
-            }
-            showVoteError(errEl, errorMsg);
+            const errorMsg = await response.text();
+            showVoteError(errEl, errorMsg || "투표 저장에 실패했습니다.");
             return;
         }
 
