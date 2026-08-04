@@ -225,10 +225,11 @@ async function togglePinNotice(event, noticeId) {
     }
 }
 
-// 공지사항 테이블 렌더링
+// 공지사항 테이블 및 모바일 카드 렌더링
 function renderNotices() {
-    const tbody = document.getElementById('notice-list-tbody');
-    if (!tbody) return;
+    const pcTbody = document.getElementById('notice-list-pc');
+    const mobileContainer = document.getElementById('notice-list-mobile');
+    if (!pcTbody || !mobileContainer) return;
 
     // 검색어 필터링
     const filteredNotices = allNotices.filter(notice => {
@@ -238,35 +239,28 @@ function renderNotices() {
     });
 
     if (filteredNotices.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="5" class="text-center py-12 text-gray-400 bg-white">
-                    ${searchQuery ? '검색 결과가 없습니다.' : '등록된 공지사항이 없습니다.'}
-                </td>
-            </tr>
-        `;
+        pcTbody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-gray-400 bg-white">검색 결과가 없습니다.</td></tr>`;
+        mobileContainer.innerHTML = `<div class="text-center py-12 text-gray-400 text-sm bg-white">검색 결과가 없습니다.</div>`;
         return;
     }
 
     const totalCount = filteredNotices.length;
     const adminUser = typeof isAdmin === 'function' ? isAdmin() : false;
 
-    tbody.innerHTML = filteredNotices.map((notice, index) => {
+    // PC 테이블 렌더링
+    pcTbody.innerHTML = filteredNotices.map((notice, index) => {
         const displayNum = totalCount - index;
-
-        // 작성자 정보 파싱
         const authorName = notice.author ? (notice.author.name || notice.author.username || '관리자') : (notice.authorName || '관리자');
         const dateStr = formatDate(notice.createdAt);
-
         const isNew = isNewPost(notice);
         const isPinned = notice.isPinned === true;
 
         return `
-            <tr class="hover:bg-gray-50 transition-colors cursor-pointer ${isPinned ? 'bg-blue-50/40 font-semibold' : ''}">
-                <td class="py-3.5 px-4 text-center text-gray-500 text-xs" onclick="goToNoticeDetail('${notice.id}')">
+            <tr class="hover:bg-gray-50 transition-colors cursor-pointer ${isPinned ? 'bg-blue-50/40 font-semibold' : ''}" onclick="goToNoticeDetail('${notice.id}')">
+                <td class="py-3.5 px-4 text-center text-gray-500 text-xs">
                     ${isPinned ? '<span class="text-blue-600 font-bold">📌</span>' : displayNum}
                 </td>
-                <td class="py-3.5 px-4 text-gray-900" onclick="goToNoticeDetail('${notice.id}')">
+                <td class="py-3.5 px-4 text-gray-900">
                     <div class="flex items-center gap-1.5">
                         ${isPinned ? '<span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">고정</span>' : ''}
                         <span class="hover:underline">${escapeHtml(notice.title)}</span>
@@ -274,36 +268,63 @@ function renderNotices() {
                         ${isNew ? '<span class="badge-n">N</span>' : ''}
                     </div>
                 </td>
-                <td class="py-3.5 px-4 text-right text-gray-600 text-xs" onclick="goToNoticeDetail('${notice.id}')">
+                <td class="py-3.5 px-4 text-right text-gray-600 text-xs">
                     <div class="flex items-center justify-end gap-1.5">
                         ${adminUser ? `
                             <div class="flex items-center gap-1 mr-1" onclick="event.stopPropagation();">
-                                <button 
-                                    onclick="togglePinNotice(event, '${notice.id}')" 
-                                    class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer ${isPinned ? 'text-blue-600 bg-blue-50' : ''}"
-                                    title="${isPinned ? '고정 해제' : '게시물 고정'}"
-                                >
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
-                                    </svg>
+                                <button onclick="togglePinNotice(event, '${notice.id}')" class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer ${isPinned ? 'text-blue-600 bg-blue-50' : ''}" title="고정">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
                                 </button>
-                                <button 
-                                    onclick="openDeleteModal(event, '${notice.id}')" 
-                                    class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                                    title="공지 삭제"
-                                >
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                    </svg>
+                                <button onclick="openDeleteModal(event, '${notice.id}')" class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer" title="삭제">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 </button>
                             </div>
                         ` : ''}
                         <span>${escapeHtml(authorName)}</span>
                     </div>
                 </td>
-                <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap" onclick="goToNoticeDetail('${notice.id}')">${dateStr}</td>
-                <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap" onclick="goToNoticeDetail('${notice.id}')">${notice.views || 0}</td>
+                <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap">${dateStr}</td>
+                <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap">${notice.views || 0}</td>
             </tr>
+        `;
+    }).join('');
+
+    // 모바일 카드 렌더링
+    mobileContainer.innerHTML = filteredNotices.map((notice, index) => {
+        const displayNum = totalCount - index;
+        const authorName = notice.author ? (notice.author.name || notice.author.username || '관리자') : (notice.authorName || '관리자');
+        const dateStr = formatDate(notice.createdAt);
+        const isNew = isNewPost(notice);
+        const isPinned = notice.isPinned === true;
+
+        return `
+            <div class="p-4 bg-white hover:bg-gray-50 cursor-pointer transition-colors" onclick="goToNoticeDetail('${notice.id}')">
+                <div class="flex items-start justify-between gap-2 mb-1.5">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        ${isPinned ? '<span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">고정</span>' : `<span class="text-xs font-bold text-gray-400">#${displayNum}</span>`}
+                        <span class="text-sm font-bold text-gray-900 leading-snug">${escapeHtml(notice.title)}</span>
+                        ${notice.hasPoll ? `<span class="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.5 rounded font-medium">📊 투표</span>` : ''}
+                        ${isNew ? '<span class="badge-n">N</span>' : ''}
+                    </div>
+                    ${adminUser ? `
+                        <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation();">
+                            <button onclick="togglePinNotice(event, '${notice.id}')" class="p-1 text-gray-400 hover:text-blue-600 ${isPinned ? 'text-blue-600' : ''}" title="고정">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
+                            </button>
+                            <button onclick="openDeleteModal(event, '${notice.id}')" class="p-1 text-gray-400 hover:text-red-600" title="삭제">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="flex items-center justify-between text-xs text-gray-500 pt-1">
+                    <span class="font-medium text-gray-700">${escapeHtml(authorName)}</span>
+                    <div class="flex items-center gap-3">
+                        <span>작성일시 ${dateStr}</span>
+                        <span>조회수 ${notice.views || 0}</span>
+                    </div>
+                </div>
+            </div>
         `;
     }).join('');
 }

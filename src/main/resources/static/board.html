@@ -69,22 +69,30 @@
             </button>
         </div>
 
-        <!-- Posts Table -->
+        <!-- Posts Table & Mobile Cards -->
         <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50 text-gray-700 text-xs uppercase font-semibold">
-                <tr>
-                    <th class="py-3 px-4 text-center w-16">번호</th>
-                    <th class="py-3 px-4 text-left">제목</th>
-                    <th class="py-3 px-4 text-right w-28">작성자</th>
-                    <th class="py-3 px-4 text-center w-36">작성일시</th>
-                    <th class="py-3 px-4 text-center w-20">조회수</th>
-                </tr>
-                </thead>
-                <tbody id="posts-list" class="divide-y divide-gray-200 text-sm text-gray-600">
-                <!-- Will be populated by JavaScript -->
-                </tbody>
-            </table>
+            <!-- PC 전용 테이블 -->
+            <div class="hidden md:block overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 text-gray-700 text-xs uppercase font-semibold">
+                    <tr>
+                        <th class="py-3 px-4 text-center w-16">번호</th>
+                        <th class="py-3 px-4 text-left">제목</th>
+                        <th class="py-3 px-4 text-right w-28">작성자</th>
+                        <th class="py-3 px-4 text-center w-36">작성일시</th>
+                        <th class="py-3 px-4 text-center w-20">조회수</th>
+                    </tr>
+                    </thead>
+                    <tbody id="posts-list-pc" class="divide-y divide-gray-200 text-sm text-gray-600">
+                    <tr><td colspan="5" class="text-center py-8 text-gray-400">게시글을 불러오는 중...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 모바일 전용 카드 리스트 -->
+            <div class="block md:hidden divide-y divide-gray-100" id="posts-list-mobile">
+                <div class="text-center py-8 text-gray-400 text-sm">게시글을 불러오는 중...</div>
+            </div>
         </div>
     </div>
 </main>
@@ -135,6 +143,10 @@
                         class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 >
                 <label for="anonymous-checkbox" class="text-sm cursor-pointer">익명으로 작성하기</label>
+            </div>
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" id="secret-checkbox" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                <label for="secret-checkbox" class="text-sm cursor-pointer font-medium text-gray-700">🔒 비밀글로 작성</label>
             </div>
 
             <div class="flex justify-end gap-2">

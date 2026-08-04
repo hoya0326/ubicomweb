@@ -213,6 +213,41 @@ public class NoticeApiController {
     }
 
     /**
+     * 3-1. 공지사항 수정
+     */
+    @PutMapping("/{id}")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> updateNotice(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> requestDto) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            Notice notice = noticeRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("해당 공지사항이 존재하지 않습니다. id=" + id));
+
+            String title = requestDto.get("title") != null ? String.valueOf(requestDto.get("title")) : notice.getTitle();
+            String content = requestDto.get("content") != null ? String.valueOf(requestDto.get("content")) : notice.getContent();
+
+            notice.setTitle(title);
+            notice.setContent(content);
+            noticeRepository.save(notice);
+
+            response.put("success", true);
+            response.put("message", "공지사항이 성공적으로 수정되었습니다.");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            System.err.println("❌ [NoticeApiController] 공지사항 수정 에러 발생:");
+            e.printStackTrace();
+
+            response.put("success", false);
+            response.put("message", "공지사항 수정 실패: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
      * 4. 공지사항 삭제
      */
     @DeleteMapping("/{id}")

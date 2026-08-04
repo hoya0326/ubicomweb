@@ -82,24 +82,31 @@
             </div>
         </div>
 
-        <!-- Notices List Table -->
+        <!-- Notices List Table & Mobile Cards -->
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                <tr class="border-b border-gray-200 bg-gray-50 text-gray-600 text-xs font-semibold">
-                    <th class="py-3 px-4 w-16 text-center">번호</th>
-                    <th class="py-3 px-4">제목</th>
-                    <th class="py-3 px-4 w-36 text-right">작성자</th>
-                    <th class="py-3 px-4 w-28 text-center">작성일시</th>
-                    <th class="py-3 px-4 w-20 text-center">조회수</th>
-                </tr>
-                </thead>
-                <tbody id="notice-list-tbody" class="divide-y divide-gray-100 text-sm text-gray-800">
-                <tr>
-                    <td colspan="5" class="text-center py-8 text-gray-400">공지사항을 불러오는 중...</td>
-                </tr>
-                </tbody>
-            </table>
+            <!-- PC 전용 테이블 -->
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                    <tr class="border-b border-gray-200 bg-gray-50 text-gray-600 text-xs font-semibold">
+                        <th class="py-3 px-4 w-16 text-center">번호</th>
+                        <th class="py-3 px-4">제목</th>
+                        <th class="py-3 px-4 w-36 text-right">작성자</th>
+                        <th class="py-3 px-4 w-28 text-center">작성일시</th>
+                        <th class="py-3 px-4 w-20 text-center">조회수</th>
+                    </tr>
+                    </thead>
+                    <tbody id="notice-list-pc" class="divide-y divide-gray-100 text-sm text-gray-800">
+                    <tr><td colspan="5" class="text-center py-8 text-gray-400">공지사항을 불러오는 중...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 모바일 전용 카드 리스트 -->
+            <div class="block md:hidden divide-y divide-gray-100" id="notice-list-mobile">
+                <div class="text-center py-8 text-gray-400 text-sm">공지사항을 불러오는 중...</div>
+            </div>
+        </div>
         </div>
     </div>
 </main>
