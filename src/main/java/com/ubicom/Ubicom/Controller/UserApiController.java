@@ -34,16 +34,16 @@ public class UserApiController {
     // 관리자 권한 확인 헬퍼 메소드 (DB role 기준, NULL인 경우 일반 회원 처리)
     private boolean checkAdmin(User principal) {
         if (principal == null) {
-            System.out.println("🚨 [checkAdmin] principal이 null입니다. (로그인되지 않음)");
+            //System.out.println("🚨 [checkAdmin] principal이 null입니다. (로그인되지 않음)");
             return false;
         }
         try {
-            System.out.println("🔍 [checkAdmin] 현재 로그인한 사용자 username(학번): " + principal.getUsername());
+            //System.out.println("🔍 [checkAdmin] 현재 로그인한 사용자 username(학번): " + principal.getUsername());
             Integer userId = Integer.parseInt(principal.getUsername());
 
             var memberOpt = memberRepository.findByUserId(userId);
             if (memberOpt.isEmpty()) {
-                System.out.println("🚨 [checkAdmin] memberRepository에서 해당 학번(" + userId + ")의 회원 정보를 찾지 못했습니다.");
+                //System.out.println("🚨 [checkAdmin] memberRepository에서 해당 학번(" + userId + ")의 회원 정보를 찾지 못했습니다.");
                 return false;
             }
 
@@ -58,13 +58,13 @@ public class UserApiController {
             );
 
             if (!isAdmin) {
-                System.out.println("🚨 [checkAdmin] 일반 회원 권한 (Role이 NULL이거나 ADMIN이 아님)");
+                //System.out.println("🚨 [checkAdmin] 일반 회원 권한 (Role이 NULL이거나 ADMIN이 아님)");
             }
 
             return isAdmin;
 
         } catch (NumberFormatException e) {
-            System.out.println("🚨 [checkAdmin] 학번 숫자로 변환 실패: " + principal.getUsername());
+            //System.out.println("🚨 [checkAdmin] 학번 숫자로 변환 실패: " + principal.getUsername());
             return false;
         }
     }
