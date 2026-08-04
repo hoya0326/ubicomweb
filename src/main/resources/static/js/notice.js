@@ -269,7 +269,7 @@ function renderNotices() {
         </td>
         <td class="py-3.5 px-4 text-gray-900" onclick="goToNoticeDetail('${notice.id}')">
             <div class="flex items-center gap-1.5">
-                ${isPinned ? '<span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">공지</span>' : ''}
+                ${isPinned ? '<span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">고정</span>' : ''}
                 <span class="hover:underline">${escapeHtml(notice.title)}</span>
                 ${notice.hasPoll ? `<span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-0.5">📊 투표</span>` : ''}
                 ${isNew ? '<span class="badge-n">N</span>' : ''}
