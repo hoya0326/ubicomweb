@@ -49,7 +49,7 @@ public class UserApiController {
 
             Member member = memberOpt.get();
             String role = member.getRole();
-            System.out.println("🔍 [checkAdmin] DB에서 조회된 회원 이름: " + member.getName() + ", Role 값: " + role);
+            //System.out.println("🔍 [checkAdmin] DB에서 조회된 회원 이름: " + member.getName() + ", Role 값: " + role);
 
             // role이 정확히 ADMIN인 경우에만 true, NULL이거나 다른 값이면 false (일반 회원)
             boolean isAdmin = role != null && (
