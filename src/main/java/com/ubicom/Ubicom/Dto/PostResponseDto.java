@@ -21,6 +21,9 @@ public class PostResponseDto {
     @JsonProperty("isAnonymous")
     private boolean isAnonymous;
 
+    @JsonProperty("isSecret")
+    private boolean isSecret;
+
     private int views;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt; // 수정 여부 확인용 (없다면 삭제 가능)
@@ -40,6 +43,7 @@ public class PostResponseDto {
         dto.setTitle(post.getTitle());
         dto.setContent(post.getContent());
         dto.setAnonymous(post.isAnonymous()); // getter/setter 호출
+        dto.setSecret(post.isSecret());
         dto.setViews(post.getViews());
         dto.setCreatedAt(post.getCreatedAt());
 

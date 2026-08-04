@@ -4,6 +4,7 @@ import com.ubicom.Ubicom.Entity.*;
 import com.ubicom.Ubicom.Repository.NoticeRepository;
 import com.ubicom.Ubicom.Repository.PollRepository;
 import com.ubicom.Ubicom.Repository.MemberRepository;
+import com.ubicom.Ubicom.Repository.NoticeReadRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class NoticeApiController {
     private final NoticeRepository noticeRepository;
     private final PollRepository pollRepository;
     private final MemberRepository memberRepository;
+    private final NoticeReadRepository noticeReadRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -211,6 +213,41 @@ public class NoticeApiController {
     }
 
     /**
+     * 3-1. 공지사항 수정
+     */
+    @PutMapping("/{id}")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> updateNotice(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> requestDto) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            Notice notice = noticeRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("해당 공지사항이 존재하지 않습니다. id=" + id));
+
+            String title = requestDto.get("title") != null ? String.valueOf(requestDto.get("title")) : notice.getTitle();
+            String content = requestDto.get("content") != null ? String.valueOf(requestDto.get("content")) : notice.getContent();
+
+            notice.setTitle(title);
+            notice.setContent(content);
+            noticeRepository.save(notice);
+
+            response.put("success", true);
+            response.put("message", "공지사항이 성공적으로 수정되었습니다.");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            System.err.println("❌ [NoticeApiController] 공지사항 수정 에러 발생:");
+            e.printStackTrace();
+
+            response.put("success", false);
+            response.put("message", "공지사항 수정 실패: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
      * 4. 공지사항 삭제
      */
     @DeleteMapping("/{id}")
@@ -261,5 +298,50 @@ public class NoticeApiController {
         }
     }
 
+    /**
+     * 5. 특정 유저가 읽은 공지사항 ID 목록 조회 (기기 간 동기화용)
+     */
+    @GetMapping("/reads")
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<Long>> getReadNotices(@RequestParam("userId") String userId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        List<NoticeRead> reads = noticeReadRepository.findByUserId(userId);
+        List<Long> readNoticeIds = reads.stream().map(NoticeRead::getNoticeId).toList();
+        return ResponseEntity.ok(readNoticeIds);
+    }
 
+    /**
+     * 6. 특정 공지사항을 읽음으로 처리
+     */
+    @PostMapping("/{id}/read")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> markNoticeAsRead(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> requestDto) {
+        Map<String, Object> response = new HashMap<>();
+
+        String userId = requestDto.get("userId") != null ? String.valueOf(requestDto.get("userId")) : null;
+        if (userId == null || userId.trim().isEmpty()) {
+            response.put("success", false);
+            response.put("message", "사용자 ID가 필요합니다.");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+
+        if (!noticeRepository.existsById(id)) {
+            response.put("success", false);
+            response.put("message", "존재하지 않는 공지사항입니다.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+
+        if (!noticeReadRepository.existsByUserIdAndNoticeId(userId, id)) {
+            NoticeRead noticeRead = new NoticeRead(userId, id);
+            noticeReadRepository.save(noticeRead);
+        }
+
+        response.put("success", true);
+        response.put("message", "읽음 처리되었습니다.");
+        return ResponseEntity.ok(response);
+    }
 }

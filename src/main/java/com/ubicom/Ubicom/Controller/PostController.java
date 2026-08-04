@@ -36,19 +36,44 @@ public class PostController {
         return ResponseEntity.ok(posts);
     }
 
-    // 2. 게시글 단건 상세 조회
+    // 2. 게시글 단건 상세 조회 (관리자 및 작성자 권한 검증 보완)
     @GetMapping("/{id}")
-    public ResponseEntity<?> getPostById(@PathVariable Long id) {
+    public ResponseEntity<?> getPostById(
+            @PathVariable Long id,
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String role) {
+
         Post post = postRepository.findById(id).orElse(null);
         if (post == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("게시글을 찾을 수 없습니다.");
         }
+
+        // 🔒 비밀글 접근 제어 로직
+        if (post.isSecret()) {
+            // 관리자 판정 강화 (대소문자 무시 및 'admin' 계정 허용)
+            boolean isAdmin = "ADMIN".equalsIgnoreCase(role) ||
+                    "admin".equalsIgnoreCase(role) ||
+                    "ROLE_ADMIN".equalsIgnoreCase(role) ||
+                    "admin".equalsIgnoreCase(userId);
+
+            // 작성자 본인 판정 (문자열 변환을 통해 타입 안전성 확보)
+            boolean isAuthor = false;
+            if (post.getAuthor() != null && userId != null) {
+                String postAuthorId = String.valueOf(post.getAuthor().getUserId());
+                isAuthor = postAuthorId.equals(String.valueOf(userId));
+            }
+
+            if (!isAdmin && !isAuthor) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("비밀글은 작성자와 관리자만 볼 수 있습니다.");
+            }
+        }
+
         post.setViews(post.getViews() + 1);
         postRepository.save(post);
         return ResponseEntity.ok(PostResponseDto.from(post));
     }
 
-    // 3. 게시글 등록
+    // 💡 3. 게시글 등록 (비밀글 셋팅 추가)
     @PostMapping
     public ResponseEntity<?> createPost(@RequestBody PostDto dto) {
         Member author = null;
@@ -72,6 +97,7 @@ public class PostController {
         post.setContent(dto.getContent());
         post.setAuthor(author);
         post.setAnonymous(dto.isAnonymous());
+        post.setSecret(dto.isSecret());
 
         Post savedPost = postRepository.save(post);
         return ResponseEntity.status(HttpStatus.CREATED).body(PostResponseDto.from(savedPost));

@@ -31,7 +31,7 @@ public class UserApiController {
     private final ApplyRepository applyRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // 관리자 권한 확인 헬퍼 메소드 (디버깅 로그 포함)
+    // 관리자 권한 확인 헬퍼 메소드 (DB role 기준, NULL인 경우 일반 회원 처리)
     private boolean checkAdmin(User principal) {
         if (principal == null) {
             System.out.println("🚨 [checkAdmin] principal이 null입니다. (로그인되지 않음)");
@@ -51,13 +51,14 @@ public class UserApiController {
             String role = member.getRole();
             System.out.println("🔍 [checkAdmin] DB에서 조회된 회원 이름: " + member.getName() + ", Role 값: " + role);
 
+            // role이 정확히 ADMIN인 경우에만 true, NULL이거나 다른 값이면 false (일반 회원)
             boolean isAdmin = role != null && (
-                    "ADMIN".equalsIgnoreCase(role) ||
-                            "ROLE_ADMIN".equalsIgnoreCase(role)
+                    "ADMIN".equalsIgnoreCase(role.trim()) ||
+                            "ROLE_ADMIN".equalsIgnoreCase(role.trim())
             );
 
             if (!isAdmin) {
-                System.out.println("🚨 [checkAdmin] 권한 불일치: 현재 Role(" + role + ")은 관리자(ADMIN)가 아닙니다.");
+                System.out.println("🚨 [checkAdmin] 일반 회원 권한 (Role이 NULL이거나 ADMIN이 아님)");
             }
 
             return isAdmin;
@@ -118,7 +119,8 @@ public class UserApiController {
                 responseData.put("phone", member.getPhone());
                 responseData.put("email", member.getEmail());
 
-                if (member.getRole() != null && "ADMIN".equalsIgnoreCase(member.getRole())) {
+                // role이 NULL이거나 ADMIN이 아니면 무조건 일반 회원(USER)으로 설정
+                if (member.getRole() != null && "ADMIN".equalsIgnoreCase(member.getRole().trim())) {
                     responseData.put("isAdmin", true);
                     responseData.put("role", "ADMIN");
                 } else {

@@ -1,5 +1,7 @@
 /* ==========================================
    공지사항 상세페이지 전용 투표 모듈 (REST API 연동)
+   - 서버 DB 기반 읽음 상태 동기화 반영
+   notice-detail.js
    ========================================== */
 
 let currentNotice = null;
@@ -21,9 +23,9 @@ document.addEventListener("DOMContentLoaded", async function() {
 
     await loadNoticeDetail(noticeId);
 
-    // 상세 페이지 진입 시 읽음 처리 실행 (대시보드 [N] 표시 제거용)
+    // 상세 페이지 진입 시 서버 DB 기반 읽음 처리 실행 (대시보드 [N] 표시 제거용)
     if (currentNotice) {
-        markNoticeAsRead(currentNotice);
+        await markNoticeAsRead(currentNotice);
     }
 
     const confirmDeleteBtn = document.getElementById("confirm-delete-btn");
@@ -32,16 +34,22 @@ document.addEventListener("DOMContentLoaded", async function() {
     }
 });
 
-// ── 읽음 처리 함수 ─────────────────────────────────────────────────────────────
-function markNoticeAsRead(notice) {
+// ── 서버 DB 연동 읽음 처리 함수 ──────────────────────────────────────────────
+async function markNoticeAsRead(notice) {
     if (!notice || !notice.id) return;
-    const userId = currentUser ? (currentUser.id || currentUser.username || currentUser.userId || 'guest') : 'guest';
-    const storageKey = `readNotices_${userId}`;
-    const readMap = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    const myId = currentUser ? (currentUser.id || currentUser.username || currentUser.userId || '') : '';
 
-    // 현재 공지의 id와 생성일시(createdAt)를 기록하여 읽음 상태로 만듦
-    readMap[String(notice.id)] = notice.createdAt;
-    localStorage.setItem(storageKey, JSON.stringify(readMap));
+    if (myId) {
+        try {
+            await fetch(`/api/notices/${notice.id}/read`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: myId })
+            });
+        } catch (e) {
+            console.error('읽음 처리 전송 오류:', e);
+        }
+    }
 }
 
 // ── 유틸리티 및 인증 ─────────────────────────────────────────────────────────────
@@ -54,6 +62,7 @@ async function fetchCurrentUser() {
         return null;
     }
 }
+
 function formatDeadline(iso) {
     if (!iso) return "";
     return new Date(iso).toLocaleString("ko-KR", {
@@ -116,32 +125,52 @@ async function loadNoticeDetail(noticeId) {
 
         currentNotice = await response.json();
 
-        // 작성자/관리자 삭제 권한 체크
+        // 작성자/관리자 수정 및 삭제 권한 체크
         const authorName = typeof currentNotice.author === 'object' ? currentNotice.author.username : currentNotice.author;
         const currentUserName = currentUser?.username || currentUser?.name;
         const isOwner = currentUser && (authorName === currentUserName);
-        const canDelete = currentUser?.isAdmin || isOwner;
+        const canModify = currentUser?.isAdmin || isOwner;
 
-        if (canDelete) {
+        if (canModify) {
             const actionsContainer = document.getElementById("notice-actions");
             if (actionsContainer) {
                 actionsContainer.innerHTML = `
-                    <button onclick="openDeleteModal()" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold border border-gray-200 bg-white">
-                        <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                        <span>공지 삭제</span>
-                    </button>
+                    <button onclick="openEditModal()" class="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors cursor-pointer">수정</button>
+                    <button onclick="openDeleteModal()" class="px-2.5 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors cursor-pointer">삭제</button>
                 `;
             }
         }
 
-        // 공지 내용 바인딩
+        // 수정일시 포맷팅 처리
+        const createdTime = new Date(currentNotice.createdAt).getTime();
+        const updatedTime = currentNotice.updatedAt ? new Date(currentNotice.updatedAt).getTime() : createdTime;
+        const isEdited = currentNotice.updatedAt && (updatedTime - createdTime > 1000);
+
+        let timeStr = formatDate(currentNotice.createdAt);
+        if (isEdited) {
+            timeStr += ` <span class="text-gray-400 text-[11px]">(수정됨: ${formatDate(currentNotice.updatedAt)})</span>`;
+        }
+
+        // HTML 요소들에 깔끔하게 압축된 메타 정보 바인딩
         document.getElementById("notice-title").textContent = currentNotice.title;
         document.getElementById("notice-content").textContent = currentNotice.content;
-        document.getElementById("notice-author").textContent = `작성자: ${authorName || "관리자"}`;
-        document.getElementById("notice-date").textContent = `작성일: ${formatDate(currentNotice.createdAt)}`;
-        document.getElementById("notice-views").textContent = `조회수: ${currentNotice.views || 0}`;
+
+        // 공지사항 메타 정보 영역 및 작성자/날짜/조회수를 한 줄로 묶어주는 렌더링 처리
+        const metaContainer = document.getElementById("notice-meta-container");
+        if (metaContainer) {
+            metaContainer.innerHTML = `
+                <span class="font-semibold text-gray-800">${authorName || "관리자"}</span>
+                <span class="text-gray-300">·</span>
+                <span>${timeStr}</span>
+                <span class="text-gray-300">·</span>
+                <span>조회 ${currentNotice.views || 0}</span>
+            `;
+        } else {
+            // 만약 HTML에 개별 아이디로 분리되어 있다면 아래처럼 직접 대입되도록 하거나 HTML을 맞춤 정돈할 수 있습니다.
+            document.getElementById("notice-author").textContent = authorName || "관리자";
+            document.getElementById("notice-date").textContent = timeStr;
+            document.getElementById("notice-views").textContent = `조회 ${currentNotice.views || 0}`;
+        }
 
         // 연결된 투표 불러오기
         await loadAttachedPoll(noticeId);
@@ -151,6 +180,72 @@ async function loadNoticeDetail(noticeId) {
         window.location.href = "/notice";
     }
 }
+// ── 공지사항 수정 모달 제어 및 실행 ──────────────────────────────────────────
+function openEditModal() {
+    if (!currentNotice) return;
+    const titleInput = document.getElementById("edit-title-input");
+    const contentInput = document.getElementById("edit-content-input");
+
+    if (titleInput) titleInput.value = currentNotice.title;
+    if (contentInput) contentInput.value = currentNotice.content;
+
+    const modal = document.getElementById("edit-modal");
+    if (modal) modal.classList.remove("hidden");
+}
+
+function closeEditModal() {
+    const modal = document.getElementById("edit-modal");
+    if (modal) modal.classList.add("hidden");
+}
+
+async function executeEditNotice() {
+    if (!currentNotice) return;
+
+    const titleInput = document.getElementById("edit-title-input");
+    const contentInput = document.getElementById("edit-content-input");
+
+    const newTitle = titleInput ? titleInput.value.trim() : "";
+    const newContent = contentInput ? contentInput.value.trim() : "";
+
+    if (!newTitle || !newContent) {
+        alert("제목과 내용을 모두 입력해주세요.");
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/notices/${currentNotice.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: newTitle,
+                content: newContent
+            })
+        });
+
+        if (!response.ok) throw new Error("수정 권한이 없거나 처리에 실패했습니다.");
+
+        closeEditModal();
+        await loadNoticeDetail(currentNotice.id); // 화면 갱신
+    } catch (error) {
+        console.error("공지 수정 오류:", error);
+        alert("공지사항 수정 중 오류가 발생했습니다.");
+    }
+}
+
+// 기존 DOMContentLoaded 내부 이벤트 리스너 영역에 아래 내용 추가 확인
+document.addEventListener("DOMContentLoaded", async function() {
+    // ... (기존 초기화 코드들) ...
+
+    const confirmEditBtn = document.getElementById("confirm-edit-btn");
+    if (confirmEditBtn) {
+        confirmEditBtn.addEventListener("click", executeEditNotice);
+    }
+
+    const confirmDeleteBtn = document.getElementById("confirm-delete-btn");
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener("click", executeDeleteNotice);
+    }
+});
 
 async function loadAttachedPoll(noticeId) {
     try {

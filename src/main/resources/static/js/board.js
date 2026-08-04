@@ -2,6 +2,7 @@
    UbiCOM 게시판 목록 관리 스크립트
    - 공지사항과 동일한 고정(📌)/삭제 버튼 UI 및 로직 적용
    - 실시간 인덱스 기반 자동 번호 재정렬 및 검색 기능 연동
+   - 비밀글 기능 반영
    ========================================== */
 
 let allPosts = []; // 전체 게시글 목록 저장용
@@ -62,10 +63,12 @@ function resetPostForm() {
     const titleInput = document.getElementById("post-title");
     const contentInput = document.getElementById("post-content");
     const anonymousCheckbox = document.getElementById("anonymous-checkbox");
+    const secretCheckbox = document.getElementById("secret-checkbox");
 
     if (titleInput) titleInput.value = '';
     if (contentInput) contentInput.value = '';
     if (anonymousCheckbox) anonymousCheckbox.checked = false;
+    if (secretCheckbox) secretCheckbox.checked = false;
 
     const errorBox = document.getElementById("modal-error");
     if (errorBox) errorBox.classList.add("hidden");
@@ -83,8 +86,9 @@ function closePostModal() {
 
 // ── 1. 백엔드 DB에서 게시글 목록 가져오기 ───────────────────────────
 async function loadPosts() {
-    const postListContainer = document.getElementById("posts-list");
-    if (!postListContainer) return;
+    const pcTbody = document.getElementById("posts-list-pc");
+    const mobileContainer = document.getElementById("posts-list-mobile");
+    if (!pcTbody || !mobileContainer) return;
 
     try {
         const response = await fetch('/api/posts');
@@ -94,7 +98,7 @@ async function loadPosts() {
 
         allPosts = await response.json();
 
-        // 고정글(pinned) 우선 정렬 후 최신순 정렬 (공지사항과 동일한 정렬 규칙)
+        // 고정글(pinned) 우선 정렬 후 최신순 정렬
         allPosts.sort((a, b) => {
             if (a.isPinned && !b.isPinned) return -1;
             if (!a.isPinned && b.isPinned) return 1;
@@ -142,7 +146,7 @@ function canModifyPost(post) {
     return currentUserId && postUserId && currentUserId === postUserId;
 }
 
-// ── 2. 게시글 고정(핀) 토글 기능 함수 (공지사항과 동일) ───────────────
+// ── 2. 게시글 고정(핀) 토글 기능 함수 ───────────────
 async function togglePinPost(event, postId) {
     if (event) event.stopPropagation();
 
@@ -167,7 +171,6 @@ async function togglePinPost(event, postId) {
 
         post.isPinned = newPinnedState;
 
-        // 정렬 상태 반영 후 재렌더링
         allPosts.sort((a, b) => {
             if (a.isPinned && !b.isPinned) return -1;
             if (!a.isPinned && b.isPinned) return 1;
@@ -177,7 +180,6 @@ async function togglePinPost(event, postId) {
         renderPosts();
     } catch (error) {
         console.error('고정 처리 오류:', error);
-        // API 엔드포인트 미구현 시 프론트엔드 임시 처리
         post.isPinned = newPinnedState;
         allPosts.sort((a, b) => {
             if (a.isPinned && !b.isPinned) return -1;
@@ -188,10 +190,11 @@ async function togglePinPost(event, postId) {
     }
 }
 
-// ── 3. 게시글 목록 테이블 렌더링 (작성자명 줄바꿈 방지 적용) ──
+// ── 3. 게시글 목록 테이블 렌더링 ──
 function renderPosts() {
-    const postListContainer = document.getElementById("posts-list");
-    if (!postListContainer) return;
+    const pcTbody = document.getElementById("posts-list-pc");
+    const mobileContainer = document.getElementById("posts-list-mobile");
+    if (!pcTbody || !mobileContainer) return;
 
     // 검색어 필터링
     const filteredPosts = allPosts.filter(post => {
@@ -203,91 +206,111 @@ function renderPosts() {
     });
 
     if (filteredPosts.length === 0) {
-        postListContainer.innerHTML = `
-            <tr>
-                <td colspan="5" class="text-center py-12 text-gray-400 bg-white">
-                    ${searchQuery ? '검색 결과가 없습니다.' : '등록된 게시글이 없습니다.'}
-                </td>
-            </tr>
-        `;
+        pcTbody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-gray-400 bg-white">검색 결과가 없습니다.</td></tr>`;
+        mobileContainer.innerHTML = `<div class="text-center py-12 text-gray-400 text-sm bg-white">검색 결과가 없습니다.</div>`;
         return;
     }
 
     const totalCount = filteredPosts.length;
     const adminUser = typeof isAdmin === 'function' ? isAdmin() : false;
 
-    postListContainer.innerHTML = filteredPosts.map((post, index) => {
+    // PC 테이블 렌더링
+    pcTbody.innerHTML = filteredPosts.map((post, index) => {
         const displayNum = totalCount - index;
-
-        // 익명글 처리 및 작성자 이름 판단
-        let displayAuthor = "익명";
-        if (post.isAnonymous) {
-            displayAuthor = "익명";
-        } else if (post.authorName && post.authorName !== "알 수 없음") {
-            displayAuthor = post.authorName;
-        } else if (post.author && post.author.name) {
-            displayAuthor = post.author.name;
-        }
-
+        let displayAuthor = post.isAnonymous ? "익명" : (post.authorName || (post.author ? post.author.name : '익명'));
         const formattedDate = formatPostDate(post.createdAt);
         const isPinned = post.isPinned === true;
         const hasModifyAuth = canModifyPost(post);
+        const secretIcon = post.isSecret ? '<span class="mr-1 text-gray-500" title="비밀글">🔒</span>' : '';
 
         return `
-            <tr class="hover:bg-gray-50 transition-colors cursor-pointer ${isPinned ? 'bg-blue-50/40 font-semibold' : ''}">
-                <td class="py-3.5 px-4 text-center text-gray-500 text-xs" onclick="goToPostDetail('${post.id}')">
+            <tr class="hover:bg-gray-50 transition-colors cursor-pointer ${isPinned ? 'bg-blue-50/40 font-semibold' : ''}" onclick="goToPostDetail('${post.id}')">
+                <td class="py-3.5 px-4 text-center text-gray-500 text-xs">
                     ${isPinned ? '<span class="text-blue-600 font-bold">📌</span>' : displayNum}
                 </td>
-                <td class="py-3.5 px-4 text-gray-900" onclick="goToPostDetail('${post.id}')">
+                <td class="py-3.5 px-4 text-gray-900">
                     <div class="flex items-center gap-1.5">
                         ${isPinned ? '<span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">고정</span>' : ''}
-                        <span class="hover:underline">${escapeHtml(post.title)}</span>
+                        <span class="hover:underline">${secretIcon}${escapeHtml(post.title)}</span>
                     </div>
                 </td>
-                <td class="py-3.5 px-4 text-right text-gray-600 text-xs whitespace-nowrap" onclick="goToPostDetail('${post.id}')">
+                <td class="py-3.5 px-4 text-right text-gray-600 text-xs whitespace-nowrap">
                     <div class="flex items-center justify-end gap-1.5">
                         ${hasModifyAuth ? `
                             <div class="flex items-center gap-1 mr-1" onclick="event.stopPropagation();">
                                 ${adminUser ? `
-                                    <button 
-                                        onclick="togglePinPost(event, '${post.id}')" 
-                                        class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer ${isPinned ? 'text-blue-600 bg-blue-50' : ''}"
-                                        title="${isPinned ? '고정 해제' : '게시물 고정'}"
-                                    >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
-                                        </svg>
+                                    <button onclick="togglePinPost(event, '${post.id}')" class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer ${isPinned ? 'text-blue-600 bg-blue-50' : ''}" title="고정">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
                                     </button>
                                 ` : ''}
-                                <button 
-                                    onclick="openDeleteModal(event, '${post.id}')" 
-                                    class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                                    title="게시글 삭제"
-                                >
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                    </svg>
+                                <button onclick="openDeleteModal(event, '${post.id}')" class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer" title="삭제">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 </button>
                             </div>
                         ` : ''}
                         <span>${escapeHtml(displayAuthor)}</span>
                     </div>
                 </td>
-                <!-- 작성일시 중앙 정렬 적용 (text-center, whitespace-nowrap) -->
-                <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap" onclick="goToPostDetail('${post.id}')">${formattedDate}</td>
-                <!-- 조회수 중앙 정렬 적용 (text-center, whitespace-nowrap) -->
-                <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap" onclick="goToPostDetail('${post.id}')">${post.views || 0}</td>
+                <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap">${formattedDate}</td>
+                <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap">${post.views || 0}</td>
             </tr>
+        `;
+    }).join('');
+
+    // 모바일 카드 렌더링
+    mobileContainer.innerHTML = filteredPosts.map((post, index) => {
+        const displayNum = totalCount - index;
+        let displayAuthor = post.isAnonymous ? "익명" : (post.authorName || (post.author ? post.author.name : '익명'));
+        const formattedDate = formatPostDate(post.createdAt);
+        const isPinned = post.isPinned === true;
+        const hasModifyAuth = canModifyPost(post);
+        const secretIcon = post.isSecret ? '<span class="mr-1 text-gray-500" title="비밀글">🔒</span>' : '';
+
+        return `
+            <div class="p-4 bg-white hover:bg-gray-50 cursor-pointer transition-colors" onclick="goToPostDetail('${post.id}')">
+                <div class="flex items-start justify-between gap-2 mb-1.5">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        ${isPinned ? '<span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">고정</span>' : `<span class="text-xs font-bold text-gray-400">#${displayNum}</span>`}
+                        <span class="text-sm font-bold text-gray-900 leading-snug">${secretIcon}${escapeHtml(post.title)}</span>
+                    </div>
+                    ${hasModifyAuth ? `
+                        <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation();">
+                            ${adminUser ? `
+                                <button onclick="togglePinPost(event, '${post.id}')" class="p-1 text-gray-400 hover:text-blue-600 ${isPinned ? 'text-blue-600' : ''}" title="고정">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
+                                </button>
+                            ` : ''}
+                            <button onclick="openDeleteModal(event, '${post.id}')" class="p-1 text-gray-400 hover:text-red-600" title="삭제">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="flex items-center justify-between text-xs text-gray-500 pt-1">
+                    <span class="font-medium text-gray-700">${escapeHtml(displayAuthor)}</span>
+                    <div class="flex items-center gap-3">
+                        <span>작성일시 ${formattedDate}</span>
+                        <span>조회수 ${post.views || 0}</span>
+                    </div>
+                </div>
+            </div>
         `;
     }).join('');
 }
 
-// 상세 페이지 이동
+// 상세 페이지 이동 (비밀글 권한 검증 추가)
 function goToPostDetail(postId) {
+    const post = allPosts.find(p => String(p.id) === String(postId));
+    if (post && post.isSecret) {
+        if (!canModifyPost(post)) {
+            alert("🔒 비밀글은 작성자와 관리자만 볼 수 있습니다.");
+            return;
+        }
+    }
     window.location.href = `/board_detail?id=${postId}`;
 }
 
-// ── 4. 커스텀 삭제 모달 제어 (공지사항과 동일한 모달 ID 사용) ───────
+// ── 4. 커스텀 삭제 모달 제어 ───────
 function openDeleteModal(event, postId) {
     if (event) event.stopPropagation();
 
@@ -320,13 +343,14 @@ async function executeDeletePost() {
     }
 }
 
-// ── 5. 새 게시글 저장 (POST /api/posts) ───────────────────────────
+// ── 5. 새 게시글 저장 (비밀글 옵션 반영) ───────────────────────────
 async function handleCreatePost(event) {
     event.preventDefault();
 
     const titleInput = document.getElementById("post-title");
     const contentInput = document.getElementById("post-content");
     const anonymousCheckbox = document.getElementById("anonymous-checkbox");
+    const secretCheckbox = document.getElementById("secret-checkbox");
 
     if (!titleInput || !contentInput) return;
 
@@ -346,6 +370,7 @@ async function handleCreatePost(event) {
         content: content,
         userId: parseInt(userId, 10),
         isAnonymous: anonymousCheckbox ? anonymousCheckbox.checked : false,
+        isSecret: secretCheckbox ? secretCheckbox.checked : false,
         isPinned: false
     };
 

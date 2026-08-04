@@ -14,8 +14,8 @@
         /* PAGE - 게시판 및 학사일정과 동일한 최대 너비(1152px) 기준 적용 */
         .page { width: 100%; max-width: 1152px; margin: 0 auto; padding: 36px 16px 60px; }
         .page-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
-        .page-top h1 { font-size: 32px; font-weight: 900; display: flex; align-items: center; gap: 12px; }
-        .page-top p { font-size: 14px; color: #6b7280; margin-top: 6px; }
+
+
         .icon-bar { width: 34px; height: 34px; flex-shrink: 0; }
 
         /* BTN */
@@ -209,13 +209,15 @@
 <div class="page">
     <div class="page-top">
         <div>
-            <h1>
-                <svg class="icon-bar" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
+            <!-- 💡 타 페이지와 통일된 타이틀 헤더 -->
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2.5 mb-1.5">
+                <!-- 투표를 상징하는 막대그래프 아이콘 -->
+                <svg class="w-7 h-7 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                 </svg>
                 투표
             </h1>
-            <p>UbiCOM 동아리 투표에 참여하세요</p>
+            <p class="text-sm text-gray-500">UbiCOM 동아리 투표에 참여하세요</p>
         </div>
         <div id="createBtnArea"></div>
     </div>

@@ -14,4 +14,7 @@ public class PostDto {
     // Jackson 변환 오류 방지용 명시적 처리
     @JsonProperty("isAnonymous")
     private boolean isAnonymous;
+
+    @JsonProperty("isSecret")
+    private boolean isSecret;
 }
