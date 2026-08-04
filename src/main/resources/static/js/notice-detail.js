@@ -1,5 +1,7 @@
 /* ==========================================
    공지사항 상세페이지 전용 투표 모듈 (REST API 연동)
+   - 서버 DB 기반 읽음 상태 동기화 반영
+   notice-detail.js
    ========================================== */
 
 let currentNotice = null;
@@ -21,9 +23,9 @@ document.addEventListener("DOMContentLoaded", async function() {
 
     await loadNoticeDetail(noticeId);
 
-    // 상세 페이지 진입 시 읽음 처리 실행 (대시보드 [N] 표시 제거용)
+    // 상세 페이지 진입 시 서버 DB 기반 읽음 처리 실행 (대시보드 [N] 표시 제거용)
     if (currentNotice) {
-        markNoticeAsRead(currentNotice);
+        await markNoticeAsRead(currentNotice);
     }
 
     const confirmDeleteBtn = document.getElementById("confirm-delete-btn");
@@ -32,16 +34,22 @@ document.addEventListener("DOMContentLoaded", async function() {
     }
 });
 
-// ── 읽음 처리 함수 ─────────────────────────────────────────────────────────────
-function markNoticeAsRead(notice) {
+// ── 서버 DB 연동 읽음 처리 함수 ──────────────────────────────────────────────
+async function markNoticeAsRead(notice) {
     if (!notice || !notice.id) return;
-    const userId = currentUser ? (currentUser.id || currentUser.username || currentUser.userId || 'guest') : 'guest';
-    const storageKey = `readNotices_${userId}`;
-    const readMap = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    const myId = currentUser ? (currentUser.id || currentUser.username || currentUser.userId || '') : '';
 
-    // 현재 공지의 id와 생성일시(createdAt)를 기록하여 읽음 상태로 만듦
-    readMap[String(notice.id)] = notice.createdAt;
-    localStorage.setItem(storageKey, JSON.stringify(readMap));
+    if (myId) {
+        try {
+            await fetch(`/api/notices/${notice.id}/read`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: myId })
+            });
+        } catch (e) {
+            console.error('읽음 처리 전송 오류:', e);
+        }
+    }
 }
 
 // ── 유틸리티 및 인증 ─────────────────────────────────────────────────────────────
@@ -54,6 +62,7 @@ async function fetchCurrentUser() {
         return null;
     }
 }
+
 function formatDeadline(iso) {
     if (!iso) return "";
     return new Date(iso).toLocaleString("ko-KR", {

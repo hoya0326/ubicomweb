@@ -1,3 +1,4 @@
+//home.js
 document.addEventListener('DOMContentLoaded', function() {
     const mainContent = document.getElementById('main-content');
     const cachedUser = getCurrentUser();
@@ -16,7 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// HTML 특수문자 안전하게 변환하는 헬퍼 함수
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -104,27 +104,37 @@ async function showDashboard(container, user) {
         return !hasVoted;
     });
 
-    // 💡 마감기한 임박 순 정렬 (마감기한이 가까울수록 상단에 오도록 정렬)
     unparticipatedPolls.sort((a, b) => {
         if (!a.endsAt && !b.endsAt) return 0;
-        if (!a.endsAt) return 1;  // 마감기한 없는 것은 뒤로 보냄
+        if (!a.endsAt) return 1;
         if (!b.endsAt) return -1;
         return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
     });
 
-    const isAdmin = user && (user.isAdmin === true || user.role === 'ADMIN' || user.role === 'admin');
+    // DB 기반 읽은 공지사항 목록 조회 (기기 간 동기화)
+    let readNoticeIds = [];
+    if (myId) {
+        try {
+            const readRes = await fetch(`/api/notices/reads?userId=${encodeURIComponent(myId)}`);
+            if (readRes.ok) {
+                readNoticeIds = await readRes.json();
+            }
+        } catch (e) {
+            console.error('읽은 공지사항 목록 조회 오류:', e);
+        }
+    }
 
-    const userId = user ? (user.id || user.username || user.userId || 'guest') : 'guest';
-    const storageKey = `readNotices_${userId}`;
-    const readMap = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    const readIdsSet = new Set(readNoticeIds.map(id => String(id)));
 
     const allUnreadNotices = allNotices.filter(notice => {
         if (!notice || !notice.id) return false;
-        return readMap[String(notice.id)] !== notice.createdAt;
+        return !readIdsSet.has(String(notice.id));
     });
 
     const unreadCount = allUnreadNotices.length;
     const unreadNotices = allUnreadNotices.slice(0, 5);
+
+    const isAdmin = user && (user.isAdmin === true || user.role === 'ADMIN' || user.role === 'admin');
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -132,7 +142,6 @@ async function showDashboard(container, user) {
         return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
     };
 
-    // 마감기한 포맷팅 헬퍼 함수
     const formatPollDeadline = (isoStr) => {
         if (!isoStr) return '';
         const d = new Date(isoStr);
@@ -160,15 +169,28 @@ async function showDashboard(container, user) {
                         </div>
                         <div class="space-y-4 max-h-[400px] overflow-y-auto">
                             ${unparticipatedPolls.length > 0 ? unparticipatedPolls.map(poll => {
-        const inputType = poll.allowMultiple ? "checkbox" : "radio";
+        const isMulti = poll.allowMultiple || poll.multiple || poll.multipleChoice;
+        const isAnon = poll.isAnonymous || poll.anonymous;
+        const inputType = isMulti ? "checkbox" : "radio";
+
         const deadlineBadge = poll.endsAt
             ? `<span class="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded font-semibold">⏰ ${formatPollDeadline(poll.endsAt)}</span>`
             : '';
+
+        let extraBadges = '';
+        if (isAnon) {
+            extraBadges += `<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-semibold">🔒 익명</span>`;
+        }
+        if (isMulti) {
+            extraBadges += `<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-semibold">✅ 중복</span>`;
+        }
+
         return `
                                     <div class="border border-gray-200 rounded-lg p-4 bg-gray-50" id="dash-poll-card-${poll.id}">
                                         <div class="flex items-center justify-between mb-1">
                                             <h3 class="font-bold text-gray-800 text-sm">${escapeHtml(poll.title)}</h3>
-                                            <div class="flex items-center gap-1.5">
+                                            <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                                                ${extraBadges}
                                                 ${deadlineBadge}
                                                 <span class="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-semibold">진행 중</span>
                                             </div>
@@ -181,7 +203,7 @@ async function showDashboard(container, user) {
                                                         type="${inputType}" 
                                                         name="dash-poll-${poll.id}" 
                                                         value="${opt.id}" 
-                                                        onchange="onDashboardSelectOption('${poll.id}', '${opt.id}', this.checked, ${poll.allowMultiple})"
+                                                        onchange="onDashboardSelectOption('${poll.id}', '${opt.id}', this.checked, ${Boolean(isMulti)})"
                                                     />
                                                     <span>${escapeHtml(opt.text)}</span>
                                                 </label>

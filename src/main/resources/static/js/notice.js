@@ -3,12 +3,15 @@
    - 실시간 인덱스 기반 자동 번호 재정렬 (최신순 역순 번호 매기기: 1번 삭제 시 2번이 1번으로 당겨짐)
    - 첨부파일 및 투표 첨부 아이콘 표시
    - 작성자, 작성일시, 조회수 연동 및 검색 기능
+   - 서버 DB 기반 읽음 상태(N 마크) 기기 간 동기화 연동
+   notice.js
    ========================================== */
 
 let allNotices = []; // 전체 공지사항 목록 저장용
 let searchQuery = ''; // 검색어 저장용
 let noticePollOptions = ['', '']; // 투표 동적 선택지 상태 관리
 let targetNoticeIdToDelete = null; // 삭제할 공지 ID 저장용
+let readNoticeIdsSet = new Set(); // 서버에서 조회한 읽은 공지 ID 집합
 
 document.addEventListener('DOMContentLoaded', async function() {
     if (typeof requireLogin === 'function' && !requireLogin()) return;
@@ -121,13 +124,29 @@ function removePollOptionInput(idx) {
     renderPollOptionInputs();
 }
 
-// 공지사항 불러오기 (REST API 연동)
+// 공지사항 불러오기 (REST API 및 서버 읽음 상태 연동)
 async function loadNotices() {
     try {
         const response = await fetch('/api/notices');
         if (!response.ok) throw new Error('공지사항 목록 조회 실패');
 
         allNotices = await response.json();
+
+        // 서버 DB 기반 읽은 공지사항 목록 조회 (기기 간 동기화)
+        const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        const myId = user ? (user.id || user.username || user.userId || '') : '';
+
+        if (myId) {
+            try {
+                const readRes = await fetch(`/api/notices/reads?userId=${encodeURIComponent(myId)}`);
+                if (readRes.ok) {
+                    const readIds = await readRes.json();
+                    readNoticeIdsSet = new Set(readIds.map(id => String(id)));
+                }
+            } catch (e) {
+                console.error('읽은 공지사항 목록 조회 오류:', e);
+            }
+        }
 
         // 고정글(pinned) 우선 정렬 후 최신순 정렬
         allNotices.sort((a, b) => {
@@ -160,26 +179,10 @@ function formatDate(isoStr) {
     return `${y}.${m}.${d}`;
 }
 
-// 24시간 이내 작성되었고, 아직 읽지 않은 글인지 확인 (N 마크 표시용)
+// 서버 DB 읽음 상태 세트를 기반으로 아직 읽지 않은 글인지 확인 (N 마크 표시용)
 function isNewPost(notice) {
     if (!notice || !notice.id) return false;
-
-    try {
-        const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-        const userId = user ? (user.id || user.username || user.userId || 'guest') : 'guest';
-        const storageKey = `readNotices_${userId}`;
-
-        const readMap = JSON.parse(localStorage.getItem(storageKey) || '{}');
-
-        // 해당 ID의 글이 최신 생성일시 그대로 읽혔는지 확인
-        if (readMap[String(notice.id)] === notice.createdAt) {
-            return false; // 이미 읽은 글
-        }
-    } catch (e) {
-        console.error('읽음 상태 확인 오류:', e);
-    }
-
-    return true;
+    return !readNoticeIdsSet.has(String(notice.id));
 }
 
 // 게시물 고정(핀) 토글 기능 함수
@@ -217,13 +220,12 @@ async function togglePinNotice(event, noticeId) {
         renderNotices();
     } catch (error) {
         console.error('고정 처리 오류:', error);
-        // API 엔드포인트가 아직 구현되지 않은 경우를 대비한 프론트엔드 임시 처리
         notice.isPinned = newPinnedState;
         renderNotices();
     }
 }
 
-// 공지사항 테이블 렌더링 (첨부 칸 삭제, 우측 정렬, 관리자 고정/삭제 버튼)
+// 공지사항 테이블 렌더링
 function renderNotices() {
     const tbody = document.getElementById('notice-list-tbody');
     if (!tbody) return;
@@ -256,58 +258,53 @@ function renderNotices() {
         const authorName = notice.author ? (notice.author.name || notice.author.username || '관리자') : (notice.authorName || '관리자');
         const dateStr = formatDate(notice.createdAt);
 
-        // ✨ 수정 완료: notice 객체 전체를 전달하여 읽음 여부 판단
         const isNew = isNewPost(notice);
-
         const isPinned = notice.isPinned === true;
 
-        // 공지사항 테이블 렌더링 내의 해당 <td> 부분 수정
         return `
-    <tr class="hover:bg-gray-50 transition-colors cursor-pointer ${isPinned ? 'bg-blue-50/40 font-semibold' : ''}">
-        <td class="py-3.5 px-4 text-center text-gray-500 text-xs" onclick="goToNoticeDetail('${notice.id}')">
-            ${isPinned ? '<span class="text-blue-600 font-bold">📌</span>' : displayNum}
-        </td>
-        <td class="py-3.5 px-4 text-gray-900" onclick="goToNoticeDetail('${notice.id}')">
-            <div class="flex items-center gap-1.5">
-                ${isPinned ? '<span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">고정</span>' : ''}
-                <span class="hover:underline">${escapeHtml(notice.title)}</span>
-                ${notice.hasPoll ? `<span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-0.5">📊 투표</span>` : ''}
-                ${isNew ? '<span class="badge-n">N</span>' : ''}
-            </div>
-        </td>
-        <td class="py-3.5 px-4 text-right text-gray-600 text-xs" onclick="goToNoticeDetail('${notice.id}')">
-            <div class="flex items-center justify-end gap-1.5">
-                ${adminUser ? `
-                    <div class="flex items-center gap-1 mr-1" onclick="event.stopPropagation();">
-                        <button 
-                            onclick="togglePinNotice(event, '${notice.id}')" 
-                            class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer ${isPinned ? 'text-blue-600 bg-blue-50' : ''}"
-                            title="${isPinned ? '고정 해제' : '게시물 고정'}"
-                        >
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
-                            </svg>
-                        </button>
-                        <button 
-                            onclick="openDeleteModal(event, '${notice.id}')" 
-                            class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                            title="공지 삭제"
-                        >
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                        </button>
+            <tr class="hover:bg-gray-50 transition-colors cursor-pointer ${isPinned ? 'bg-blue-50/40 font-semibold' : ''}">
+                <td class="py-3.5 px-4 text-center text-gray-500 text-xs" onclick="goToNoticeDetail('${notice.id}')">
+                    ${isPinned ? '<span class="text-blue-600 font-bold">📌</span>' : displayNum}
+                </td>
+                <td class="py-3.5 px-4 text-gray-900" onclick="goToNoticeDetail('${notice.id}')">
+                    <div class="flex items-center gap-1.5">
+                        ${isPinned ? '<span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">고정</span>' : ''}
+                        <span class="hover:underline">${escapeHtml(notice.title)}</span>
+                        ${notice.hasPoll ? `<span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-0.5">📊 투표</span>` : ''}
+                        ${isNew ? '<span class="badge-n">N</span>' : ''}
                     </div>
-                ` : ''}
-                <span>${escapeHtml(authorName)}</span>
-            </div>
-        </td>
-        <!-- 작성일시 중앙 정렬 -->
-        <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap" onclick="goToNoticeDetail('${notice.id}')">${dateStr}</td>
-        <!-- 조회수 중앙 정렬 -->
-        <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap" onclick="goToNoticeDetail('${notice.id}')">${notice.views || 0}</td>
-    </tr>
-`;
+                </td>
+                <td class="py-3.5 px-4 text-right text-gray-600 text-xs" onclick="goToNoticeDetail('${notice.id}')">
+                    <div class="flex items-center justify-end gap-1.5">
+                        ${adminUser ? `
+                            <div class="flex items-center gap-1 mr-1" onclick="event.stopPropagation();">
+                                <button 
+                                    onclick="togglePinNotice(event, '${notice.id}')" 
+                                    class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer ${isPinned ? 'text-blue-600 bg-blue-50' : ''}"
+                                    title="${isPinned ? '고정 해제' : '게시물 고정'}"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                                    </svg>
+                                </button>
+                                <button 
+                                    onclick="openDeleteModal(event, '${notice.id}')" 
+                                    class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                    title="공지 삭제"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        ` : ''}
+                        <span>${escapeHtml(authorName)}</span>
+                    </div>
+                </td>
+                <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap" onclick="goToNoticeDetail('${notice.id}')">${dateStr}</td>
+                <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap" onclick="goToNoticeDetail('${notice.id}')">${notice.views || 0}</td>
+            </tr>
+        `;
     }).join('');
 }
 
@@ -332,7 +329,7 @@ function closeDeleteModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-// 공지사항 삭제 최종 실행 (REST API 연동 후 실시간 번호 재정렬 반영)
+// 공지사항 삭제 최종 실행
 async function executeDeleteNotice() {
     if (!targetNoticeIdToDelete) return;
 
@@ -351,27 +348,24 @@ async function executeDeleteNotice() {
     }
 }
 
-// 상세 페이지 이동 시 읽음 처리 (생성일시를 함께 기록)
-function goToNoticeDetail(noticeId) {
-    const notice = allNotices.find(n => String(n.id) === String(noticeId));
-    if (notice) {
-        markNoticeAsRead(noticeId, notice.createdAt);
-    }
-    window.location.href = `/notice_detail?id=${noticeId}`;
-}
-// 읽음 상태 저장 헬퍼 함수
-function markNoticeAsRead(noticeId, createdAt) {
-    try {
-        const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-        const userId = user ? (user.id || user.username || user.userId || 'guest') : 'guest';
-        const storageKey = `readNotices_${userId}`;
+// 상세 페이지 이동 시 서버 DB에 읽음 상태 반영 API 호출
+async function goToNoticeDetail(noticeId) {
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    const myId = user ? (user.id || user.username || user.userId || '') : '';
 
-        let readMap = JSON.parse(localStorage.getItem(storageKey) || '{}');
-        readMap[String(noticeId)] = createdAt;
-        localStorage.setItem(storageKey, JSON.stringify(readMap));
-    } catch (e) {
-        console.error('읽음 처리 저장 오류:', e);
+    if (myId) {
+        try {
+            await fetch(`/api/notices/${noticeId}/read`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: myId })
+            });
+        } catch (e) {
+            console.error('읽음 처리 전송 오류:', e);
+        }
     }
+
+    window.location.href = `/notice_detail?id=${noticeId}`;
 }
 
 // 공지사항 생성 처리 (REST API 연동)

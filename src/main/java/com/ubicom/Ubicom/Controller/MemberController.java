@@ -7,6 +7,7 @@ import com.ubicom.Ubicom.Entity.Member; // 프로젝트 엔티티 패키지 위�
 import com.ubicom.Ubicom.Entity.Users;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,11 +15,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.security.SecureRandom;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Controller
 @RequiredArgsConstructor
@@ -145,38 +148,43 @@ public class MemberController {
     }
 
     @PostMapping("/member/email")
+    @ResponseBody
     @Transactional
-    public String saveEmail(
+    public ResponseEntity<?> saveEmail(
             Authentication authentication,
-            @RequestParam String email,
-            HttpServletResponse response
-    ) throws IOException {
-
+            @RequestParam String email
+    ) {
         if (authentication == null
                 || "anonymousUser".equals(authentication.getName())) {
-            return "redirect:/login";
+            return ResponseEntity.status(401).body(Map.of("success", false, "message", "로그인이 필요합니다."));
         }
 
-        Integer userId = Integer.parseInt(authentication.getName());
+        try {
+            Integer userId = Integer.parseInt(authentication.getName());
 
-        var memberResult = memberRepository.findByUserId(userId);
-        var userResult = usersRepository.findByUserId(userId);
+            var memberResult = memberRepository.findByUserId(userId);
+            var userResult = usersRepository.findByUserId(userId);
 
-        if (memberResult.isEmpty() || userResult.isEmpty()) {
-            showAlert(response, "회원 정보를 찾을 수 없습니다.");
-            return null;
+            if (memberResult.isEmpty() || userResult.isEmpty()) {
+                return ResponseEntity.status(404).body(Map.of("success", false, "message", "회원 정보를 찾을 수 없습니다."));
+            }
+
+            Member member = memberResult.get();
+            Users user = userResult.get();
+
+            member.setEmail(email);
+            user.setEmail(email);
+
+            memberRepository.save(member);
+            usersRepository.save(user);
+
+            return ResponseEntity.ok(Map.of("success", true, "message", "이메일이 성공적으로 등록되었습니다."));
+
+        } catch (Exception e) {
+            // 예외 발생 시 콘솔에 정확한 에러 로그 출력 (디버깅용)
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("success", false, "message", "이미 등록된 이메일이거나 서버 오류가 발생했습니다."));
         }
-
-        Member member = memberResult.get();
-        Users user = userResult.get();
-
-        member.setEmail(email);
-        user.setEmail(email);
-
-        memberRepository.save(member);
-        usersRepository.save(user);
-
-        return "redirect:/";
     }
 
     @GetMapping("/forgot-password")
