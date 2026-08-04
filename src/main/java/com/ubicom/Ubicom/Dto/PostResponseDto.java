@@ -13,11 +13,11 @@ public class PostResponseDto {
     private String title;
     private String content;
 
-    // 작성자 전체 정보 전달용 (이름, 학번 등)
+    // 작성자 전체 정보 전달용
     private AuthorDto author;
-    private String authorName;
+    private String authorName;      // 일반 표시용 이름 ("익명" 또는 본명)
+    private String realAuthorName;  // 관리자 및 본인용 실명
 
-    // Jackson이 'anonymous' 대신 'isAnonymous' 키로 JSON 생성하도록 강제
     @JsonProperty("isAnonymous")
     private boolean isAnonymous;
 
@@ -25,10 +25,10 @@ public class PostResponseDto {
     private boolean isSecret;
 
     private int views;
+    private int commentsCount; // ✨ 댓글 개수 필드 추가!
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt; // 수정 여부 확인용 (없다면 삭제 가능)
+    private LocalDateTime updatedAt;
 
-    // 작성자 정보를 깔끔하게 묶어줄 내부 DTO
     @Getter
     @Setter
     public static class AuthorDto {
@@ -42,7 +42,7 @@ public class PostResponseDto {
         dto.setId(post.getId());
         dto.setTitle(post.getTitle());
         dto.setContent(post.getContent());
-        dto.setAnonymous(post.isAnonymous()); // getter/setter 호출
+        dto.setAnonymous(post.isAnonymous());
         dto.setSecret(post.isSecret());
         dto.setViews(post.getViews());
         dto.setCreatedAt(post.getCreatedAt());
@@ -51,19 +51,25 @@ public class PostResponseDto {
             dto.setUpdatedAt(post.getUpdatedAt());
         }
 
-        // 작성자 객체 정보 세팅 (익명 여부와 상관없이 실제 작성자 정보를 채워둠)
         if (post.getAuthor() != null) {
             AuthorDto authorDto = new AuthorDto();
             authorDto.setUserId(post.getAuthor().getUserId());
             authorDto.setName(post.getAuthor().getName());
             authorDto.setUsername(post.getAuthor().getName());
-
             dto.setAuthor(authorDto);
 
             String realName = post.getAuthor().getName() != null ?
                     post.getAuthor().getName() : String.valueOf(post.getAuthor().getUserId());
-            dto.setAuthorName(realName);
+
+            dto.setRealAuthorName(realName);
+
+            if (post.isAnonymous()) {
+                dto.setAuthorName("익명");
+            } else {
+                dto.setAuthorName(realName);
+            }
         } else {
+            dto.setRealAuthorName("알 수 없음");
             dto.setAuthorName("알 수 없음");
         }
 

@@ -189,7 +189,21 @@ function resetAndCloseModal() {
     renderCalendar();
 }
 
-// ── 3. UI 제어 및 캘린더 코어 엔진 ───────────────────────────
+function formatEventDateText(evt) {
+    let dateText = `${evt.startDate}${evt.startTime ? ' ' + evt.startTime : ''}`;
+    if (evt.startDate !== evt.endDate || (evt.endTime && evt.endTime !== evt.startTime)) {
+        dateText += ` ~ ${evt.endDate}${evt.endTime ? ' ' + evt.endTime : ''}`;
+    }
+
+    if (evt.recurrence && evt.recurrence !== 'none') {
+        const endLabel = evt.recurrenceEnd === '9999-12-31' ? '무기한' : evt.recurrenceEnd;
+        if (evt.recurrence === 'weekly') dateText = `매주 반복 (${dateText} ~ ${endLabel})`;
+        else if (evt.recurrence === 'monthly') dateText = `매월 반복 (${dateText} ~ ${endLabel})`;
+        else if (evt.recurrence === 'yearly') dateText = `매년 반복 (${dateText} ~ ${endLabel})`;
+    }
+    return dateText;
+}
+
 function renderCalendar() {
     const calendarDays = document.getElementById('calendar-days');
     if (!calendarDays) return;
@@ -239,20 +253,18 @@ function renderCalendar() {
             if (!modal) return;
 
             document.getElementById('view-event-title').textContent = evt.title;
-            document.getElementById('view-event-desc').innerHTML = `<p class="mb-2"><strong>날짜:</strong> ${dateStr}</p><p><strong>설명:</strong> ${escapeHtml(evt.description || '설명 없음')}</p>`;
+            document.getElementById('view-event-desc').innerHTML = `<p class="mb-2"><strong>일정 기간:</strong> ${formatEventDateText(evt)}</p><p><strong>설명:</strong> ${escapeHtml(evt.description || '설명 없음')}</p>`;
 
             // 관리자 권한 제어
             if (isAdmin()) {
                 if (delBtn) {
                     delBtn.classList.remove('hidden');
-                    // 반복 일정 여부에 따른 지능형 삭제 분기
                     if (evt.recurrence && evt.recurrence !== 'none') {
                         delBtn.textContent = '이 날짜 일정만 삭제';
                     } else {
                         delBtn.textContent = '일정 삭제';
                     }
 
-                    // 삭제 버튼 클릭 시 동작 지정
                     delBtn.onclick = function () {
                         const isRepeat = evt.recurrence && evt.recurrence !== 'none';
                         const confirmMsg = isRepeat
@@ -260,7 +272,6 @@ function renderCalendar() {
                             : '이 일정을 삭제하시겠습니까?';
 
                         if (confirm(confirmMsg)) {
-                            // 반복 일정인 경우 특정 날짜(dateStr)만 제외 요청
                             deleteEvent(evt.id, isRepeat ? dateStr : null);
                             modal.classList.add('hidden');
                         }
@@ -295,8 +306,20 @@ async function handleAddEvent() {
     const titleInput = document.getElementById('event-title');
     const title = titleInput ? titleInput.value.trim() : '';
     const periodType = document.getElementById('event-period-type')?.value || 'single';
-    const startDate = periodType === 'single' ? document.getElementById('event-start-date').value : document.getElementById('event-range-start').value;
-    const endDate = periodType === 'single' ? startDate : document.getElementById('event-range-end').value;
+
+    let startDate, startTime, endDate, endTime;
+
+    if (periodType === 'single') {
+        startDate = document.getElementById('event-start-date').value;
+        startTime = document.getElementById('event-start-time').value || null;
+        endDate = startDate;
+        endTime = startTime;
+    } else {
+        startDate = document.getElementById('event-range-start').value;
+        startTime = document.getElementById('event-range-start-time').value || null;
+        endDate = document.getElementById('event-range-end').value;
+        endTime = document.getElementById('event-range-end-time').value || null;
+    }
 
     const isRepeat = document.getElementById('repeat-checkbox')?.checked;
     const recurrence = document.getElementById('event-recurrence')?.value || 'none';
@@ -310,7 +333,9 @@ async function handleAddEvent() {
     const payload = {
         title: title,
         startDate: startDate,
+        startTime: startTime,
         endDate: endDate,
+        endTime: endTime,
         description: document.getElementById('event-description')?.value.trim() || '',
         category: document.getElementById('event-category')?.value || 'event',
         recurrence: isRepeat ? recurrence : 'none',
@@ -353,7 +378,6 @@ async function deleteEvent(eventId, clickedDate = null) {
 
     try {
         if (!clickedDate) {
-            // 일정 전체 삭제 API 호출
             if (!confirm('정말 이 일정을 완전히 삭제하시겠습니까?')) return;
 
             const response = await fetch(`/api/schedules/${eventId}`, {
@@ -365,7 +389,6 @@ async function deleteEvent(eventId, clickedDate = null) {
                 throw new Error(result.message || '일정 삭제 실패');
             }
         } else {
-            // 특정 날짜만 예외(단건 제외) 처리 API 호출
             const response = await fetch(`/api/schedules/${eventId}/exception?dateStr=${encodeURIComponent(clickedDate)}`, {
                 method: 'POST'
             });
@@ -421,13 +444,7 @@ function loadEvents() {
         const item = document.createElement('div');
         item.className = 'flex justify-between items-center p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors';
 
-        let dateText = `${evt.startDate} ~ ${evt.endDate}`;
-        if (evt.recurrence && evt.recurrence !== 'none') {
-            const endLabel = evt.recurrenceEnd === '9999-12-31' ? '무기한' : evt.recurrenceEnd;
-            if (evt.recurrence === 'weekly') dateText = `매주 반복 (${evt.startDate} ~ ${endLabel})`;
-            else if (evt.recurrence === 'monthly') dateText = `매월 반복 (${evt.startDate} ~ ${endLabel})`;
-            else if (evt.recurrence === 'yearly') dateText = `매년 반복 (${evt.startDate} ~ ${endLabel})`;
-        }
+        const dateText = formatEventDateText(evt);
 
         // 목록 아이템 클릭 시 (전체 일정 정보 모달 오픈)
         item.onclick = function (e) {
@@ -439,7 +456,7 @@ function loadEvents() {
 
             document.getElementById('view-event-title').textContent = evt.title;
             document.getElementById('view-event-desc').innerHTML = `
-                <p class="mb-2"><strong>기간:</strong> ${dateText}</p>
+                <p class="mb-2"><strong>일정 기간:</strong> ${dateText}</p>
                 <p><strong>설명:</strong> ${escapeHtml(evt.description || '설명 없음')}</p>
             `;
 
@@ -449,7 +466,7 @@ function loadEvents() {
                     delBtn.textContent = '일정 전체 삭제';
                     delBtn.onclick = function () {
                         if (confirm('정말 이 일정을 완전히 삭제하시겠습니까? (반복 규칙 포함)')) {
-                            deleteEvent(evt.id); // 전체 삭제 (clickedDate = null)
+                            deleteEvent(evt.id);
                             modal.classList.add('hidden');
                         }
                     };

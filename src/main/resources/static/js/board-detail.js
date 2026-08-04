@@ -109,7 +109,7 @@ function getAuthorName(item) {
     return item.authorName || item.author || '익명';
 }
 
-// 익명 여부에 따른 표시용 작성자명
+// 익명 여부에 따른 표시용 작성자명 (본인 또는 관리자에게만 실명 노출)
 function getDisplayAuthor(item, userIsAdmin) {
     if (!item) return "익명";
 
@@ -117,7 +117,8 @@ function getDisplayAuthor(item, userIsAdmin) {
     const isAnon = item.isAnonymous || item.anonymous;
 
     if (isAnon) {
-        if (userIsAdmin) {
+        const isOwner = isAuthorOrAdmin(item);
+        if (userIsAdmin || isOwner) {
             return `익명 <span class="text-xs text-blue-600 font-normal ms-1">(${escapeHtml(realAuthor)})</span>`;
         }
         return "익명";
@@ -131,14 +132,12 @@ async function loadPost() {
     const user = getLoggedInUser();
     const userId = user.userId || user.id || user.studentId || '';
 
-    // 프론트엔드 유저가 관리자 권한을 가졌는지 다양한 조건으로 확실하게 체크
     const userIsAdmin = (typeof isAdmin === 'function' && isAdmin()) ||
         user.role === 'ADMIN' ||
         user.role === 'admin' ||
         user.username === 'admin' ||
         String(user.userId) === 'admin';
 
-    // 관리자일 경우 백엔드에 'ADMIN' 문자열을 확실히 태워 보냄
     const role = userIsAdmin ? 'ADMIN' : (user.role || '');
 
     try {

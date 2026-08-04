@@ -73,9 +73,7 @@
         <!-- 상단 헤더 및 버튼 영역 -->
         <div class="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-                <!-- 💡 표준 타이틀 및 아이콘 적용 영역 -->
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2.5 mb-1.5">
-                    <!-- 학사일정을 상징하는 캘린더 아이콘 -->
                     <svg class="w-7 h-7 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
@@ -133,7 +131,7 @@
                 </div>
             </div>
 
-            <!-- 사이드바 영역 (4칸 중 1칸 차지하며 캘린더와 높이 동기화) -->
+            <!-- 사이드바 영역 -->
             <div class="sidebar">
                 <div class="side-card shadow">
                     <div class="side-card-hd bg-gray-50">일정 유형 분류</div>
@@ -181,10 +179,10 @@
                 <input type="text" id="event-title" placeholder="일정 제목을 입력하세요" class="w-full h-11 px-3.5 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all" required>
             </div>
 
-            <!-- 2. 일정 기간 -->
+            <!-- 2. 일정 기간 및 시간 -->
             <div class="space-y-2">
                 <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-700">일정 기간</span>
+                    <span class="text-sm font-medium text-gray-700">일정 기간 및 시간</span>
                     <div class="flex border border-gray-200 rounded-lg p-0.5 bg-gray-50">
                         <button type="button" id="btn-period-single" onclick="togglePeriodUI(false)" class="cursor-pointer px-3 py-1 text-xs font-semibold rounded-md bg-blue-600 text-white shadow-sm transition-all">
                             단일 날짜
@@ -197,22 +195,41 @@
 
                 <input type="hidden" id="event-period-type" value="single">
 
-                <!-- 날짜 입력 폼 컨테이너 -->
+                <!-- 날짜 및 시간 입력 폼 컨테이너 -->
                 <div class="w-full" id="date-inputs-container">
-                    <!-- 단일 날짜용 입력창 -->
-                    <div id="single-date-wrapper" class="w-full">
-                        <input type="date" id="event-start-date" class="w-full h-11 px-3.5 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white appearance-none transition-all" required>
-                    </div>
-
-                    <!-- 장기 일정용 입력창 -->
-                    <div id="range-date-wrapper" class="hidden grid grid-cols-2 gap-2.5 w-full">
+                    <!-- 단일 날짜 + 시간 입력창 -->
+                    <div id="single-date-wrapper" class="w-full grid grid-cols-2 gap-2.5">
                         <div class="w-full">
-                            <span class="block text-xs font-medium text-gray-500 mb-1">시작일</span>
-                            <input type="date" id="event-range-start" class="w-full h-11 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white appearance-none transition-all">
+                            <span class="block text-xs font-medium text-gray-500 mb-1">날짜</span>
+                            <input type="date" id="event-start-date" class="w-full h-11 px-3.5 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white appearance-none transition-all" required>
                         </div>
                         <div class="w-full">
-                            <span class="block text-xs font-medium text-gray-500 mb-1">종료일</span>
-                            <input type="date" id="event-range-end" class="w-full h-11 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white appearance-none transition-all">
+                            <span class="block text-xs font-medium text-gray-500 mb-1">시간 (선택)</span>
+                            <input type="time" id="event-start-time" class="w-full h-11 px-3.5 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white appearance-none transition-all">
+                        </div>
+                    </div>
+
+                    <!-- 장기 일정(시작/종료 날짜 및 시간) 입력창 -->
+                    <div id="range-date-wrapper" class="hidden space-y-3 w-full">
+                        <div class="grid grid-cols-2 gap-2.5 w-full">
+                            <div class="w-full">
+                                <span class="block text-xs font-medium text-gray-500 mb-1">시작일</span>
+                                <input type="date" id="event-range-start" class="w-full h-11 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white appearance-none transition-all">
+                            </div>
+                            <div class="w-full">
+                                <span class="block text-xs font-medium text-gray-500 mb-1">시작 시간 (선택)</span>
+                                <input type="time" id="event-range-start-time" class="w-full h-11 px-3.5 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white appearance-none transition-all">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2.5 w-full">
+                            <div class="w-full">
+                                <span class="block text-xs font-medium text-gray-500 mb-1">종료일</span>
+                                <input type="date" id="event-range-end" class="w-full h-11 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white appearance-none transition-all">
+                            </div>
+                            <div class="w-full">
+                                <span class="block text-xs font-medium text-gray-500 mb-1">종료 시간 (선택)</span>
+                                <input type="time" id="event-range-end-time" class="w-full h-11 px-3.5 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white appearance-none transition-all">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -228,7 +245,7 @@
                     </button>
                     <button id="btn-cat-activity" type="button" class="cursor-pointer flex items-center justify-center gap-2 h-11 rounded-lg border text-sm font-semibold transition-all border-gray-200 text-gray-500 hover:bg-gray-50 bg-white">
                         <span class="h-2.5 w-2.5 rounded-full bg-green-500"></span>
-                        동아리
+                        스터디
                     </button>
                 </div>
                 <input id="event-category" type="hidden" value="event">
