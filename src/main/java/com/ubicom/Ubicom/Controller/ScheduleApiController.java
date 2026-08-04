@@ -1,5 +1,6 @@
 package com.ubicom.Ubicom.Controller;
 
+import com.ubicom.Ubicom.Dto.ScheduleDto;
 import com.ubicom.Ubicom.Repository.MemberRepository;
 import com.ubicom.Ubicom.Entity.Schedule;
 import com.ubicom.Ubicom.Repository.ScheduleRepository;
@@ -9,18 +10,19 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/schedules")
 @RequiredArgsConstructor
 public class ScheduleApiController {
 
-    private final ScheduleRepository scheduleRepository; // 사용하는 서비스 또는 리포지토리명
+    private final ScheduleRepository scheduleRepository;
     private final MemberRepository memberRepository;
 
-    // 관리자 여부 확인 헬퍼
     private boolean checkAdmin(User principal) {
         if (principal == null) return false;
         try {
@@ -32,24 +34,45 @@ public class ScheduleApiController {
         }
     }
 
-    // 1. 전체 일정 목록 조회
+    // 1. 전체 일정 목록 조회 (Response DTO 적용)
     @GetMapping
     public ResponseEntity<?> getSchedules() {
-        List<Schedule> list = scheduleRepository.findAll();
+        List<ScheduleDto.Response> list = scheduleRepository.findAll()
+                .stream()
+                .map(ScheduleDto.Response::fromEntity)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(list);
     }
 
-    // 2. 일정 등록
+    // 2. 일정 등록 (시간 파싱 적용)
     @PostMapping
-    public ResponseEntity<?> addSchedule(@AuthenticationPrincipal User principal, @RequestBody Schedule schedule) {
+    public ResponseEntity<?> addSchedule(@AuthenticationPrincipal User principal, @RequestBody ScheduleDto.Request dto) {
         if (!checkAdmin(principal)) {
             return ResponseEntity.status(403).body(Map.of("success", false, "message", "관리자 권한이 없습니다."));
         }
+
+        Schedule schedule = new Schedule();
+        schedule.setTitle(dto.getTitle());
+        schedule.setDescription(dto.getDescription());
+        schedule.setStartDate(dto.getStartDate());
+        if (dto.getStartTime() != null && !dto.getStartTime().isEmpty()) {
+            schedule.setStartTime(LocalTime.parse(dto.getStartTime()));
+        }
+
+        schedule.setEndDate(dto.getEndDate());
+        if (dto.getEndTime() != null && !dto.getEndTime().isEmpty()) {
+            schedule.setEndTime(LocalTime.parse(dto.getEndTime()));
+        }
+
+        schedule.setCategory(dto.getCategory());
+        schedule.setRecurrence(dto.getRecurrence());
+        schedule.setRecurrenceEnd(dto.getRecurrenceEnd());
+
         scheduleRepository.save(schedule);
         return ResponseEntity.ok(Map.of("success", true, "message", "일정이 추가되었습니다."));
     }
 
-    // 3. 일정 완전히 삭제 (DELETE /api/schedules/{id})
+    // 3. 일정 완전히 삭제
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteSchedule(@AuthenticationPrincipal User principal, @PathVariable Long id) {
         if (!checkAdmin(principal)) {
@@ -64,7 +87,7 @@ public class ScheduleApiController {
         return ResponseEntity.ok(Map.of("success", true, "message", "일정이 DB에서 삭제되었습니다."));
     }
 
-    // 4. 반복 일정 중 특정 날짜 제외 처리 (POST /api/schedules/{id}/exception)
+    // 4. 반복 일정 중 특정 날짜 제외 처리
     @PostMapping("/{id}/exception")
     public ResponseEntity<?> addExceptionDate(
             @AuthenticationPrincipal User principal,
@@ -81,7 +104,6 @@ public class ScheduleApiController {
         }
 
         Schedule schedule = scheduleOpt.get();
-        // exceptions 리스트에 제외할 날짜 문자열 추가 (Entity 구조에 맞게 구현)
         schedule.getExceptions().add(dateStr);
         scheduleRepository.save(schedule);
 

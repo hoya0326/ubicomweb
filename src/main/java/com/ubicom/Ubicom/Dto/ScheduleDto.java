@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public class ScheduleDto {
@@ -15,7 +16,9 @@ public class ScheduleDto {
         private String title;
         private String description;
         private LocalDate startDate;
+        private String startTime; // "HH:mm" 형태
         private LocalDate endDate;
+        private String endTime;   // "HH:mm" 형태
         private String category;
         private String recurrence;
         private LocalDate recurrenceEnd;
@@ -28,7 +31,9 @@ public class ScheduleDto {
         private String title;
         private String description;
         private String startDate;
+        private String startTime; // "HH:mm"
         private String endDate;
+        private String endTime;   // "HH:mm"
         private String category;
         private String recurrence;
         private String recurrenceEnd;
@@ -40,7 +45,9 @@ public class ScheduleDto {
             response.setTitle(entity.getTitle());
             response.setDescription(entity.getDescription());
             response.setStartDate(entity.getStartDate().toString());
+            response.setStartTime(entity.getStartTime() != null ? entity.getStartTime().toString() : null);
             response.setEndDate(entity.getEndDate().toString());
+            response.setEndTime(entity.getEndTime() != null ? entity.getEndTime().toString() : null);
             response.setCategory(entity.getCategory());
             response.setRecurrence(entity.getRecurrence());
             response.setRecurrenceEnd(

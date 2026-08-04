@@ -2,6 +2,7 @@ package com.ubicom.Ubicom.Controller;
 
 import com.ubicom.Ubicom.Dto.PostDto;
 import com.ubicom.Ubicom.Dto.PostResponseDto;
+import com.ubicom.Ubicom.Repository.CommentRepository; // ✨ 추가
 import com.ubicom.Ubicom.Repository.MemberRepository;
 import com.ubicom.Ubicom.Repository.PostRepository;
 import com.ubicom.Ubicom.Entity.Member;
@@ -20,10 +21,14 @@ public class PostController {
 
     private final PostRepository postRepository;
     private final MemberRepository memberRepository;
+    private final CommentRepository commentRepository; // ✨ 추가
 
-    public PostController(PostRepository postRepository, MemberRepository memberRepository) {
+    public PostController(PostRepository postRepository,
+                          MemberRepository memberRepository,
+                          CommentRepository commentRepository) { // ✨ 추가
         this.postRepository = postRepository;
         this.memberRepository = memberRepository;
+        this.commentRepository = commentRepository;
     }
 
     // 1. 게시글 전체 목록 조회
@@ -31,12 +36,17 @@ public class PostController {
     public ResponseEntity<List<PostResponseDto>> getAllPosts() {
         List<PostResponseDto> posts = postRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
-                .map(PostResponseDto::from)
+                .map(post -> {
+                    PostResponseDto dto = PostResponseDto.from(post);
+                    // ✨ 각 게시글의 댓글 개수 세팅
+                    dto.setCommentsCount((int) commentRepository.countByPostId(post.getId()));
+                    return dto;
+                })
                 .collect(Collectors.toList());
         return ResponseEntity.ok(posts);
     }
 
-    // 2. 게시글 단건 상세 조회 (관리자 및 작성자 권한 검증 보완)
+    // 2. 게시글 단건 상세 조회
     @GetMapping("/{id}")
     public ResponseEntity<?> getPostById(
             @PathVariable Long id,
@@ -50,22 +60,16 @@ public class PostController {
 
         // 🔒 비밀글 접근 제어 로직
         if (post.isSecret()) {
-            // 관리자 판정 강화
             boolean isAdmin = "ADMIN".equalsIgnoreCase(role) ||
                     "admin".equalsIgnoreCase(role) ||
                     "ROLE_ADMIN".equalsIgnoreCase(role) ||
                     "admin".equalsIgnoreCase(userId);
 
-            // 작성자 본인 판정 (다양한 식별자 매칭 지원)
             boolean isAuthor = false;
             if (post.getAuthor() != null && userId != null) {
                 String reqUserId = String.valueOf(userId).trim();
-
-                // 1. Author의 내부 PK (id) 비교
                 String authorInternalId = String.valueOf(post.getAuthor().getId());
-                // 2. Author의 학번/사번 (userId 필드) 비교
                 String authorUserId = post.getAuthor().getUserId() != null ? String.valueOf(post.getAuthor().getUserId()) : "";
-                // 3. Author의 이메일 또는 이름 비교 (예외적 대안)
                 String authorName = post.getAuthor().getName() != null ? post.getAuthor().getName() : "";
 
                 if (reqUserId.equals(authorInternalId) || reqUserId.equals(authorUserId) || reqUserId.equals(authorName)) {
@@ -80,10 +84,13 @@ public class PostController {
 
         post.setViews(post.getViews() + 1);
         postRepository.save(post);
-        return ResponseEntity.ok(PostResponseDto.from(post));
+
+        PostResponseDto dto = PostResponseDto.from(post);
+        dto.setCommentsCount((int) commentRepository.countByPostId(post.getId())); // ✨ 댓글 개수 세팅
+        return ResponseEntity.ok(dto);
     }
 
-    // 💡 3. 게시글 등록 (비밀글 셋팅 추가)
+    // 💡 3. 게시글 등록
     @PostMapping
     public ResponseEntity<?> createPost(@RequestBody PostDto dto) {
         Member author = null;
@@ -110,10 +117,13 @@ public class PostController {
         post.setSecret(dto.isSecret());
 
         Post savedPost = postRepository.save(post);
-        return ResponseEntity.status(HttpStatus.CREATED).body(PostResponseDto.from(savedPost));
+
+        PostResponseDto responseDto = PostResponseDto.from(savedPost);
+        responseDto.setCommentsCount(0); // 신규 작성글은 댓글 0개
+        return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
 
-    // ★ 4. 게시글 수정 (추가됨)
+    // ★ 4. 게시글 수정
     @PutMapping("/{id}")
     public ResponseEntity<?> updatePost(@PathVariable Long id, @RequestBody PostDto dto) {
         Post post = postRepository.findById(id).orElse(null);
@@ -125,10 +135,12 @@ public class PostController {
         post.setContent(dto.getContent());
         Post updatedPost = postRepository.save(post);
 
-        return ResponseEntity.ok(PostResponseDto.from(updatedPost));
+        PostResponseDto responseDto = PostResponseDto.from(updatedPost);
+        responseDto.setCommentsCount((int) commentRepository.countByPostId(updatedPost.getId()));
+        return ResponseEntity.ok(responseDto);
     }
 
-    // ★ 5. 게시글 삭제 (405 에러 해결 - 추가됨)
+    // ★ 5. 게시글 삭제
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletePost(@PathVariable Long id) {
         if (!postRepository.existsById(id)) {

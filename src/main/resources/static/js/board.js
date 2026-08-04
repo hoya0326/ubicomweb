@@ -2,7 +2,7 @@
    UbiCOM 게시판 목록 관리 스크립트
    - 공지사항과 동일한 고정(📌)/삭제 버튼 UI 및 로직 적용
    - 실시간 인덱스 기반 자동 번호 재정렬 및 검색 기능 연동
-   - 비밀글 기능 반영
+   - 비밀글 기능 및 익명 실명 노출 권한 반영
    ========================================== */
 
 let allPosts = []; // 전체 게시글 목록 저장용
@@ -51,7 +51,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // 삭제 모달 '삭제하기' 버튼 이벤트 등록 (공지사항과 동일한 방식)
+    // 삭제 모달 '삭제하기' 버튼 이벤트 등록
     const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
     if (confirmDeleteBtn) {
         confirmDeleteBtn.addEventListener('click', executeDeletePost);
@@ -142,7 +142,6 @@ function canModifyPost(post) {
 
     const currentUserId = String(user.userId || user.id || user.studentId || '');
 
-    // post.author 안의 userId(학번) 또는 최상위 userId 필드와 비교하도록 수정
     const postUserId = String(
         post.userId ||
         (post.author ? (post.author.userId || post.author.id) : '') ||
@@ -150,6 +149,26 @@ function canModifyPost(post) {
     );
 
     return currentUserId && postUserId && currentUserId === postUserId;
+}
+
+// 익명 여부 및 권한에 따른 표시용 작성자명 (목록용)
+function getDisplayAuthorForList(post) {
+    if (!post) return "익명";
+
+    const realAuthor = post.realAuthorName || (post.author ? post.author.name : '익명');
+    const isAnon = post.isAnonymous;
+
+    if (isAnon) {
+        const userIsAdmin = typeof isAdmin === 'function' ? isAdmin() : false;
+        const isOwner = canModifyPost(post);
+
+        if (userIsAdmin || isOwner) {
+            return `익명 <span class="text-xs text-blue-600 font-normal ms-1">(${escapeHtml(realAuthor)})</span>`;
+        }
+        return "익명";
+    }
+
+    return escapeHtml(realAuthor);
 }
 
 // ── 2. 게시글 고정(핀) 토글 기능 함수 ───────────────
@@ -205,14 +224,14 @@ function renderPosts() {
     // 검색어 필터링
     const filteredPosts = allPosts.filter(post => {
         if (!searchQuery) return true;
-        const displayAuthor = post.isAnonymous ? "익명" : (post.authorName || (post.author ? post.author.name : ''));
+        const realAuthorName = post.realAuthorName || (post.author ? post.author.name : '');
         return (post.title && post.title.toLowerCase().includes(searchQuery)) ||
             (post.content && post.content.toLowerCase().includes(searchQuery)) ||
-            (displayAuthor && displayAuthor.toLowerCase().includes(searchQuery));
+            (realAuthorName && realAuthorName.toLowerCase().includes(searchQuery));
     });
 
     if (filteredPosts.length === 0) {
-        pcTbody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-gray-400 bg-white">검색 결과가 없습니다.</td></tr>`;
+        pcTbody.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-gray-400 bg-white">검색 결과가 없습니다.</td></tr>`;
         mobileContainer.innerHTML = `<div class="text-center py-12 text-gray-400 text-sm bg-white">검색 결과가 없습니다.</div>`;
         return;
     }
@@ -223,11 +242,16 @@ function renderPosts() {
     // PC 테이블 렌더링
     pcTbody.innerHTML = filteredPosts.map((post, index) => {
         const displayNum = totalCount - index;
-        let displayAuthor = post.isAnonymous ? "익명" : (post.authorName || (post.author ? post.author.name : '익명'));
+        const displayAuthor = getDisplayAuthorForList(post);
         const formattedDate = formatPostDate(post.createdAt);
         const isPinned = post.isPinned === true;
         const hasModifyAuth = canModifyPost(post);
         const secretIcon = post.isSecret ? '<span class="mr-1 text-gray-500" title="비밀글">🔒</span>' : '';
+        const commentsCount =
+            post.commentsCount ??
+            post.commentCount ??
+            post.comment_count ??
+            (post.comments ? post.comments.length : 0);
 
         return `
             <tr class="hover:bg-gray-50 transition-colors cursor-pointer ${isPinned ? 'bg-blue-50/40 font-semibold' : ''}" onclick="goToPostDetail('${post.id}')">
@@ -254,11 +278,14 @@ function renderPosts() {
                                 </button>
                             </div>
                         ` : ''}
-                        <span>${escapeHtml(displayAuthor)}</span>
+                        <span>${displayAuthor}</span>
                     </div>
                 </td>
                 <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap">${formattedDate}</td>
                 <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap">${post.views || 0}</td>
+                <td class="py-3.5 px-4 text-center text-gray-500 text-xs whitespace-nowrap">
+                    <span class=" font-medium">${commentsCount}</span>
+                </td>
             </tr>
         `;
     }).join('');
@@ -266,11 +293,16 @@ function renderPosts() {
     // 모바일 카드 렌더링
     mobileContainer.innerHTML = filteredPosts.map((post, index) => {
         const displayNum = totalCount - index;
-        let displayAuthor = post.isAnonymous ? "익명" : (post.authorName || (post.author ? post.author.name : '익명'));
+        const displayAuthor = getDisplayAuthorForList(post);
         const formattedDate = formatPostDate(post.createdAt);
         const isPinned = post.isPinned === true;
         const hasModifyAuth = canModifyPost(post);
         const secretIcon = post.isSecret ? '<span class="mr-1 text-gray-500" title="비밀글">🔒</span>' : '';
+        const commentsCount =
+            post.commentsCount ??
+            post.commentCount ??
+            post.comment_count ??
+            (post.comments ? post.comments.length : 0);
 
         return `
             <div class="p-4 bg-white hover:bg-gray-50 cursor-pointer transition-colors" onclick="goToPostDetail('${post.id}')">
@@ -293,10 +325,13 @@ function renderPosts() {
                     ` : ''}
                 </div>
                 <div class="flex items-center justify-between text-xs text-gray-500 pt-1">
-                    <span class="font-medium text-gray-700">${escapeHtml(displayAuthor)}</span>
-                    <div class="flex items-center gap-3">
-                        <span>작성일시 ${formattedDate}</span>
-                        <span>조회수 ${post.views || 0}</span>
+                    <span class="font-medium text-gray-700">${displayAuthor}</span>
+                    <div class="flex items-center gap-2.5">
+                        <span>작성일 ${formattedDate}</span>
+                        <span>·</span>
+                        <span>조회 ${post.views || 0}</span>
+                        <span>·</span>
+                        <span>댓글 ${commentsCount}</span>
                     </div>
                 </div>
             </div>
