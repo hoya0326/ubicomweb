@@ -140,8 +140,14 @@ function canModifyPost(post) {
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     if (!user) return false;
 
-    const currentUserId = String(user.userId || user.id || '');
-    const postUserId = String(post.userId || (post.author ? post.author.id : ''));
+    const currentUserId = String(user.userId || user.id || user.studentId || '');
+
+    // post.author 안의 userId(학번) 또는 최상위 userId 필드와 비교하도록 수정
+    const postUserId = String(
+        post.userId ||
+        (post.author ? (post.author.userId || post.author.id) : '') ||
+        ''
+    );
 
     return currentUserId && postUserId && currentUserId === postUserId;
 }

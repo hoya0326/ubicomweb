@@ -50,17 +50,27 @@ public class PostController {
 
         // 🔒 비밀글 접근 제어 로직
         if (post.isSecret()) {
-            // 관리자 판정 강화 (대소문자 무시 및 'admin' 계정 허용)
+            // 관리자 판정 강화
             boolean isAdmin = "ADMIN".equalsIgnoreCase(role) ||
                     "admin".equalsIgnoreCase(role) ||
                     "ROLE_ADMIN".equalsIgnoreCase(role) ||
                     "admin".equalsIgnoreCase(userId);
 
-            // 작성자 본인 판정 (문자열 변환을 통해 타입 안전성 확보)
+            // 작성자 본인 판정 (다양한 식별자 매칭 지원)
             boolean isAuthor = false;
             if (post.getAuthor() != null && userId != null) {
-                String postAuthorId = String.valueOf(post.getAuthor().getUserId());
-                isAuthor = postAuthorId.equals(String.valueOf(userId));
+                String reqUserId = String.valueOf(userId).trim();
+
+                // 1. Author의 내부 PK (id) 비교
+                String authorInternalId = String.valueOf(post.getAuthor().getId());
+                // 2. Author의 학번/사번 (userId 필드) 비교
+                String authorUserId = post.getAuthor().getUserId() != null ? String.valueOf(post.getAuthor().getUserId()) : "";
+                // 3. Author의 이메일 또는 이름 비교 (예외적 대안)
+                String authorName = post.getAuthor().getName() != null ? post.getAuthor().getName() : "";
+
+                if (reqUserId.equals(authorInternalId) || reqUserId.equals(authorUserId) || reqUserId.equals(authorName)) {
+                    isAuthor = true;
+                }
             }
 
             if (!isAdmin && !isAuthor) {
