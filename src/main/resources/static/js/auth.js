@@ -1,16 +1,16 @@
 // Authentication utilities (Spring Security & DB Integrated)
+// auth.js
 
-// [변경] 관리자 초기화는 이제 스프링 부트(백엔드/DB)가 수행하므로 프론트엔드에서는 제거하거나 비워둡니다.
 function initializeAdmin() {
     console.log("Admin initialization is now handled by the Spring Boot backend.");
 }
 
-// 1. 현재 로그인 여부 확인 (로컬 캐시 기준 - UI 깜빡임 방지용)
+// 1. 현재 로그인 여부 확인 (로컬 캐시 기준)
 function isLoggedIn() {
     return !!localStorage.getItem('currentUser');
 }
 
-// 2. 현재 로그인된 유저 정보 가져오기 (로컬 캐시 기준)
+// 2. 현재 로그인된 유저 정보 가져오기
 function getCurrentUser() {
     const user = localStorage.getItem('currentUser');
     try {
@@ -20,77 +20,71 @@ function getCurrentUser() {
     }
 }
 
-// 3. 현재 유저가 관리자인지 확인 (허용할 관리자 학번 배열 지정)
+// 3. 현재 유저가 관리자인지 확인 (하드코딩 제거, DB 설정 값인 isAdmin 기준만 따름)
 function isAdmin() {
     const user = getCurrentUser();
     if (!user) return false;
 
-    // DB에서 보낸 isAdmin 플래그가 true이거나, 지정된 관리자 학번에 해당하는지 교차 검증
-    const adminIds = [20233244, 20233293];
-    const userStudentId = parseInt(user.studentId);
-
-    return user.isAdmin === true || adminIds.includes(userStudentId);
+    return user.isAdmin === true;
 }
 
-// 4. [★최종 마법의 수정] 백엔드 세션을 조회하고, 화면 그리기를 강제 동기화하는 함수
+// 4. 백엔드 세션을 조회하고, 화면 그리기를 강제 동기화하는 함수
 function verifyAuthentication() {
     return fetch('/api/user?t=' + Date.now(), { cache: 'no-store' })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return { isLoggedIn: false };
+            }
+            return response.json();
+        })
         .then(data => {
-            const wasLoggedInBefore = !!localStorage.getItem('currentUser');
+            if (data && data.isLoggedIn) {
+                const realName = data.name || data.username;
 
-            if (data.isLoggedIn) {
-                // 지정된 관리자 학번들
-                const adminIds = [20233244, 20233293];
-                const studentIdInt = parseInt(data.studentId);
-
-                // 스프링 세션이 살아있다면 백엔드 정보로 캐시 갱신
+                // DB에서 전달받은 isAdmin 값만 신뢰 (role이 NULL이면 백엔드에서 false로 처리되어 내려옴)
                 const currentUser = {
-                    username: data.username,
+                    username: realName,
                     studentId: data.studentId,
                     department: data.department,
-                    // 백엔드에서 준 관리자 플래그 혹은 학번 목록 매칭을 통해 관리자 여부 결정
-                    isAdmin: data.isAdmin || adminIds.includes(studentIdInt)
+                    email: data.email || '',
+                    isAdmin: data.isAdmin === true
                 };
+
+                // 로컬스토리지 갱신
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 window.dispatchEvent(new CustomEvent('authVerified', { detail: currentUser }));
 
-                if (!wasLoggedInBefore) {
-                    window.location.reload();
-                    return { success: true, user: currentUser };
+                const currentPath = window.location.pathname.toLowerCase();
+                const isEmailPage = currentPath.includes('/email');
+                const isLoginPage = currentPath.includes('/login');
+
+                const hasEmail = data.email && data.email.trim() !== '';
+
+                if (!hasEmail && !isEmailPage && !isLoginPage) {
+                    window.location.href = '/email';
+                    return { success: true, user: currentUser, redirected: true };
                 }
 
                 return { success: true, user: currentUser };
             } else {
                 localStorage.removeItem('currentUser');
                 window.dispatchEvent(new CustomEvent('authVerified', { detail: null }));
-
-                if (wasLoggedInBefore) {
-                    window.location.reload();
-                    return { success: false };
-                }
-
                 return { success: false };
             }
         })
         .catch(error => {
             console.error('인증 상태 검증 실패:', error);
-            const wasLoggedInBefore = !!localStorage.getItem('currentUser');
             localStorage.removeItem('currentUser');
             window.dispatchEvent(new CustomEvent('authVerified', { detail: null }));
-
-            if (wasLoggedInBefore) {
-                window.location.reload();
-            }
             return { success: false, error };
         });
 }
 
-// 5. [변경] 로그인 처리 (스프링 시큐리티 폼 로그인 또는 AJAX 호출)
+// 5. 로그인 처리
 async function loginUser(studentId, password) {
     try {
         const formData = new URLSearchParams();
-        formData.append('username', studentId);
+        formData.append('userid', studentId);
         formData.append('password', password);
 
         const response = await fetch('/login', {
@@ -102,8 +96,11 @@ async function loginUser(studentId, password) {
         });
 
         if (response.ok || response.redirected) {
-            // 로그인이 성공했으므로 백엔드로부터 유저 정보를 새로고침 받아 캐싱합니다.
             const verifyResult = await verifyAuthentication();
+
+            if (verifyResult.success) {
+                window.location.href = '/';
+            }
             return { success: true, user: verifyResult.user };
         } else {
             return { success: false, error: '학번 또는 비밀번호가 일치하지 않습니다.' };
@@ -113,22 +110,19 @@ async function loginUser(studentId, password) {
     }
 }
 
-// 6. [최종 교체] 실제 페이지의 Form 엘리먼트를 직접 받아 전송합니다.
+// 6. 회원가입 처리
 function registerUser(formElement) {
     try {
-        // 기존 register-form의 input 태그 이름(name)을 백엔드가 이해하는 매개변수명으로 일시 변환합니다.
         const nameInput = formElement.querySelector('#name');
         const studentIdInput = formElement.querySelector('#studentId');
         const departmentSelect = formElement.querySelector('#department');
         const passwordInput = formElement.querySelector('#password');
 
-        // 백엔드 컨트롤러의 변수명 (name, userid, major, password) 에 맞춰 name 속성 부여
         if (nameInput) nameInput.name = 'name';
-        if (studentIdInput) studentIdInput.name = 'userid'; // 💡 'studentId' -> 'userid'
-        if (departmentSelect) departmentSelect.name = 'major'; // 💡 'department' -> 'major'
+        if (studentIdInput) studentIdInput.name = 'userid';
+        if (departmentSelect) departmentSelect.name = 'major';
         if (passwordInput) passwordInput.name = 'password';
 
-        // 백엔드 엔드포인트 주소 설정 후 제출
         formElement.action = '/member';
         formElement.method = 'POST';
         formElement.submit();
@@ -139,17 +133,32 @@ function registerUser(formElement) {
     }
 }
 
-// 7. [변경] 로그아웃 처리
+// 7. 로그아웃 처리
 function logoutUser() {
     localStorage.removeItem('currentUser');
     window.location.href = '/logout';
 }
 
-// 8. 페이지 보호 (로그인 체크)
+// 8. 페이지 보호
 function requireLogin() {
+    const path = window.location.pathname.toLowerCase();
+
+    if (
+        path === '/' ||
+        path === '' ||
+        path.includes('/login') ||
+        path.includes('/register') ||
+        path.includes('/email') ||
+        path.includes('/apply') ||
+        path.includes('login.html') ||
+        path.includes('register.html')
+    ) {
+        return true;
+    }
+
     if (!isLoggedIn()) {
         alert('로그인이 필요한 서비스입니다.');
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return false;
     }
     return true;
@@ -159,18 +168,19 @@ function requireLogin() {
 function requireAdmin() {
     if (!isAdmin()) {
         alert('관리자만 접근할 수 있습니다.');
-        window.location.href = 'index.html';
+        window.location.href = '/';
         return false;
     }
     return true;
 }
 
-// [수정] 페이지가 로드될 때 항상 백엔드와 세션을 동기화합니다.
+// 페이지가 로드될 때 세션 동기화 및 페이지 권한 검사 진행
 document.addEventListener('DOMContentLoaded', function() {
+    requireLogin();
     verifyAuthentication();
 });
 
-// [추가] 브라우저가 뒤로가기나 화면 전환으로 이전 스냅샷(bfcache)을 복원했을 때도 캐시를 새로고침합니다.
+// 브라우저 뒤로가기/앞으로가기 스냅샷 복원 시 세션 동기화
 window.addEventListener('pageshow', function(event) {
     if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
         verifyAuthentication();

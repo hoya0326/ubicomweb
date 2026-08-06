@@ -52,13 +52,11 @@ public class HomeController {
         return "forward:/admin-members.html";
     }
 
-
-    @GetMapping("/test2")
-    String test2() {
-        var encoder = new BCryptPasswordEncoder();
-        System.out.println(encoder.encode("qwer1234"));
-        return "redirect:/list";
+    @GetMapping("/notice_detail")
+    public String notice_detail() {
+        return "forward:/notice-detail.html";
     }
+
 
 }
 

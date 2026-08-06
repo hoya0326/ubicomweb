@@ -1,11 +1,15 @@
-package com.ubicom.Ubicom;
+package com.ubicom.Ubicom.Controller;
 
+import com.ubicom.Ubicom.Entity.Member;
+import com.ubicom.Ubicom.Entity.Users;
+import com.ubicom.Ubicom.Repository.MemberRepository;
+import com.ubicom.Ubicom.Repository.UsersRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -23,8 +27,11 @@ public class AdminMemberController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // 💡 관리자로 지정할 학번 목록을 일관되게 관리합니다.
-    private final List<Integer> adminIds = List.of(20233244, 20233293);
+    // 💡 하드코딩된 최고 관리자 리스트를 비워두거나 DB 권한(role) 기준으로 판단하도록 변경
+    private final List<Integer> adminIds = List.of();
+
+    // 💡 날짜 포맷터 선언 (yyyy-MM-dd HH:mm:ss)
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * 1. 동아리원 목록 조회 API
@@ -32,8 +39,8 @@ public class AdminMemberController {
     @GetMapping("/members")
     public ResponseEntity<List<Map<String, Object>>> getAdminMembers() {
         List<Users> allUsers = userRepository.findAll();
-
         List<Member> allWebMembers = memberRepository.findAll();
+
         Map<Integer, Member> webMemberMap = allWebMembers.stream()
                 .filter(m -> m.getUserId() != null)
                 .collect(Collectors.toMap(
@@ -43,7 +50,6 @@ public class AdminMemberController {
                 ));
 
         List<Map<String, Object>> result = new ArrayList<>();
-        String todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
         for (Users user : allUsers) {
             Map<String, Object> map = new HashMap<>();
@@ -53,16 +59,20 @@ public class AdminMemberController {
             map.put("department", user.getMajor());
             map.put("gender", user.getGender());
             map.put("phone", user.getPhone());
-            map.put("joinedAt", todayStr);
+
+            String joinedAtStr = (user.getJoinedAt() != null)
+                    ? user.getJoinedAt().format(DATE_FORMATTER)
+                    : LocalDateTime.now().format(DATE_FORMATTER);
+
+            map.put("joinedAt", joinedAtStr);
+            map.put("joined_at", joinedAtStr);
 
             boolean isWeb = webMemberMap.containsKey(user.getUserId());
             map.put("isWebUser", isWeb);
 
+            // ⭕ [수정] DB의 Member role이 "ADMIN"인지 여부로만 관리자 판단
             boolean isAdmin = false;
-            // 💡 [수정 포인트 1] 하드코딩된 '== 20233244' 대신 adminIds 목록에 포함되는지 확인합니다.
-            if (user.getUserId() != null && adminIds.contains(user.getUserId())) {
-                isAdmin = true;
-            } else if (isWeb) {
+            if (isWeb) {
                 Member webInfo = webMemberMap.get(user.getUserId());
                 if (webInfo.getRole() != null && "ADMIN".equalsIgnoreCase(webInfo.getRole())) {
                     isAdmin = true;
@@ -101,10 +111,8 @@ public class AdminMemberController {
 
             Integer studentId = Integer.parseInt(studentIdStr.trim());
 
-            boolean isUserExists = userRepository.findAll().stream()
-                    .anyMatch(u -> studentId.equals(u.getUserId()));
-            boolean isMemberExists = memberRepository.findAll().stream()
-                    .anyMatch(m -> studentId.equals(m.getUserId()));
+            boolean isUserExists = userRepository.existsByUserId(studentId);
+            boolean isMemberExists = memberRepository.existsByUserId(studentId);
 
             if (isUserExists || isMemberExists) {
                 response.put("success", false);
@@ -112,7 +120,6 @@ public class AdminMemberController {
                 return ResponseEntity.status(400).body(response);
             }
 
-            // 1) Users 테이블에 명부 등록 처리
             Users newUser = new Users();
             newUser.setName(name.trim());
             newUser.setUserId(studentId);
@@ -121,10 +128,10 @@ public class AdminMemberController {
             String finalGender = (gender != null && !gender.trim().isEmpty()) ? gender.trim().toLowerCase() : "m";
             newUser.setGender(finalGender);
             newUser.setPhone(phone != null ? phone.trim() : "");
+            newUser.setJoinedAt(LocalDateTime.now());
 
             userRepository.save(newUser);
 
-            // 2) Member 테이블에 웹 계정 동시 등록 (암호화 적용)
             Member newWebMember = new Member();
             newWebMember.setName(name.trim());
             newWebMember.setUserId(studentId);
@@ -135,12 +142,8 @@ public class AdminMemberController {
             }
             newWebMember.setPassword(passwordEncoder.encode(password));
 
-            // 💡 [수정 포인트 2] 20233293 학번도 회원 관리 창에서 직접 추가될 때 ADMIN 권한을 얻도록 수정합니다.
-            if (adminIds.contains(studentId)) {
-                newWebMember.setRole("ADMIN");
-            } else {
-                newWebMember.setRole("USER");
-            }
+            // ⭕ [수정] 신규 등록 시 기본 권한은 USER로 부여
+            newWebMember.setRole("USER");
             memberRepository.save(newWebMember);
 
             response.put("success", true);
@@ -171,9 +174,7 @@ public class AdminMemberController {
         try {
             Long targetId = Long.parseLong(id.trim());
 
-            Optional<Users> userOpt = userRepository.findAll().stream()
-                    .filter(u -> u.getId() != null && u.getId().equals(targetId))
-                    .findFirst();
+            Optional<Users> userOpt = userRepository.findById(targetId);
 
             if (!userOpt.isPresent()) {
                 response.put("success", false);
@@ -185,9 +186,7 @@ public class AdminMemberController {
             Integer studentId = user.getUserId();
 
             if (studentId != null) {
-                memberRepository.findAll().stream()
-                        .filter(m -> studentId.equals(m.getUserId()))
-                        .findFirst()
+                memberRepository.findByUserId(studentId)
                         .ifPresent(memberRepository::delete);
             }
 
@@ -207,6 +206,101 @@ public class AdminMemberController {
 
             response.put("success", false);
             response.put("message", "삭제 중 서버 오류 발생: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * 4. 관리자 권한 토글 API
+     */
+    @PutMapping("/members/toggle-admin/{id}")
+    @jakarta.transaction.Transactional
+    public ResponseEntity<Map<String, Object>> toggleAdminPermission(@PathVariable("id") String id) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Long targetId = Long.parseLong(id.trim());
+
+            Optional<Users> userOpt = userRepository.findById(targetId);
+
+            if (!userOpt.isPresent()) {
+                response.put("success", false);
+                response.put("message", "존재하지 않는 회원 정보입니다.");
+                return ResponseEntity.status(404).body(response);
+            }
+
+            Users user = userOpt.get();
+            Integer studentId = user.getUserId();
+
+            if (studentId == null) {
+                response.put("success", false);
+                response.put("message", "유저의 학번 정보가 누락되어 있습니다.");
+                return ResponseEntity.status(400).body(response);
+            }
+
+            // ⭕ [핵심 수정] 20233244학번을 포함해 어떤 학번이든 관리자 권한 토글이 가능하도록 예외 처리 제거
+
+            Optional<Member> memberOpt = memberRepository.findByUserId(studentId);
+
+            if (!memberOpt.isPresent()) {
+                response.put("success", false);
+                response.put("message", "웹 가입을 진행하지 않은 유저는 권한을 조작할 수 없습니다.");
+                return ResponseEntity.status(400).body(response);
+            }
+
+            Member member = memberOpt.get();
+            String currentRole = member.getRole();
+            String newRole = "ADMIN".equalsIgnoreCase(currentRole) ? "USER" : "ADMIN";
+
+            member.setRole(newRole);
+            memberRepository.save(member);
+
+            response.put("success", true);
+            response.put("message", "권한이 성공적으로 수정되었습니다.");
+            return ResponseEntity.ok(response);
+
+        } catch (NumberFormatException e) {
+            response.put("success", false);
+            response.put("message", "올바르지 않은 식별자 형식입니다.");
+            return ResponseEntity.status(400).body(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "서버 오류: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * 5. 동아리원 가입 신청 수락 API
+     */
+    @PutMapping("/members/approve/{id}")
+    @jakarta.transaction.Transactional
+    public ResponseEntity<Map<String, Object>> approveMember(@PathVariable("id") String id) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Long targetId = Long.parseLong(id.trim());
+            Optional<Users> userOpt = userRepository.findById(targetId);
+
+            if (!userOpt.isPresent()) {
+                response.put("success", false);
+                response.put("message", "존재하지 않는 회원 정보입니다.");
+                return ResponseEntity.status(404).body(response);
+            }
+
+            Users user = userOpt.get();
+            user.setJoinedAt(LocalDateTime.now());
+            userRepository.save(user);
+
+            response.put("success", true);
+            response.put("message", "가입 신청이 수락되었으며 가입일이 등록되었습니다.");
+            return ResponseEntity.ok(response);
+
+        } catch (NumberFormatException e) {
+            response.put("success", false);
+            response.put("message", "올바르지 않은 ID 형식입니다.");
+            return ResponseEntity.status(400).body(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "서버 오류: " + e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
     }
