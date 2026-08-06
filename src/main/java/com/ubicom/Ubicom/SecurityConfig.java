@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
 @EnableWebSecurity
@@ -23,55 +24,101 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http)
             throws Exception {
 
-        // 현재 프론트엔드 방식 유지를 위해 CSRF 비활성화
-        http.csrf(csrf -> csrf.disable());
+        /*
+         * 5번 취약점 해결
+         * CSRF 보호 활성화
+         *
+         * 브라우저 JavaScript가 XSRF-TOKEN 쿠키를 읽어서
+         * X-XSRF-TOKEN 헤더로 보내도록 설정
+         */
+        http.csrf(csrf -> csrf
+                .csrfTokenRepository(
+                        CookieCsrfTokenRepository.withHttpOnlyFalse()
+                )
+                .ignoringRequestMatchers("/login")
+        );
 
+        /*
+         * 6번 취약점 해결
+         * /** permitAll 제거
+         * 공개 경로만 명시적으로 허용
+         */
         http.authorizeHttpRequests(authorize ->
                 authorize
 
-                        // 관리자 전용 경로
+                        // 로그인 없이 접근해야 하는 페이지
+                        .requestMatchers(
+                                "/login",
+                                "/login.html",
+                                "/register",
+                                "/register.html",
+                                "/forgot-password",
+                                "/forgot-password.html",
+                                "/404.html",
+                                "/error",
+                                "/favicon.ico"
+                        )
+                        .permitAll()
+
+                        // 정적 파일
+                        .requestMatchers(
+                                "/css/**",
+                                "/js/**",
+                                "/images/**",
+                                "/webjars/**"
+                        )
+                        .permitAll()
+
+                        // 회원가입 및 비밀번호 재설정
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/member",
+                                "/password/reset-temp"
+                        )
+                        .permitAll()
+
+                        // CSRF 토큰 발급
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/csrf"
+                        )
+                        .permitAll()
+
+                        // 관리자 페이지 및 관리자 API
                         .requestMatchers(
                                 "/admin-members.html",
                                 "/admin_members",
                                 "/api/admin/**"
                         )
-                        .hasAnyAuthority("ADMIN", "ROLE_ADMIN")
-
-                        // 게시글 작성·수정·삭제는 로그인 필수
-                        .requestMatchers(
-                                HttpMethod.POST,
-                                "/api/posts/**"
+                        .hasAnyAuthority(
+                                "ADMIN",
+                                "ROLE_ADMIN"
                         )
-                        .authenticated()
 
-                        .requestMatchers(
-                                HttpMethod.PUT,
-                                "/api/posts/**"
-                        )
-                        .authenticated()
-
-                        .requestMatchers(
-                                HttpMethod.DELETE,
-                                "/api/posts/**"
-                        )
-                        .authenticated()
-
-                        .requestMatchers(
-                                HttpMethod.PATCH,
-                                "/api/posts/**"
-                        )
-                        .authenticated()
-
-                        // 게시글 조회는 기존 동작 유지
+                        // 게시글 조회는 로그인하지 않아도 허용할 경우 유지
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/posts/**"
                         )
                         .permitAll()
 
-                        // 나머지 기존 경로는 일단 허용
-                        .requestMatchers("/**")
+                        // 공지 조회 허용
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/notices/**"
+                        )
                         .permitAll()
+
+                        // 투표 조회 허용
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/polls/**"
+                        )
+                        .permitAll()
+
+                        // 나머지는 로그인 필수
+                        .anyRequest()
+                        .authenticated()
         );
 
         http.formLogin(form -> form
@@ -86,8 +133,11 @@ public class SecurityConfig {
 
         http.logout(logout -> logout
                 .logoutUrl("/logout")
-                .logoutSuccessUrl("/")
-                .deleteCookies("JSESSIONID")
+                .logoutSuccessUrl("/login?logout=true")
+                .deleteCookies(
+                        "JSESSIONID",
+                        "XSRF-TOKEN"
+                )
                 .permitAll()
         );
 
@@ -105,9 +155,9 @@ public class SecurityConfig {
                                     request.getRequestURI();
 
                             if (requestUri.startsWith("/api/")) {
+
                                 response.setStatus(
-                                        HttpServletResponse
-                                                .SC_UNAUTHORIZED
+                                        HttpServletResponse.SC_UNAUTHORIZED
                                 );
 
                                 response.setContentType(
@@ -118,6 +168,7 @@ public class SecurityConfig {
                                         "{\"success\":false,"
                                                 + "\"message\":\"로그인이 필요합니다.\"}"
                                 );
+
                             } else {
                                 response.sendRedirect("/login");
                             }
@@ -131,9 +182,9 @@ public class SecurityConfig {
                                     request.getRequestURI();
 
                             if (requestUri.startsWith("/api/")) {
+
                                 response.setStatus(
-                                        HttpServletResponse
-                                                .SC_FORBIDDEN
+                                        HttpServletResponse.SC_FORBIDDEN
                                 );
 
                                 response.setContentType(
@@ -144,6 +195,7 @@ public class SecurityConfig {
                                         "{\"success\":false,"
                                                 + "\"message\":\"접근 권한이 없습니다.\"}"
                                 );
+
                             } else {
                                 response.sendRedirect("/");
                             }

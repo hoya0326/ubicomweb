@@ -21,8 +21,7 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "*")
 public class PostController {
 
-    // 현재 프로젝트에서 관리자 학번으로 사용 중인 값
-    private static final int ADMIN_USER_ID = 20233244;
+
 
     private final PostRepository postRepository;
     private final MemberRepository memberRepository;
@@ -55,28 +54,19 @@ public class PostController {
 
     // 현재 로그인 사용자가 관리자인지 확인
     private boolean isAdmin(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getName())) {
             return false;
         }
 
-        Integer currentUserId = getCurrentUserId(authentication);
-
-        // 기존 프로젝트의 관리자 학번 확인
-        if (currentUserId != null && currentUserId == ADMIN_USER_ID) {
-            return true;
-        }
-
-        // Spring Security 권한도 함께 확인
-        for (GrantedAuthority authority : authentication.getAuthorities()) {
-            String role = authority.getAuthority();
-
-            if ("ADMIN".equalsIgnoreCase(role)
-                    || "ROLE_ADMIN".equalsIgnoreCase(role)) {
-                return true;
-            }
-        }
-
-        return false;
+        return authentication.getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(role ->
+                        "ADMIN".equalsIgnoreCase(role)
+                                || "ROLE_ADMIN".equalsIgnoreCase(role)
+                );
     }
 
     // 게시글 작성자인지 확인

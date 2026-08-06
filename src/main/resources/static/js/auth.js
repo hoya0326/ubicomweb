@@ -134,11 +134,25 @@ function registerUser(formElement) {
 }
 
 // 7. 로그아웃 처리
-function logoutUser() {
-    localStorage.removeItem('currentUser');
-    window.location.href = '/logout';
-}
+async function logoutUser() {
+    try {
+        const response = await fetch('/logout', {
+            method: 'POST'
+        });
 
+        if (response.ok || response.redirected) {
+            localStorage.removeItem('currentUser');
+            window.location.href = '/login?logout=true';
+            return;
+        }
+
+        console.error('로그아웃 실패:', response.status);
+        alert('로그아웃에 실패했습니다.');
+    } catch (error) {
+        console.error('로그아웃 오류:', error);
+        alert('로그아웃 중 오류가 발생했습니다.');
+    }
+}
 // 8. 페이지 보호
 function requireLogin() {
     const path = window.location.pathname.toLowerCase();

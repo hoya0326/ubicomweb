@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "*")
 public class CommentController {
 
-    private static final int ADMIN_USER_ID = 20233244;
+
 
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
@@ -59,34 +59,20 @@ public class CommentController {
         }
     }
 
-    private boolean isAdmin(
-            Authentication authentication) {
-
+    private boolean isAdmin(Authentication authentication) {
         if (authentication == null
-                || !authentication.isAuthenticated()) {
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getName())) {
             return false;
         }
 
-        Integer currentUserId =
-                getCurrentUserId(authentication);
-
-        if (currentUserId != null
-                && currentUserId == ADMIN_USER_ID) {
-            return true;
-        }
-
-        for (GrantedAuthority authority
-                : authentication.getAuthorities()) {
-
-            String role = authority.getAuthority();
-
-            if ("ADMIN".equalsIgnoreCase(role)
-                    || "ROLE_ADMIN".equalsIgnoreCase(role)) {
-                return true;
-            }
-        }
-
-        return false;
+        return authentication.getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(role ->
+                        "ADMIN".equalsIgnoreCase(role)
+                                || "ROLE_ADMIN".equalsIgnoreCase(role)
+                );
     }
 
     private boolean isAuthor(

@@ -478,13 +478,24 @@ async function handleAddComment(event) {
         );
 
     try {
+        // 서버에서 현재 세션의 CSRF 토큰을 받아옴
+        const csrfResponse = await fetch('/api/csrf');
+
+        if (!csrfResponse.ok) {
+            throw new Error('CSRF 토큰을 가져오지 못했습니다.');
+        }
+
+        const csrfInfo = await csrfResponse.json();
+
+        // CSRF 토큰을 헤더에 넣어서 댓글 등록
         const response =
             await fetch(
                 `/api/posts/${currentPostId}/comments`,
                 {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        [csrfInfo.headerName]: csrfInfo.token
                     },
 
                     // userId를 보내지 않음
