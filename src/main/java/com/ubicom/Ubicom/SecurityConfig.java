@@ -81,6 +81,19 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
+                        // 비로그인 지원서 페이지 및 제출 허용
+                        .requestMatchers(
+                                "/apply",
+                                "/apply.html"
+                        )
+                        .permitAll()
+
+                        // 비로그인 지원서 제출 허용
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/applies"
+                        )
+                        .permitAll()
                         // CSRF 토큰 발급
                         .requestMatchers(
                                 HttpMethod.GET,
