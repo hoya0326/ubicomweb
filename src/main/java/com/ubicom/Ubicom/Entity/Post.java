@@ -32,6 +32,8 @@ public class Post {
 
     private boolean isSecret;
 
+    private boolean isPinned = false;
+
     // 💡 게시글 삭제 시 연결된 댓글들도 함께 삭제되도록 설정 추가
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments = new ArrayList<>();

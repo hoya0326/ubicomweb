@@ -135,40 +135,19 @@ function formatPostDate(isoStr) {
 
 // 권한 확인 헬퍼 함수 (작성자 본인 또는 관리자일 경우 삭제/수정 권한 부여)
 function canModifyPost(post) {
-    if (typeof isAdmin === 'function' && isAdmin()) return true;
-
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    if (!user) return false;
-
-    const currentUserId = String(user.userId || user.id || user.studentId || '');
-
-    const postUserId = String(
-        post.userId ||
-        (post.author ? (post.author.userId || post.author.id) : '') ||
-        ''
+    return Boolean(
+        post &&
+        post.canManage === true
     );
-
-    return currentUserId && postUserId && currentUserId === postUserId;
 }
 
 // 익명 여부 및 권한에 따른 표시용 작성자명 (목록용)
 function getDisplayAuthorForList(post) {
-    if (!post) return "익명";
+    if (!post) return '익명';
 
-    const realAuthor = post.realAuthorName || (post.author ? post.author.name : '익명');
-    const isAnon = post.isAnonymous;
-
-    if (isAnon) {
-        const userIsAdmin = typeof isAdmin === 'function' ? isAdmin() : false;
-        const isOwner = canModifyPost(post);
-
-        if (userIsAdmin || isOwner) {
-            return `익명 <span class="text-xs text-blue-600 font-normal ms-1">(${escapeHtml(realAuthor)})</span>`;
-        }
-        return "익명";
-    }
-
-    return escapeHtml(realAuthor);
+    return escapeHtml(
+        post.authorName || '익명'
+    );
 }
 
 // ── 2. 게시글 고정(핀) 토글 기능 함수 ───────────────
@@ -224,10 +203,19 @@ function renderPosts() {
     // 검색어 필터링
     const filteredPosts = allPosts.filter(post => {
         if (!searchQuery) return true;
-        const realAuthorName = post.realAuthorName || (post.author ? post.author.name : '');
-        return (post.title && post.title.toLowerCase().includes(searchQuery)) ||
-            (post.content && post.content.toLowerCase().includes(searchQuery)) ||
-            (realAuthorName && realAuthorName.toLowerCase().includes(searchQuery));
+        const displayAuthorName =
+            post.authorName || '';
+
+        return (
+            post.title &&
+            post.title.toLowerCase().includes(searchQuery)
+        ) || (
+            post.content &&
+            post.content.toLowerCase().includes(searchQuery)
+        ) || (
+            displayAuthorName &&
+            displayAuthorName.toLowerCase().includes(searchQuery)
+        );
     });
 
     if (filteredPosts.length === 0) {
@@ -403,15 +391,20 @@ async function handleCreatePost(event) {
         return;
     }
 
-    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
-    const userId = currentUser.userId || currentUser.id || currentUser.studentId || 20260001;
+
 
     const postData = {
         title: title,
         content: content,
-        userId: parseInt(userId, 10),
-        isAnonymous: anonymousCheckbox ? anonymousCheckbox.checked : false,
-        isSecret: secretCheckbox ? secretCheckbox.checked : false,
+
+        isAnonymous: anonymousCheckbox
+            ? anonymousCheckbox.checked
+            : false,
+
+        isSecret: secretCheckbox
+            ? secretCheckbox.checked
+            : false,
+
         isPinned: false
     };
 
