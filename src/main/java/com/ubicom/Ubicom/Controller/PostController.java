@@ -315,4 +315,37 @@ public class PostController {
 
         return ResponseEntity.ok().build();
     }
+
+    // 6. 게시글 고정 상태 변경 - 관리자만 가능
+    @PatchMapping("/{id}/pin")
+    public ResponseEntity<?> updatePin(
+            @PathVariable Long id,
+            @RequestBody PostDto dto,
+            Authentication authentication) {
+
+        if (!isAdmin(authentication)) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body("관리자만 게시글을 고정할 수 있습니다.");
+        }
+
+        Post post =
+                postRepository.findById(id)
+                        .orElse(null);
+
+        if (post == null) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body("게시글을 찾을 수 없습니다.");
+        }
+
+        post.setPinned(dto.isPinned());
+
+        Post updatedPost =
+                postRepository.save(post);
+
+        return ResponseEntity.ok(
+                makeResponse(updatedPost, authentication)
+        );
+    }
 }

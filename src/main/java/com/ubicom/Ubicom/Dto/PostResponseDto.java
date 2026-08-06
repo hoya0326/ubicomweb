@@ -30,6 +30,9 @@ public class PostResponseDto {
     @JsonProperty("isSecret")
     private boolean isSecret;
 
+    @JsonProperty("isPinned")
+    private boolean isPinned;
+
     private int views;
     private int commentsCount;
     private LocalDateTime createdAt;
@@ -47,6 +50,7 @@ public class PostResponseDto {
         dto.setContent(post.getContent());
         dto.setAnonymous(post.isAnonymous());
         dto.setSecret(post.isSecret());
+        dto.setPinned(post.isPinned());
         dto.setViews(post.getViews());
         dto.setCreatedAt(post.getCreatedAt());
         dto.setUpdatedAt(post.getUpdatedAt());

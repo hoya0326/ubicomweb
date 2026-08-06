@@ -13,17 +13,21 @@ public class CommentResponseDto {
 
     private Long id;
     private String content;
-
-    // 화면에 표시할 작성자명
-    // 익명 댓글이면 "익명", 일반 댓글이면 실제 이름
     private String authorName;
+
+    private boolean mine;
+    private boolean canManage;
 
     @JsonProperty("isAnonymous")
     private boolean isAnonymous;
 
     private LocalDateTime createdAt;
 
-    public static CommentResponseDto from(Comment comment) {
+    public static CommentResponseDto from(
+            Comment comment,
+            Integer currentUserId,
+            boolean admin) {
+
         CommentResponseDto dto = new CommentResponseDto();
 
         dto.setId(comment.getId());
@@ -31,10 +35,22 @@ public class CommentResponseDto {
         dto.setAnonymous(comment.isAnonymous());
         dto.setCreatedAt(comment.getCreatedAt());
 
+        boolean mine = comment.getAuthor() != null
+                && comment.getAuthor().getUserId() != null
+                && currentUserId != null
+                && currentUserId.equals(
+                comment.getAuthor().getUserId()
+        );
+
+        dto.setMine(mine);
+        dto.setCanManage(mine || admin);
+
         if (comment.getAuthor() == null) {
             dto.setAuthorName("알 수 없음");
+
         } else if (comment.isAnonymous()) {
             dto.setAuthorName("익명");
+
         } else {
             String name = comment.getAuthor().getName();
 
@@ -46,5 +62,9 @@ public class CommentResponseDto {
         }
 
         return dto;
+    }
+
+    public static CommentResponseDto from(Comment comment) {
+        return from(comment, null, false);
     }
 }

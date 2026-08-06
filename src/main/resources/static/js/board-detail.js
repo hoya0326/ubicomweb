@@ -1,12 +1,13 @@
-// Board detail page functionality
+// 게시판 상세 페이지 기능
 
 let currentPost = null;
 let currentPostId = null;
 
-document.addEventListener('DOMContentLoaded', function() {
-    if (typeof requireLogin === 'function' && !requireLogin()) return;
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof requireLogin === 'function' && !requireLogin()) {
+        return;
+    }
 
-    // URL에서 게시글 ID 가져오기
     const urlParams = new URLSearchParams(window.location.search);
     currentPostId = urlParams.get('id');
 
@@ -19,71 +20,26 @@ document.addEventListener('DOMContentLoaded', function() {
     loadComments();
 });
 
-// 현재 로그인 유저 정보 가져오기 (공통 헬퍼)
-function getLoggedInUser() {
-    if (typeof getCurrentUser === 'function') {
-        const u = getCurrentUser();
-        if (u) return u;
-    }
-    return JSON.parse(localStorage.getItem("currentUser") || "{}");
-}
-
-// 작성자 본인 또는 관리자 권한 확인
+// 게시글 또는 댓글 수정·삭제 권한 확인
+// 서버에서 계산해 준 canManage 값만 사용
 function isAuthorOrAdmin(item) {
-    if (!item) return false;
-
-    // 게시글은 서버에서 계산한 값을 사용
-    if (typeof item.canManage === 'boolean') {
-        return item.canManage;
-    }
-
-    // 댓글은 아직 기존 응답 구조를 사용하므로 임시 호환
-    const userIsAdmin =
-        typeof isAdmin === 'function' ? isAdmin() : false;
-
-    if (userIsAdmin) return true;
-
-    const user = getLoggedInUser();
-    if (!user) return false;
-
-    const currentUserId = String(
-        user.userId ||
-        user.id ||
-        user.studentId ||
-        user.username ||
-        ''
-    );
-
-    let itemAuthorId = '';
-
-    if (item.author && typeof item.author === 'object') {
-        itemAuthorId = String(
-            item.author.userId ||
-            item.author.id ||
-            item.author.studentId ||
-            ''
-        );
-    } else {
-        itemAuthorId = String(
-            item.userId ||
-            item.authorId ||
-            item.studentId ||
-            ''
-        );
-    }
-
     return Boolean(
-        currentUserId &&
-        itemAuthorId &&
-        currentUserId === itemAuthorId
+        item &&
+        item.canManage === true
     );
 }
 
-// 날짜 포맷 함수 (YYYY. MM. DD. HH:mm)
+// 날짜 표시
 function formatDate(dateString) {
-    if (!dateString) return '';
+    if (!dateString) {
+        return '';
+    }
+
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
+
+    if (isNaN(date.getTime())) {
+        return dateString;
+    }
 
     return date.toLocaleString('ko-KR', {
         year: 'numeric',
@@ -95,47 +51,18 @@ function formatDate(dateString) {
     });
 }
 
-// 작성자 이름 추출 헬퍼 함수
-function getAuthorName(item) {
-    if (!item) return '익명';
-
-    if (item.authorName) {
-        return item.authorName;
-    }
-
-    // 댓글 기존 구조 호환
-    if (item.author && typeof item.author === 'object') {
-        return item.author.name ||
-            item.author.nickname ||
-            item.author.username ||
-            '익명';
-    }
-
-    return '익명';
-}
-
-// 익명 여부에 따른 표시용 작성자명 (본인 또는 관리자에게만 실명 노출)
+// 서버가 전달한 표시용 작성자 이름만 사용
 function getDisplayAuthor(item) {
-    if (!item) return '익명';
-
-    // 게시글은 서버에서 보내준 표시 이름만 사용
-    if (typeof item.canManage === 'boolean') {
-        return escapeHtml(item.authorName || '익명');
-    }
-
-    // 댓글 기존 구조 호환
-    const isAnon =
-        item.isAnonymous === true ||
-        item.anonymous === true;
-
-    if (isAnon) {
+    if (!item) {
         return '익명';
     }
 
-    return escapeHtml(getAuthorName(item));
+    return escapeHtml(
+        item.authorName || '익명'
+    );
 }
 
-// 게시글 상세 조회 (비밀글 권한 체크 파라미터 보완)
+// 게시글 상세 조회
 async function loadPost() {
     try {
         const response =
@@ -148,7 +75,7 @@ async function loadPost() {
         }
 
         if (response.status === 403) {
-            alert('🔒 비밀글은 작성자와 관리자만 볼 수 있습니다.');
+            alert('비밀글은 작성자와 관리자만 볼 수 있습니다.');
             window.location.href = '/board';
             return;
         }
@@ -192,7 +119,14 @@ async function loadPost() {
             ? '<span class="text-xs text-gray-500 font-semibold bg-gray-100 px-2 py-0.5 rounded mr-2">🔒 비밀글</span>'
             : '';
 
-        document.getElementById('post-content').innerHTML = `
+        const postContent =
+            document.getElementById('post-content');
+
+        if (!postContent) {
+            return;
+        }
+
+        postContent.innerHTML = `
             <div class="p-6 md:p-8">
                 <div class="border-b border-gray-100 pb-4 mb-6">
                     <div class="flex justify-between items-start gap-3 mb-3">
@@ -242,7 +176,14 @@ async function loadPost() {
     } catch (error) {
         console.error('게시글 로딩 실패:', error);
 
-        document.getElementById('post-content').innerHTML = `
+        const postContent =
+            document.getElementById('post-content');
+
+        if (!postContent) {
+            return;
+        }
+
+        postContent.innerHTML = `
             <div class="p-12 text-center">
                 <p class="text-gray-500 mb-4">
                     게시글을 찾을 수 없거나 불러오는데 실패했습니다.
@@ -258,40 +199,99 @@ async function loadPost() {
     }
 }
 
-// 게시글 수정 폼 렌더링
+// 게시글 수정 화면
 function renderEditForm() {
-    if (!currentPost) return;
+    if (!currentPost) {
+        return;
+    }
 
-    document.getElementById('post-content').innerHTML = `
+    if (currentPost.canManage !== true) {
+        alert('수정 권한이 없습니다.');
+        return;
+    }
+
+    const postContent =
+        document.getElementById('post-content');
+
+    if (!postContent) {
+        return;
+    }
+
+    postContent.innerHTML = `
         <div class="p-6 md:p-8">
-            <form id="edit-post-form" onsubmit="handleUpdatePost(event)" class="space-y-4">
+            <form
+                id="edit-post-form"
+                onsubmit="handleUpdatePost(event)"
+                class="space-y-4">
+
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">제목</label>
-                    <input type="text" id="edit-title" value="${escapeHtml(currentPost.title)}" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        제목
+                    </label>
+
+                    <input
+                        type="text"
+                        id="edit-title"
+                        value="${escapeHtml(currentPost.title)}"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required>
                 </div>
+
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">내용</label>
-                    <textarea id="edit-content" rows="8" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>${escapeHtml(currentPost.content)}</textarea>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        내용
+                    </label>
+
+                    <textarea
+                        id="edit-content"
+                        rows="8"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required>${escapeHtml(currentPost.content)}</textarea>
                 </div>
+
                 <div class="flex justify-end gap-2">
-                    <button type="button" onclick="loadPost()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm cursor-pointer">취소</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm cursor-pointer">수정 완료</button>
+                    <button
+                        type="button"
+                        onclick="loadPost()"
+                        class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm cursor-pointer">
+                        취소
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm cursor-pointer">
+                        수정 완료
+                    </button>
                 </div>
             </form>
         </div>
     `;
 }
 
-// 게시글 수정 처리
-async function handleUpdatePost(e) {
-    e.preventDefault();
+// 게시글 수정 요청
+async function handleUpdatePost(event) {
+    event.preventDefault();
 
     if (!currentPost || currentPost.canManage !== true) {
         alert('수정 권한이 없습니다.');
         return;
     }
-    const updatedTitle = document.getElementById('edit-title').value.trim();
-    const updatedContent = document.getElementById('edit-content').value.trim();
+
+    const titleInput =
+        document.getElementById('edit-title');
+
+    const contentInput =
+        document.getElementById('edit-content');
+
+    if (!titleInput || !contentInput) {
+        return;
+    }
+
+    const updatedTitle =
+        titleInput.value.trim();
+
+    const updatedContent =
+        contentInput.value.trim();
 
     if (!updatedTitle || !updatedContent) {
         alert('제목과 내용을 입력해주세요.');
@@ -299,147 +299,234 @@ async function handleUpdatePost(e) {
     }
 
     try {
-        const response = await fetch(`/api/posts/${currentPostId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                title: updatedTitle,
-                content: updatedContent
-            })
-        });
+        const response =
+            await fetch(`/api/posts/${currentPostId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: updatedTitle,
+                    content: updatedContent
+                })
+            });
 
-        if (!response.ok) throw new Error('수정에 실패했습니다.');
+        if (response.status === 403) {
+            alert('게시글을 수정할 권한이 없습니다.');
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error('수정에 실패했습니다.');
+        }
 
         await loadPost();
+
     } catch (error) {
         console.error('게시글 수정 오류:', error);
         alert('게시글 수정 중 오류가 발생했습니다.');
     }
 }
 
-// 댓글 목록 조회 및 렌더링
+// 댓글 목록 조회
 async function loadComments() {
-    const commentsSection = document.getElementById('comments-section');
-    if (!commentsSection) return;
+    const commentsSection =
+        document.getElementById('comments-section');
+
+    if (!commentsSection) {
+        return;
+    }
 
     try {
-        let response = await fetch(`/api/posts/${currentPostId}/comments`);
+        let response =
+            await fetch(`/api/posts/${currentPostId}/comments`);
+
         if (response.status === 404) {
-            response = await fetch(`/api/comments?postId=${currentPostId}`);
+            response =
+                await fetch(`/api/comments?postId=${currentPostId}`);
         }
 
-        if (!response.ok) throw new Error('댓글 목록을 불러오지 못했습니다.');
+        if (!response.ok) {
+            throw new Error('댓글 목록을 불러오지 못했습니다.');
+        }
 
         const comments = await response.json();
-        const userIsAdmin = typeof isAdmin === 'function' ? isAdmin() : false;
 
         commentsSection.innerHTML = `
             <div class="px-2 py-4 md:px-6 md:py-6">
                 <h2 class="text-base font-bold text-gray-900 mb-3 px-1">
-                    댓글 <span class="text-blue-600">${comments.length}</span>개
+                    댓글
+                    <span class="text-blue-600">
+                        ${comments.length}
+                    </span>개
                 </h2>
-                
-                <form id="comment-form" class="mb-5 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                    <textarea 
+
+                <form
+                    id="comment-form"
+                    class="mb-5 bg-gray-50 p-3 rounded-xl border border-gray-200">
+
+                    <textarea
                         id="comment-content"
                         rows="4"
                         placeholder="댓글을 남겨주세요..."
                         class="w-full p-3 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 resize-none mb-2.5"
-                        required
-                    ></textarea>
+                        required></textarea>
+
                     <div class="flex items-center justify-between">
                         <label class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
-                            <input type="checkbox" id="comment-anonymous-checkbox" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                            <input
+                                type="checkbox"
+                                id="comment-anonymous-checkbox"
+                                class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+
                             익명으로 작성
                         </label>
-                        <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer">
+
+                        <button
+                            type="submit"
+                            class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer">
                             댓글 등록
                         </button>
                     </div>
                 </form>
-                
+
                 ${comments.length > 0 ? `
                     <div class="divide-y divide-gray-100 px-1">
                         ${comments.map(comment => {
-            const canDeleteComment = isAuthorOrAdmin(comment);
-            const authorDisplay = getDisplayAuthor(comment, userIsAdmin);
+            const canDeleteComment =
+                isAuthorOrAdmin(comment);
+
+            const authorDisplay =
+                getDisplayAuthor(comment);
+
             return `
                                 <div class="py-3.5 first:pt-0 last:pb-0">
                                     <div class="flex items-center justify-between gap-2 mb-1">
                                         <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-500">
-                                            <span class="font-bold text-gray-800 text-sm">${authorDisplay}</span>
+                                            <span class="font-bold text-gray-800 text-sm">
+                                                ${authorDisplay}
+                                            </span>
+
                                             <span class="text-gray-300">·</span>
-                                            <span>${formatDate(comment.createdAt)}</span>
+
+                                            <span>
+                                                ${formatDate(comment.createdAt)}
+                                            </span>
                                         </div>
+
                                         ${canDeleteComment ? `
-                                            <button onclick="deleteComment('${comment.id}')" class="text-xs text-red-500 hover:text-red-700 font-semibold cursor-pointer shrink-0">
+                                            <button
+                                                onclick="deleteComment('${comment.id}')"
+                                                class="text-xs text-red-500 hover:text-red-700 font-semibold cursor-pointer shrink-0">
                                                 삭제
                                             </button>
                                         ` : ''}
                                     </div>
-                                    <p class="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">${escapeHtml(comment.content)}</p>
+
+                                    <p class="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
+                                        ${escapeHtml(comment.content)}
+                                    </p>
                                 </div>
                             `;
         }).join('')}
                     </div>
                 ` : `
-                    <p class="text-center text-gray-400 py-6 text-xs">등록된 댓글이 없습니다. 첫 댓글을 남겨보세요!</p>
+                    <p class="text-center text-gray-400 py-6 text-xs">
+                        등록된 댓글이 없습니다. 첫 댓글을 남겨보세요!
+                    </p>
                 `}
             </div>
         `;
 
-        document.getElementById('comment-form').addEventListener('submit', handleAddComment);
+        const commentForm =
+            document.getElementById('comment-form');
+
+        if (commentForm) {
+            commentForm.addEventListener(
+                'submit',
+                handleAddComment
+            );
+        }
+
     } catch (error) {
-        console.error('댓글 작성/로딩 오류:', error);
+        console.error('댓글 로딩 오류:', error);
     }
 }
 
 // 댓글 등록
-async function handleAddComment(e) {
-    e.preventDefault();
+async function handleAddComment(event) {
+    event.preventDefault();
 
-    const contentInput = document.getElementById('comment-content');
-    const content = contentInput.value.trim();
+    const contentInput =
+        document.getElementById('comment-content');
+
+    if (!contentInput) {
+        return;
+    }
+
+    const content =
+        contentInput.value.trim();
+
     if (!content) {
         alert('댓글 내용을 입력해주세요.');
         return;
     }
 
-    const user = getLoggedInUser();
-    const userId = user.userId || user.id || user.studentId;
-
-    if (!user || !userId) {
-        alert('로그인이 필요합니다.');
-        return;
-    }
-
-    const anonymousCheckbox = document.getElementById('comment-anonymous-checkbox');
+    const anonymousCheckbox =
+        document.getElementById(
+            'comment-anonymous-checkbox'
+        );
 
     try {
-        const response = await fetch(`/api/posts/${currentPostId}/comments`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                content: content,
-                userId: userId,
-                isAnonymous: anonymousCheckbox ? anonymousCheckbox.checked : false
-            })
-        });
+        const response =
+            await fetch(
+                `/api/posts/${currentPostId}/comments`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
 
-        if (!response.ok) throw new Error('댓글 등록 실패');
+                    // userId를 보내지 않음
+                    body: JSON.stringify({
+                        content: content,
+                        isAnonymous: anonymousCheckbox
+                            ? anonymousCheckbox.checked
+                            : false
+                    })
+                }
+            );
+
+        if (response.status === 401) {
+            alert('로그인이 필요합니다.');
+            window.location.href = '/login';
+            return;
+        }
+
+        if (!response.ok) {
+            const errorText = await response.text();
+
+            throw new Error(
+                errorText || '댓글 등록 실패'
+            );
+        }
 
         contentInput.value = '';
-        if (anonymousCheckbox) anonymousCheckbox.checked = false;
+
+        if (anonymousCheckbox) {
+            anonymousCheckbox.checked = false;
+        }
 
         await loadPost();
         await loadComments();
+
     } catch (error) {
         console.error('댓글 등록 오류:', error);
-        alert('댓글 작성 중 오류가 발생했습니다.');
+
+        alert(
+            error.message ||
+            '댓글 작성 중 오류가 발생했습니다.'
+        );
     }
 }
 
@@ -450,69 +537,111 @@ async function deletePost() {
         return;
     }
 
-    if (!confirm('정말 이 게시글을 삭제하시겠습니까?')) return;
-
-    try {
-        const response = await fetch(`/api/posts/${currentPostId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            if (response.status === 405) {
-                throw new Error('서버에서 DELETE 요청을 허용하지 않습니다.');
-            }
-            throw new Error('삭제에 실패했습니다.');
-        }
-
-        alert('게시글이 삭제되었습니다.');
-        window.location.href = '/board';
-    } catch (error) {
-        console.error('게시글 삭제 오류:', error);
-        alert(`게시글 삭제 중 오류가 발생했습니다. (${error.message})`);
+    if (!confirm('정말 이 게시글을 삭제하시겠습니까?')) {
+        return;
     }
-}
-
-// 댓글 삭제
-async function deleteComment(commentId) {
-    if (!confirm('정말 이 댓글을 삭제하시겠습니까?')) return;
 
     try {
-        let response = await fetch(`/api/posts/${currentPostId}/comments/${commentId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (response.status === 404 || response.status === 405) {
-            response = await fetch(`/api/comments/${commentId}`, {
+        const response =
+            await fetch(`/api/posts/${currentPostId}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
+
+        if (response.status === 403) {
+            alert('게시글을 삭제할 권한이 없습니다.');
+            return;
         }
 
-        if (!response.ok) throw new Error('댓글 삭제에 실패했습니다.');
+        if (!response.ok) {
+            throw new Error('삭제에 실패했습니다.');
+        }
 
-        await loadPost();
-        await loadComments();
+        alert('게시글이 삭제되었습니다.');
+        window.location.href = '/board';
+
     } catch (error) {
-        console.error('댓글 삭제 오류:', error);
-        alert('댓글 삭제 중 오류가 발생했습니다.');
+        console.error('게시글 삭제 오류:', error);
+
+        alert(
+            `게시글 삭제 중 오류가 발생했습니다. (${error.message})`
+        );
     }
 }
 
-// XSS 방지용 HTML 이스케이프
+// 댓글 삭제
+async function deleteComment(commentId) {
+    if (!confirm('정말 이 댓글을 삭제하시겠습니까?')) {
+        return;
+    }
+
+    try {
+        let response =
+            await fetch(
+                `/api/posts/${currentPostId}/comments/${commentId}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+        if (response.status === 403) {
+            alert('댓글을 삭제할 권한이 없습니다.');
+            return;
+        }
+
+        if (response.status === 404
+            || response.status === 405) {
+
+            response =
+                await fetch(`/api/comments/${commentId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+        }
+
+        if (response.status === 403) {
+            alert('댓글을 삭제할 권한이 없습니다.');
+            return;
+        }
+
+        if (!response.ok) {
+            const errorText = await response.text();
+
+            throw new Error(
+                errorText || '댓글 삭제에 실패했습니다.'
+            );
+        }
+
+        await loadPost();
+        await loadComments();
+
+    } catch (error) {
+        console.error('댓글 삭제 오류:', error);
+
+        alert(
+            error.message ||
+            '댓글 삭제 중 오류가 발생했습니다.'
+        );
+    }
+}
+
+// HTML 코드가 실행되지 않도록 변환
 function escapeHtml(text) {
-    if (!text) return '';
+    if (text === null || text === undefined) {
+        return '';
+    }
+
     return String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
