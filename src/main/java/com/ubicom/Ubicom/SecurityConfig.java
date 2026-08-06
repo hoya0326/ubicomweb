@@ -56,7 +56,11 @@ public class SecurityConfig {
                                 "/forgot-password.html",
                                 "/404.html",
                                 "/error",
-                                "/favicon.ico"
+                                "/favicon.ico",
+                                "/",
+                                "/index.html",
+                                "/apply",
+                                "/apply.html"
                         )
                         .permitAll()
 
