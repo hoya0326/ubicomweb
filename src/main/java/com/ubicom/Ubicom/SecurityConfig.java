@@ -3,6 +3,7 @@ package com.ubicom.Ubicom;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -19,19 +20,61 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // 1. CSRF 비활성화 (프론트엔드 연동 유지)
-        http.csrf((csrf) -> csrf.disable());
+    public SecurityFilterChain filterChain(HttpSecurity http)
+            throws Exception {
 
-        // 2. 경로별 접근 권한 설정
-        http.authorizeHttpRequests((authorize) ->
+        // 현재 프론트엔드 방식 유지를 위해 CSRF 비활성화
+        http.csrf(csrf -> csrf.disable());
+
+        http.authorizeHttpRequests(authorize ->
                 authorize
-                        .requestMatchers("/admin-members.html", "/admin_members", "/api/admin/**").hasAnyAuthority("ADMIN", "ROLE_ADMIN")
-                        .requestMatchers("/**").permitAll()
+
+                        // 관리자 전용 경로
+                        .requestMatchers(
+                                "/admin-members.html",
+                                "/admin_members",
+                                "/api/admin/**"
+                        )
+                        .hasAnyAuthority("ADMIN", "ROLE_ADMIN")
+
+                        // 게시글 작성·수정·삭제는 로그인 필수
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/posts/**"
+                        )
+                        .authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/posts/**"
+                        )
+                        .authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/posts/**"
+                        )
+                        .authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/api/posts/**"
+                        )
+                        .authenticated()
+
+                        // 게시글 조회는 기존 동작 유지
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/posts/**"
+                        )
+                        .permitAll()
+
+                        // 나머지 기존 경로는 일단 허용
+                        .requestMatchers("/**")
+                        .permitAll()
         );
 
-        // 3. 폼 로그인 설정
-        http.formLogin((form) -> form
+        http.formLogin(form -> form
                 .loginPage("/login")
                 .loginProcessingUrl("/login")
                 .usernameParameter("userid")
@@ -41,42 +84,71 @@ public class SecurityConfig {
                 .permitAll()
         );
 
-        // 4. 로그아웃 설정
-        http.logout((logout) -> logout
+        http.logout(logout -> logout
                 .logoutUrl("/logout")
                 .logoutSuccessUrl("/")
                 .deleteCookies("JSESSIONID")
                 .permitAll()
         );
 
-        // 5. 🛡️ [추가] 세션 관리 강화 (중복 로그인 제어 및 세션 고정 공격 방어)
-        http.sessionManagement((session) -> session
-                .maximumSessions(1) // 동일 계정으로 동시 로그인 가능한 세션 수 1개로 제한 (크래킹/공유 방지)
-                .maxSessionsPreventsLogin(false) // false인 경우 기존 사용자의 세션을 만료시키고 새 로그인 허용 (true면 새 로그인 차단)
+        http.sessionManagement(session -> session
+                .maximumSessions(1)
+                .maxSessionsPreventsLogin(false)
         );
 
-        // 6. 예외 처리 (미인증 401 및 권한 부족 403 처리)
-        http.exceptionHandling((exception) -> exception
-                .authenticationEntryPoint((request, response, authException) -> {
-                    String requestUri = request.getRequestURI();
-                    if (requestUri.startsWith("/api/")) {
-                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        response.setContentType("application/json;charset=UTF-8");
-                        response.getWriter().write("{\"success\":false, \"message\":\"로그인이 필요합니다.\"}");
-                    } else {
-                        response.sendRedirect("/login");
-                    }
-                })
-                .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    String requestUri = request.getRequestURI();
-                    if (requestUri.startsWith("/api/")) {
-                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                        response.setContentType("application/json;charset=UTF-8");
-                        response.getWriter().write("{\"success\":false, \"message\":\"접근 권한이 없습니다.\"}");
-                    } else {
-                        response.sendRedirect("/");
-                    }
-                })
+        http.exceptionHandling(exception -> exception
+
+                .authenticationEntryPoint(
+                        (request, response, authException) -> {
+
+                            String requestUri =
+                                    request.getRequestURI();
+
+                            if (requestUri.startsWith("/api/")) {
+                                response.setStatus(
+                                        HttpServletResponse
+                                                .SC_UNAUTHORIZED
+                                );
+
+                                response.setContentType(
+                                        "application/json;charset=UTF-8"
+                                );
+
+                                response.getWriter().write(
+                                        "{\"success\":false,"
+                                                + "\"message\":\"로그인이 필요합니다.\"}"
+                                );
+                            } else {
+                                response.sendRedirect("/login");
+                            }
+                        }
+                )
+
+                .accessDeniedHandler(
+                        (request, response, accessDeniedException) -> {
+
+                            String requestUri =
+                                    request.getRequestURI();
+
+                            if (requestUri.startsWith("/api/")) {
+                                response.setStatus(
+                                        HttpServletResponse
+                                                .SC_FORBIDDEN
+                                );
+
+                                response.setContentType(
+                                        "application/json;charset=UTF-8"
+                                );
+
+                                response.getWriter().write(
+                                        "{\"success\":false,"
+                                                + "\"message\":\"접근 권한이 없습니다.\"}"
+                                );
+                            } else {
+                                response.sendRedirect("/");
+                            }
+                        }
+                )
         );
 
         return http.build();
